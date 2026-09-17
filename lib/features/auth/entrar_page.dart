@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
+import '../../core/tema/tema.dart';
+import 'auth_widgets.dart';
 
 /// Login de sócio pelo número de sócio (`POST /auth/login`).
 class EntrarPage extends ConsumerStatefulWidget {
@@ -31,6 +33,7 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
 
   Future<void> _entrar() async {
     if (!_form.currentState!.validate()) return;
+    FocusScope.of(context).unfocus();
     setState(() {
       _aEnviar = true;
       _erro = null;
@@ -45,7 +48,7 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
       final restantes = e.erro == 'credenciais_invalidas' ? e.tentativasRestantes : null;
       setState(() => _erro = restantes == null
           ? e.message
-          : '${e.message} (${restantes == 1 ? 'resta 1 tentativa' : 'restam $restantes tentativas'})');
+          : '${e.message} ${restantes == 1 ? 'Resta 1 tentativa.' : 'Restam $restantes tentativas.'}');
     } finally {
       if (mounted) setState(() => _aEnviar = false);
     }
@@ -53,58 +56,69 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Área de sócio')),
       body: SafeArea(
         child: Form(
           key: _form,
-          child: ListView(
-            padding: const EdgeInsets.all(24),
-            children: [
-              const Text('Entre com o seu número de sócio para ver as quotas, o cartão e os pagamentos.'),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _nr,
-                decoration: const InputDecoration(labelText: 'Número de sócio', border: OutlineInputBorder()),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                textInputAction: TextInputAction.next,
-                autofillHints: const [AutofillHints.username],
-                validator: (v) => (v == null || v.isEmpty) ? 'Indique o número de sócio' : null,
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _password,
-                decoration: InputDecoration(
-                  labelText: 'Palavra-passe',
-                  border: const OutlineInputBorder(),
-                  suffixIcon: IconButton(
-                    icon: Icon(_verPassword ? Icons.visibility_off : Icons.visibility),
-                    onPressed: () => setState(() => _verPassword = !_verPassword),
-                  ),
+          child: AutofillGroup(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(Tema.margem + 4, 32, Tema.margem + 4, 24),
+              children: [
+                const MarcaClube(),
+                const SizedBox(height: 28),
+                Text('Área de sócio', style: tema.textTheme.headlineLarge),
+                const SizedBox(height: 8),
+                Text(
+                  'Entre com o número de sócio para ver o cartão, as quotas e os pagamentos.',
+                  style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant),
                 ),
-                obscureText: !_verPassword,
-                autofillHints: const [AutofillHints.password],
-                onFieldSubmitted: (_) => _entrar(),
-                validator: (v) => (v == null || v.isEmpty) ? 'Indique a palavra-passe' : null,
-              ),
-              if (_erro != null) ...[
-                const SizedBox(height: 16),
-                Text(_erro!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 32),
+                TextFormField(
+                  controller: _nr,
+                  decoration: const InputDecoration(
+                    labelText: 'Número de sócio',
+                    prefixIcon: Icon(Icons.badge_outlined),
+                  ),
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
+                  validator: (v) => (v == null || v.isEmpty) ? 'Indique o número de sócio' : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _password,
+                  decoration: InputDecoration(
+                    labelText: 'Palavra-passe',
+                    prefixIcon: const Icon(Icons.lock_outline_rounded),
+                    suffixIcon: IconButton(
+                      icon: Icon(_verPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined),
+                      onPressed: () => setState(() => _verPassword = !_verPassword),
+                    ),
+                  ),
+                  obscureText: !_verPassword,
+                  autofillHints: const [AutofillHints.password],
+                  onFieldSubmitted: (_) => _entrar(),
+                  validator: (v) => (v == null || v.isEmpty) ? 'Indique a palavra-passe' : null,
+                ),
+                if (_erro != null) ...[
+                  const SizedBox(height: 16),
+                  AvisoErro(_erro!),
+                ],
+                const SizedBox(height: 28),
+                FilledButton(
+                  onPressed: _aEnviar ? null : _entrar,
+                  child: _aEnviar ? const ProgressoBotao() : const Text('Entrar'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _aEnviar ? null : () => context.go('/entrar/codigo'),
+                  child: const Text('Primeiro acesso ou esqueci-me da palavra-passe'),
+                ),
               ],
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: _aEnviar ? null : _entrar,
-                child: _aEnviar
-                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Text('Entrar'),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: _aEnviar ? null : () => context.go('/entrar/codigo'),
-                child: const Text('Primeiro acesso ou esqueci-me da palavra-passe'),
-              ),
-            ],
+            ),
           ),
         ),
       ),

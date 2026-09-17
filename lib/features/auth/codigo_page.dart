@@ -4,6 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
+import '../../core/tema/tema.dart';
+import 'auth_widgets.dart';
 
 /// Primeiro acesso e "esqueci-me da palavra-passe" (guia §2.3.1): o mesmo fluxo.
 /// 1) pedir o código com o número de sócio; 2) código + palavra-passe nova.
@@ -64,21 +66,27 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
   @override
   Widget build(BuildContext context) {
     final passo2 = _mensagemEnvio != null;
-    final campo = const InputDecoration(border: OutlineInputBorder());
+    final tema = Theme.of(context);
+    const campo = InputDecoration();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Código de acesso')),
+      appBar: AppBar(),
       body: SafeArea(
         child: Form(
           key: _form,
           child: ListView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(Tema.margem + 4, 8, Tema.margem + 4, 24),
             children: [
-              Text(passo2
-                  ? _mensagemEnvio!
-                  : 'Vamos enviar um código de 6 dígitos para o email da sua ficha de sócio. '
-                      'Serve para o primeiro acesso à app e para definir uma palavra-passe nova.'),
-              const SizedBox(height: 24),
+              Text(passo2 ? 'Verifique o email' : 'Código de acesso', style: tema.textTheme.headlineLarge),
+              const SizedBox(height: 8),
+              Text(
+                passo2
+                    ? _mensagemEnvio!
+                    : 'Vamos enviar um código de 6 dígitos para o email da sua ficha de sócio. '
+                        'Serve para o primeiro acesso à app e para definir uma palavra-passe nova.',
+                style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 32),
               TextFormField(
                 controller: _nr,
                 enabled: !passo2,
@@ -88,7 +96,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                 validator: (v) => (v == null || v.isEmpty) ? 'Indique o número de sócio' : null,
               ),
               if (passo2) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _codigo,
                   decoration: campo.copyWith(labelText: 'Código recebido'),
@@ -97,7 +105,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                   autofillHints: const [AutofillHints.oneTimeCode],
                   validator: (v) => (v == null || v.length != 6) ? 'O código tem 6 dígitos' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _password,
                   decoration: campo.copyWith(labelText: 'Palavra-passe nova', helperText: 'Mínimo 8 caracteres'),
@@ -105,7 +113,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                   autofillHints: const [AutofillHints.newPassword],
                   validator: (v) => (v == null || v.length < 8) ? 'Mínimo 8 caracteres' : null,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _confirmacao,
                   decoration: campo.copyWith(labelText: 'Repetir palavra-passe'),
@@ -114,14 +122,14 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                 ),
               ],
               if (_erro != null) ...[
-                const SizedBox(height: 16),
-                Text(_erro!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                const SizedBox(height: 12),
+                AvisoErro(_erro!),
               ],
-              const SizedBox(height: 24),
+              const SizedBox(height: 28),
               FilledButton(
                 onPressed: _aEnviar ? null : (passo2 ? _confirmar : _pedirCodigo),
                 child: _aEnviar
-                    ? const SizedBox.square(dimension: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                    ? const ProgressoBotao()
                     : Text(passo2 ? 'Confirmar e entrar' : 'Enviar código'),
               ),
               if (passo2)

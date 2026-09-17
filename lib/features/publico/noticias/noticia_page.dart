@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/config.dart';
+import '../../../core/tema/tema.dart';
 import '../../../core/widgets/erro_view.dart';
 import 'noticias.dart';
 
@@ -17,24 +18,62 @@ class NoticiaPage extends ConsumerWidget {
     final tema = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(),
       body: noticia.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(noticiaProvider(slug))),
-        data: (n) => ListView(
-          padding: const EdgeInsets.only(bottom: 32),
-          children: [
-            if (n.capa != null) Image.network(n.capa!.url, fit: BoxFit.cover),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+        loading: () => Scaffold(appBar: AppBar(), body: const Center(child: CircularProgressIndicator())),
+        error: (e, _) => Scaffold(
+          appBar: AppBar(),
+          body: ErroView(erro: e, tentarDeNovo: () => ref.invalidate(noticiaProvider(slug))),
+        ),
+        data: (n) => CustomScrollView(
+          slivers: [
+            SliverAppBar(
+              pinned: true,
+              stretch: true,
+              expandedHeight: n.capa == null ? null : MediaQuery.sizeOf(context).width * 0.8,
+              leading: Padding(
+                padding: const EdgeInsets.all(8),
+                child: IconButton.filled(
+                  style: IconButton.styleFrom(
+                    backgroundColor: tema.colorScheme.surfaceContainerLowest.withValues(alpha: 0.9),
+                    foregroundColor: tema.colorScheme.onSurface,
+                  ),
+                  icon: const Icon(Icons.arrow_back_rounded, size: 20),
+                  onPressed: () => Navigator.of(context).maybePop(),
+                ),
+              ),
+              flexibleSpace: n.capa == null
+                  ? null
+                  : FlexibleSpaceBar(
+                      stretchModes: const [StretchMode.zoomBackground],
+                      background: Image.network(n.capa!.url, fit: BoxFit.cover),
+                    ),
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(Tema.margem + 4, 20, Tema.margem + 4, 48),
+              sliver: SliverList.list(
                 children: [
-                  if (n.publicadoEm != null)
-                    Text(DateFormat("d 'de' MMMM 'de' y", 'pt_PT').format(n.publicadoEm!),
-                        style: tema.textTheme.labelMedium),
-                  const SizedBox(height: 4),
-                  Text(n.titulo, style: tema.textTheme.headlineSmall),
+                  Text(
+                    [
+                      if (n.categoria != null) n.categoria!.nome.toUpperCase(),
+                      if (n.publicadoEm != null)
+                        DateFormat("d 'de' MMMM 'de' y", 'pt_PT').format(n.publicadoEm!).toUpperCase(),
+                    ].join('  ·  '),
+                    style: tema.textTheme.labelMedium?.copyWith(
+                        color: tema.colorScheme.primary, fontWeight: FontWeight.w700, letterSpacing: 0.8),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(n.titulo, style: tema.textTheme.headlineMedium),
+                  if (n.resumo != null) ...[
+                    const SizedBox(height: 12),
+                    Text(n.resumo!,
+                        style: tema.textTheme.titleMedium?.copyWith(
+                            color: tema.colorScheme.onSurfaceVariant, fontWeight: FontWeight.w500, height: 1.4)),
+                  ],
+                  if (n.capa?.credito != null) ...[
+                    const SizedBox(height: 12),
+                    Text('Fotografia: ${n.capa!.credito}', style: tema.textTheme.bodySmall),
+                  ],
+                  const SizedBox(height: 8),
                   for (final b in n.corpo) ?_bloco(context, b),
                 ],
               ),
@@ -48,13 +87,16 @@ class NoticiaPage extends ConsumerWidget {
   /// Só os tipos que a app já sabe compor; os outros ignoram-se (invariante I7).
   Widget? _bloco(BuildContext context, Map<String, dynamic> b) {
     final tema = Theme.of(context);
-    Widget espaco(Widget w) => Padding(padding: const EdgeInsets.only(top: 12), child: w);
+    Widget espaco(Widget w) => Padding(padding: const EdgeInsets.only(top: 16), child: w);
 
     return switch (b['tipo']) {
-      'texto' => espaco(Text(_textoSimples(b['html'] as String? ?? ''), style: tema.textTheme.bodyLarge)),
-      'imagem' when b['uid'] is String => espaco(Image.network(
-          b['url'] as String? ?? Config.mediaUrl(b['uid'] as String),
-          errorBuilder: (_, _, _) => const SizedBox.shrink(),
+      'texto' => espaco(Text(_textoSimples(b['html'] as String? ?? ''), style: tema.textTheme.bodyLarge?.copyWith(height: 1.6))),
+      'imagem' when b['uid'] is String => espaco(ClipRRect(
+          borderRadius: BorderRadius.circular(Tema.raioPequeno),
+          child: Image.network(
+            b['url'] as String? ?? Config.mediaUrl(b['uid'] as String),
+            errorBuilder: (_, _, _) => const SizedBox.shrink(),
+          ),
         )),
       'citacao' => espaco(Container(
           padding: const EdgeInsets.only(left: 12),

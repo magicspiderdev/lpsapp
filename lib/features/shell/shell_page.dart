@@ -16,46 +16,56 @@ class ShellPage extends ConsumerStatefulWidget {
 }
 
 class _ShellPageState extends ConsumerState<ShellPage> {
-  bool _avisoFechado = false;
+  bool _avisoMostrado = false;
 
   @override
   Widget build(BuildContext context) {
-    final versao = ref.watch(estadoVersaoProvider).valueOrNull;
     final nav = widget.navegacao;
+    final c = Theme.of(context).colorScheme;
+
+    // Versão nova disponível: um aviso discreto, uma vez por arranque.
+    ref.listen(estadoVersaoProvider, (_, v) => _talvezAvisar(v.valueOrNull));
+    _talvezAvisar(ref.read(estadoVersaoProvider).valueOrNull);
 
     return Scaffold(
-      body: Column(
-        children: [
-          if ((versao?.sugerir ?? false) && !_avisoFechado)
-            SafeArea(
-              bottom: false,
-              child: MaterialBanner(
-                content: const Text('Há uma versão nova da app.'),
-                actions: [
-                  TextButton(
-                    onPressed: () => setState(() => _avisoFechado = true),
-                    child: const Text('Agora não'),
-                  ),
-                  if (versao?.urlLoja != null)
-                    TextButton(
-                      onPressed: () => launchUrl(Uri.parse(versao!.urlLoja!),
-                          mode: LaunchMode.externalApplication),
-                      child: const Text('Actualizar'),
-                    ),
-                ],
-              ),
+      body: nav,
+      bottomNavigationBar: DecoratedBox(
+        decoration: BoxDecoration(border: Border(top: BorderSide(color: c.outlineVariant))),
+        child: NavigationBar(
+          selectedIndex: nav.currentIndex,
+          onDestinationSelected: (i) => nav.goBranch(i, initialLocation: i == nav.currentIndex),
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home_rounded),
+              label: 'Clube',
             ),
-          Expanded(child: nav),
-        ],
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: nav.currentIndex,
-        onDestinationSelected: (i) => nav.goBranch(i, initialLocation: i == nav.currentIndex),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.newspaper_outlined), selectedIcon: Icon(Icons.newspaper), label: 'Notícias'),
-          NavigationDestination(icon: Icon(Icons.badge_outlined), selectedIcon: Icon(Icons.badge), label: 'Sócio'),
-        ],
+            NavigationDestination(
+              icon: Icon(Icons.account_circle_outlined),
+              selectedIcon: Icon(Icons.account_circle),
+              label: 'Sócio',
+            ),
+          ],
+        ),
       ),
     );
+  }
+
+  void _talvezAvisar(EstadoVersao? v) {
+    if (_avisoMostrado || v == null || !v.sugerir) return;
+    _avisoMostrado = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: const Text('Há uma versão nova da app.'),
+        duration: const Duration(seconds: 8),
+        action: v.urlLoja == null
+            ? null
+            : SnackBarAction(
+                label: 'Actualizar',
+                onPressed: () => launchUrl(Uri.parse(v.urlLoja!), mode: LaunchMode.externalApplication),
+              ),
+      ));
+    });
   }
 }

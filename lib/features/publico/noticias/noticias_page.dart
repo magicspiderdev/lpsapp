@@ -3,8 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/tema/tema.dart';
+import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
 import 'noticias.dart';
+
+String _quando(DateTime? d) => d == null ? '' : DateFormat('d MMM', 'pt_PT').format(d);
 
 class NoticiasPage extends ConsumerWidget {
   const NoticiasPage({super.key});
@@ -12,84 +16,225 @@ class NoticiasPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lista = ref.watch(noticiasProvider);
+    final t = Theme.of(context).textTheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Notícias')),
-      body: lista.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(noticiasProvider)),
-        data: (l) => RefreshIndicator(
-          onRefresh: () => ref.refresh(noticiasProvider.future),
-          child: l.noticias.isEmpty
-              ? ListView(children: const [
-                  Padding(padding: EdgeInsets.all(32), child: Center(child: Text('Ainda não há notícias.'))),
-                ])
-              : NotificationListener<ScrollNotification>(
-                  onNotification: (n) {
-                    if (n.metrics.extentAfter < 400) ref.read(noticiasProvider.notifier).carregarMais();
-                    return false;
-                  },
-                  child: ListView.builder(
-                    itemCount: l.noticias.length + (l.haMais ? 1 : 0),
-                    itemBuilder: (context, i) => i == l.noticias.length
-                        ? const Padding(
-                            padding: EdgeInsets.all(16),
-                            child: Center(child: CircularProgressIndicator()),
-                          )
-                        : _Cartao(l.noticias[i]),
+      body: RefreshIndicator(
+        edgeOffset: MediaQuery.paddingOf(context).top,
+        onRefresh: () => ref.refresh(noticiasProvider.future),
+        child: NotificationListener<ScrollNotification>(
+          onNotification: (n) {
+            if (n.metrics.extentAfter < 400) ref.read(noticiasProvider.notifier).carregarMais();
+            return false;
+          },
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              SliverSafeArea(
+                bottom: false,
+                sliver: SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(Tema.margem + 4, 20, Tema.margem, 8),
+                  sliver: SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('LEÕES DE PORTO SALVO',
+                            style: t.labelMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.primary,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.2)),
+                        const SizedBox(height: 4),
+                        Text('Notícias', style: t.headlineLarge),
+                      ],
+                    ),
                   ),
                 ),
+              ),
+              ...lista.when(
+                loading: () => [
+                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
+                ],
+                error: (e, _) => [
+                  SliverFillRemaining(
+                    child: ErroView(erro: e, tentarDeNovo: () => ref.invalidate(noticiasProvider)),
+                  ),
+                ],
+                data: (l) => l.noticias.isEmpty
+                    ? [const SliverFillRemaining(hasScrollBody: false, child: _Vazio())]
+                    : [
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(Tema.margem, 12, Tema.margem, 0),
+                          sliver: SliverToBoxAdapter(child: _Destaque(l.noticias.first)),
+                        ),
+                        if (l.noticias.length > 1)
+                          SliverPadding(
+                            padding: const EdgeInsets.fromLTRB(Tema.margem, 16, Tema.margem, 0),
+                            sliver: SliverToBoxAdapter(
+                              child: Bloco(
+                                padding: const EdgeInsets.symmetric(vertical: 6),
+                                child: Column(
+                                  children: [
+                                    for (final (i, n) in l.noticias.skip(1).indexed) ...[
+                                      if (i > 0) const Divider(indent: 16, endIndent: 16),
+                                      _Linha(n),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: l.haMais
+                                ? const Center(child: CircularProgressIndicator())
+                                : const SizedBox.shrink(),
+                          ),
+                        ),
+                      ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _Cartao extends StatelessWidget {
-  const _Cartao(this.n);
+/// A notícia mais recente, em grande, com o título sobre a fotografia.
+class _Destaque extends StatelessWidget {
+  const _Destaque(this.n);
+
+  final NoticiaResumo n;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: () => context.go('/noticias/${n.slug}'),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(Tema.raio),
+        child: AspectRatio(
+          aspectRatio: 4 / 5,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (n.capa != null)
+                Image.network(n.capa!.url, fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube)))
+              else
+                const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube)),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    stops: const [0.4, 1],
+                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.85)],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    if (n.categoria != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: c.primary, borderRadius: BorderRadius.circular(100)),
+                        child: Text(n.categoria!.nome,
+                            style: TextStyle(color: c.onPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                      ),
+                    const SizedBox(height: 10),
+                    Text(
+                      n.titulo,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(color: Colors.white),
+                    ),
+                    if (n.publicadoEm != null) ...[
+                      const SizedBox(height: 6),
+                      Text(_quando(n.publicadoEm),
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                    ],
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Linha extends StatelessWidget {
+  const _Linha(this.n);
 
   final NoticiaResumo n;
 
   @override
   Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    return Card(
-      margin: const EdgeInsets.fromLTRB(12, 6, 12, 6),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => context.go('/noticias/${n.slug}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return InkWell(
+      onTap: () => context.go('/noticias/${n.slug}'),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        child: Row(
           children: [
-            if (n.capa != null)
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Image.network(n.capa!.url, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const ColoredBox(color: Colors.black12)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(14),
+              child: SizedBox.square(
+                dimension: 64,
+                child: n.capa == null
+                    ? const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube))
+                    : Image.network(n.capa!.url, fit: BoxFit.cover,
+                        errorBuilder: (_, _, _) => ColoredBox(color: tema.colorScheme.surfaceContainer)),
               ),
-            Padding(
-              padding: const EdgeInsets.all(12),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    [
-                      if (n.categoria != null) n.categoria!.nome.toUpperCase(),
-                      if (n.publicadoEm != null) DateFormat('d MMM y', 'pt_PT').format(n.publicadoEm!),
-                    ].join(' · '),
-                    style: tema.textTheme.labelSmall?.copyWith(color: tema.colorScheme.primary),
-                  ),
+                  Text(n.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: tema.textTheme.titleSmall),
                   const SizedBox(height: 4),
-                  Text(n.titulo, style: tema.textTheme.titleMedium),
-                  if (n.resumo != null) ...[
-                    const SizedBox(height: 4),
-                    Text(n.resumo!, maxLines: 3, overflow: TextOverflow.ellipsis),
-                  ],
+                  Text(
+                    [if (n.categoria != null) n.categoria!.nome, _quando(n.publicadoEm)]
+                        .where((s) => s.isNotEmpty)
+                        .join(' · '),
+                    style: tema.textTheme.bodySmall,
+                  ),
                 ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _Vazio extends StatelessWidget {
+  const _Vazio();
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const IconePastilha(Icons.newspaper_rounded),
+          const SizedBox(height: 16),
+          Text('Ainda não há notícias', style: tema.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('Quando o clube publicar, aparecem aqui.',
+              textAlign: TextAlign.center, style: tema.textTheme.bodySmall),
+        ],
       ),
     );
   }
