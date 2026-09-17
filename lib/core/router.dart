@@ -14,6 +14,8 @@ import '../features/socio/cartao/cartao_page.dart';
 import '../features/socio/documentos/documentos_page.dart';
 import '../features/socio/pagamentos/faturas_page.dart';
 import '../features/socio/perfil/perfil_page.dart';
+import '../features/socio/suporte/conversa_page.dart';
+import '../features/socio/suporte/suporte_page.dart';
 import '../features/socio/pagamentos/mensalidades_page.dart';
 import '../features/socio/pagamentos/modelos.dart';
 import '../features/socio/pagamentos/quotas_page.dart';
@@ -96,6 +98,17 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
                   GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
                   GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
+                  GoRoute(
+                    path: 'suporte',
+                    builder: (_, _) => const SuportePage(),
+                    routes: [
+                      GoRoute(path: 'nova', builder: (_, _) => const ConversaPage()),
+                      GoRoute(
+                        path: ':id',
+                        builder: (_, s) => ConversaPage(id: int.parse(s.pathParameters['id']!)),
+                      ),
+                    ],
+                  ),
                   GoRoute(
                     path: 'perfil',
                     builder: (_, _) => const PerfilPage(),

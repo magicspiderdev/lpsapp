@@ -218,7 +218,7 @@ class _Topo extends ConsumerWidget {
               _BotaoVidro(
                 icone: Icons.chat_bubble_outline_rounded,
                 marca: r.mensagensNaoLidas > 0,
-                onTap: () => _emBreve(context),
+                onTap: () => context.push('/socio/suporte'),
               ),
             ],
           ),
@@ -404,7 +404,7 @@ class _Conta extends StatelessWidget {
                   : 'Suporte',
             ),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _emBreve(context),
+            onTap: () => context.push('/socio/suporte'),
           ),
         ],
       ),
@@ -433,12 +433,6 @@ class _Carregar extends StatelessWidget {
       ],
     );
   }
-}
-
-void _emBreve(BuildContext context) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(const SnackBar(content: Text('Disponível em breve.')));
 }
 
 /// Folha do perfil: é sempre a conta da sessão, mesmo a ver a de um dependente.
