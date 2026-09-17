@@ -11,7 +11,9 @@ import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
 import '../features/socio/cartao/cartao_page.dart';
+import '../features/socio/documentos/documentos_page.dart';
 import '../features/socio/pagamentos/faturas_page.dart';
+import '../features/socio/pagamentos/mensalidades_page.dart';
 import '../features/socio/pagamentos/modelos.dart';
 import '../features/socio/pagamentos/quotas_page.dart';
 import '../features/socio/pagamentos/resultado_page.dart';
@@ -90,6 +92,9 @@ final routerProvider = Provider<GoRouter>((ref) {
                     ],
                   ),
                   GoRoute(path: 'pagamentos', builder: (_, _) => const HistoricoPagamentosPage()),
+                  GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
+                  GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
+                  GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
                   GoRoute(
                     path: 'pagamento',
                     // Só se chega aqui com o resultado acabado de criar; sem ele, volta ao início.

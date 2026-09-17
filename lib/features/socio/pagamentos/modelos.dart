@@ -283,3 +283,129 @@ class ResultadoPagamento {
   bool get mbway => metodo == 'mbway';
   bool get temLink => urlPagamento != null;
 }
+
+// ── Mensalidades das modalidades (guia §4.6) ────────────────────────────────
+
+class Subscricao {
+  final int id;
+  final String modalidade;
+  final String? epoca;
+  final bool ativa;
+
+  /// A mensalidade já inclui a quota de sócio.
+  final bool incluiQuota;
+  final DateTime? dataInicio, dataFim;
+
+  /// `null` = preço por escalão etário.
+  final double? valorFixo;
+
+  const Subscricao({
+    required this.id,
+    required this.modalidade,
+    required this.ativa,
+    required this.incluiQuota,
+    this.epoca,
+    this.dataInicio,
+    this.dataFim,
+    this.valorFixo,
+  });
+
+  factory Subscricao.fromJson(Map<String, dynamic> j) => Subscricao(
+    id: j['id'] as int,
+    modalidade: (j['modalidade'] ?? '') as String,
+    epoca: j['epoca'] as String?,
+    ativa: j['ativa'] == true,
+    incluiQuota: j['inclui_quota'] == true,
+    dataInicio: dataApi(j['data_inicio']),
+    dataFim: dataApi(j['data_fim']),
+    valorFixo: _dinheiro(j['valor_fixo']),
+  );
+}
+
+class MesModalidade {
+  final DateTime mes;
+  final String mesLabel, estado;
+  final double valor;
+
+  /// Previsão: a fatura ainda não foi emitida. Não é dívida e não se paga.
+  final bool estimado;
+  final int? idFatura;
+
+  const MesModalidade({
+    required this.mes,
+    required this.mesLabel,
+    required this.estado,
+    required this.valor,
+    required this.estimado,
+    this.idFatura,
+  });
+
+  factory MesModalidade.fromJson(Map<String, dynamic> j) => MesModalidade(
+    mes: DateTime.parse(j['mes'] as String),
+    mesLabel: (j['mes_label'] ?? '') as String,
+    estado: (j['estado'] ?? '') as String,
+    valor: _dinheiro(j['valor']) ?? 0,
+    estimado: j['estimado'] == true,
+    idFatura: j['id_fatura'] as int?,
+  );
+
+  bool get pagavel => !estimado && idFatura != null && estado == 'pendente';
+}
+
+class Mensalidades {
+  final double totalPendente;
+  final List<Subscricao> subscricoes;
+  final List<MesModalidade> caderneta;
+
+  const Mensalidades({required this.totalPendente, required this.subscricoes, required this.caderneta});
+
+  factory Mensalidades.fromJson(Map<String, dynamic> j) => Mensalidades(
+    totalPendente: _dinheiro(j['total_pendente']) ?? 0,
+    subscricoes: [
+      for (final s in (j['subscricoes'] as List?) ?? const []) Subscricao.fromJson((s as Map).cast<String, dynamic>()),
+    ],
+    caderneta: [
+      for (final m in (j['caderneta'] as List?) ?? const []) MesModalidade.fromJson((m as Map).cast<String, dynamic>()),
+    ],
+  );
+}
+
+// ── Conta corrente (guia §4.7) ──────────────────────────────────────────────
+
+class MovimentoWallet {
+  final int id;
+
+  /// `credito` ou `debito`; o valor vem sempre positivo.
+  final String tipo;
+  final double valor;
+  final String? descricao;
+  final DateTime? data;
+
+  const MovimentoWallet({required this.id, required this.tipo, required this.valor, this.descricao, this.data});
+
+  factory MovimentoWallet.fromJson(Map<String, dynamic> j) => MovimentoWallet(
+    id: (j['id'] as int?) ?? 0,
+    tipo: ((j['tipo'] ?? '') as String).toLowerCase(),
+    valor: _dinheiro(j['valor']) ?? 0,
+    descricao: j['descricao'] as String?,
+    data: dataApi(j['data']),
+  );
+
+  bool get credito => tipo == 'credito';
+}
+
+class Wallet {
+  /// Positivo = crédito a favor do sócio.
+  final double saldo;
+  final List<MovimentoWallet> movimentos;
+
+  const Wallet({required this.saldo, required this.movimentos});
+
+  factory Wallet.fromJson(Map<String, dynamic> j) => Wallet(
+    saldo: _dinheiro(j['saldo']) ?? 0,
+    movimentos: [
+      for (final m in (j['movimentos'] as List?) ?? const [])
+        MovimentoWallet.fromJson((m as Map).cast<String, dynamic>()),
+    ],
+  );
+}

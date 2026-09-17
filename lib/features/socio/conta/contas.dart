@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -140,6 +142,38 @@ class PedidosNaConta {
   /// Corpo em JSON: um DELETE form-encoded não é lido pelo servidor (guia §7).
   Future<Map<String, dynamic>> delete(String caminho) =>
       _tratar(_dio.delete(caminho, data: const {}, options: _opcoes));
+
+  /// Descarrega um ficheiro (ex.: PDF). Com o mesmo `Authorization` dos outros
+  /// pedidos — por isso não se abre o URL num browser (guia §4.9).
+  Future<List<int>> bytes(String caminho) async {
+    try {
+      final r = await _dio.get<List<int>>(
+        caminho,
+        options: (_opcoes ?? Options()).copyWith(responseType: ResponseType.bytes),
+      );
+      return r.data ?? const [];
+    } on DioException catch (e) {
+      // O erro vem em JSON, mas chega como bytes.
+      final dados = e.response?.data;
+      if (dados is List<int>) {
+        try {
+          final j = jsonDecode(utf8.decode(dados));
+          if (j is Map && j['erro'] is String) {
+            final erro = ApiException(
+              httpStatus: e.response?.statusCode,
+              erro: j['erro'] as String,
+              message: (j['message'] as String?) ?? 'Ocorreu um erro.',
+            );
+            if (_nr != null && erro.erro == 'socio_nao_associado') _conta.ligacaoRemovida();
+            throw erro;
+          }
+        } on FormatException {
+          // não era JSON
+        }
+      }
+      throw ApiException.deDio(e);
+    }
+  }
 
   Future<Map<String, dynamic>> _tratar(Future<Response<dynamic>> pedido) async {
     try {

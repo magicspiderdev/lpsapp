@@ -93,6 +93,9 @@ class CacheEmDisco implements CacheLocal {
     try {
       final pasta = await _pasta(Ambito.sessao);
       if (await pasta.exists()) await pasta.delete(recursive: true);
+      // PDFs descarregados (documentos de inscrição).
+      final docs = Directory('${(await getTemporaryDirectory()).path}/documentos');
+      if (await docs.exists()) await docs.delete(recursive: true);
     } catch (_) {}
     try {
       final chaves = (await _storage.readAll()).keys.where((k) => k.startsWith(_prefixoSeguro));

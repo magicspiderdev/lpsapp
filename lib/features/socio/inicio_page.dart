@@ -9,6 +9,7 @@ import '../../core/auth/sessao.dart';
 import '../../core/cache/cache_local.dart';
 import '../../core/cache/com_cache.dart';
 import '../../core/rede/ligacao.dart';
+import '../../core/formatos.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
@@ -32,6 +33,10 @@ class Resumo {
   final double dividaTotal;
   final int mesesPendentes;
   final int mensagensNaoLidas;
+  final bool temInscricoes;
+
+  /// Positivo = crédito a favor do sócio (só consulta).
+  final double walletSaldo;
 
   Resumo.fromJson(Map<String, dynamic> j)
     : nomeCompleto = j['socio']['nome_completo'] as String,
@@ -45,7 +50,9 @@ class Resumo {
       temModalidade = j['tem_modalidade'] as bool,
       dividaTotal = (j['divida']['total'] as num).toDouble(),
       mesesPendentes = j['divida']['meses_pendentes'] as int,
-      mensagensNaoLidas = j['mensagens_nao_lidas'] as int;
+      mensagensNaoLidas = j['mensagens_nao_lidas'] as int,
+      temInscricoes = j['tem_inscricoes'] == true,
+      walletSaldo = (j['wallet_saldo'] as num? ?? 0).toDouble();
 
   bool get ativo => estado == 1;
 
@@ -356,6 +363,34 @@ class _Conta extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => context.push('/socio/pagamentos'),
           ),
+          if (r.temModalidade) ...[
+            const Divider(indent: 72),
+            ListTile(
+              leading: const IconePastilha(Icons.sports_soccer_rounded),
+              title: const Text('Mensalidades'),
+              subtitle: const Text('Modalidades e valores mês a mês'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/socio/mensalidades'),
+            ),
+          ],
+          const Divider(indent: 72),
+          ListTile(
+            leading: const IconePastilha(Icons.account_balance_wallet_outlined),
+            title: const Text('Conta corrente'),
+            subtitle: Text(r.walletSaldo > 0 ? '${euros(r.walletSaldo)} a seu favor' : 'Créditos e débitos'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/socio/wallet'),
+          ),
+          if (r.temInscricoes) ...[
+            const Divider(indent: 72),
+            ListTile(
+              leading: const IconePastilha(Icons.description_outlined),
+              title: const Text('Documentos'),
+              subtitle: const Text('Fichas e termos das inscrições'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/socio/documentos'),
+            ),
+          ],
           const Divider(indent: 72),
           ListTile(
             leading: IconePastilha(Icons.support_agent_rounded, cor: c.onSurfaceVariant),

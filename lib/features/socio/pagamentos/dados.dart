@@ -67,6 +67,7 @@ void refrescarContas(WidgetRef ref) {
   ref.invalidate(faturasProvider);
   ref.invalidate(faturaProvider);
   ref.invalidate(historicoPagamentosProvider);
+  ref.invalidate(mensalidadesProvider);
   ref.invalidate(dependentesProvider);
 }
 
@@ -103,3 +104,11 @@ extension AccoesPagamento on PedidosNaConta {
     return null;
   }
 }
+
+final mensalidadesProvider = StreamProvider.autoDispose<Dados<Mensalidades>>(
+  (ref) => _consulta(ref, 'modalidades', '/modalidades', Mensalidades.fromJson),
+);
+
+final walletProvider = StreamProvider.autoDispose<Dados<Wallet>>(
+  (ref) => _consulta(ref, 'wallet', '/wallet', Wallet.fromJson),
+);
