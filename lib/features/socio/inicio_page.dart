@@ -4,8 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/api/clientes.dart';
-import '../../core/api/envelope.dart';
 import '../../core/auth/biometria.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/cache/cache_local.dart';
@@ -16,6 +14,8 @@ import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
 import '../../core/widgets/estado_dados.dart';
 import 'cartao/cartao_page.dart';
+import 'conta/contas.dart';
+import 'conta/seletor_conta.dart';
 
 /// `GET /me/resumo` — o ecrã inicial do sócio numa só chamada (guia §4.3).
 class Resumo {
@@ -31,17 +31,17 @@ class Resumo {
   final int mensagensNaoLidas;
 
   Resumo.fromJson(Map<String, dynamic> j)
-      : nomeCompleto = j['socio']['nome_completo'] as String,
-        estadoLabel = j['socio']['estado_label'] as String,
-        estado = j['socio']['estado'] as int,
-        nrSocio = j['socio']['nr_socio'] as int,
-        fotoUrl = j['socio']['foto_url'] as String?,
-        dataSocio = _data(j['socio']['data_socio']),
-        ultimaQuota = _data(j['ultima_quota']),
-        temModalidade = j['tem_modalidade'] as bool,
-        dividaTotal = (j['divida']['total'] as num).toDouble(),
-        mesesPendentes = j['divida']['meses_pendentes'] as int,
-        mensagensNaoLidas = j['mensagens_nao_lidas'] as int;
+    : nomeCompleto = j['socio']['nome_completo'] as String,
+      estadoLabel = j['socio']['estado_label'] as String,
+      estado = j['socio']['estado'] as int,
+      nrSocio = j['socio']['nr_socio'] as int,
+      fotoUrl = j['socio']['foto_url'] as String?,
+      dataSocio = _data(j['socio']['data_socio']),
+      ultimaQuota = _data(j['ultima_quota']),
+      temModalidade = j['tem_modalidade'] as bool,
+      dividaTotal = (j['divida']['total'] as num).toDouble(),
+      mesesPendentes = j['divida']['meses_pendentes'] as int,
+      mensagensNaoLidas = j['mensagens_nao_lidas'] as int;
 
   bool get ativo => estado == 1;
 
@@ -58,12 +58,13 @@ final resumoProvider = StreamProvider.autoDispose<Dados<Resumo>>((ref) {
   final sessao = ref.watch(sessaoProvider);
   if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
+  final conta = PedidosNaConta(ref);
 
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: 'resumo.${sessao.socio.nrSocio}',
-    pedido: () => dadosDe(ref.read(dioSocioProvider).get('/me/resumo')),
+    chave: 'resumo.${sessao.socio.nrSocio}.${conta.chave}',
+    pedido: () => conta.get('/me/resumo'),
     ler: Resumo.fromJson,
   );
 });
@@ -103,20 +104,24 @@ class InicioPage extends ConsumerWidget {
                 SliverToBoxAdapter(child: _Topo(d.valor)),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 32),
-                  sliver: SliverList.list(children: [
-                    AvisoDesactualizado(d, margem: const EdgeInsets.only(top: 16)),
-                    const TituloSeccao('Cartão de sócio'),
-                    CartaoVisual(
-                      nome: d.valor.nomeCompleto,
-                      nrSocio: d.valor.nrSocio,
-                      estadoLabel: d.valor.estadoLabel,
-                      valido: d.valor.ativo,
-                      dataSocio: d.valor.dataSocio,
-                      onTap: () => context.go('/socio/cartao'),
-                    ),
-                    const TituloSeccao('A sua conta'),
-                    _Conta(d.valor),
-                  ]),
+                  sliver: SliverList.list(
+                    children: [
+                      AvisoDesactualizado(d, margem: const EdgeInsets.only(top: 16)),
+                      const TituloSeccao('Cartão de sócio'),
+                      CartaoVisual(
+                        nome: d.valor.nomeCompleto,
+                        nrSocio: d.valor.nrSocio,
+                        estadoLabel: d.valor.estadoLabel,
+                        valido: d.valor.ativo,
+                        dataSocio: d.valor.dataSocio,
+                        onTap: () => context.go('/socio/cartao'),
+                      ),
+                      TituloSeccao(
+                        ref.watch(contaActivaProvider) == null ? 'A sua conta' : 'Conta de ${d.valor.primeiroNome}',
+                      ),
+                      _Conta(d.valor),
+                    ],
+                  ),
                 ),
               ],
             ),
@@ -137,6 +142,11 @@ class _Topo extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
     final emDia = r.dividaTotal <= 0;
+    final temDependentes = (ref.watch(dependentesProvider).valueOrNull?.valor ?? const []).isNotEmpty;
+    final aVerDependente = ref.watch(contaActivaProvider) != null;
+    final dependente = ref.watch(dependenteActivoProvider);
+    // Dependente "só consulta": sem botão de pagar (guia §2.3.4).
+    final podePagar = dependente?.podePagar ?? true;
 
     return Container(
       decoration: const BoxDecoration(
@@ -149,7 +159,7 @@ class _Topo extends ConsumerWidget {
           Row(
             children: [
               GestureDetector(
-                onTap: () => _perfil(context, ref, r),
+                onTap: () => _perfil(context, ref),
                 child: Container(
                   padding: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
@@ -161,14 +171,37 @@ class _Topo extends ConsumerWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Olá, ${r.primeiroNome}',
-                        style: t.titleMedium?.copyWith(color: Colors.white)),
-                    Text('Sócio n.º ${r.nrSocio}',
-                        style: t.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.72))),
-                  ],
+                // Com sócios a seu cargo, o nome abre o seletor de conta.
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: temDependentes ? () => mostrarSeletorConta(context) : null,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              aVerDependente ? r.primeiroNome : 'Olá, ${r.primeiroNome}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: t.titleMedium?.copyWith(color: Colors.white),
+                            ),
+                          ),
+                          if (temDependentes) ...[
+                            const SizedBox(width: 2),
+                            const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 22),
+                          ],
+                        ],
+                      ),
+                      Text(
+                        aVerDependente ? 'Conta a seu cargo · N.º ${r.nrSocio}' : 'Sócio n.º ${r.nrSocio}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: t.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.72)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               _BotaoVidro(
@@ -200,12 +233,13 @@ class _Topo extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              AccaoRedonda(
-                icone: Icons.add_rounded,
-                legenda: 'Pagar',
-                sobreEscuro: true,
-                onTap: () => _emBreve(context),
-              ),
+              if (podePagar)
+                AccaoRedonda(
+                  icone: Icons.add_rounded,
+                  legenda: 'Pagar',
+                  sobreEscuro: true,
+                  onTap: () => _emBreve(context),
+                ),
               AccaoRedonda(
                 icone: Icons.qr_code_2_rounded,
                 legenda: 'Cartão',
@@ -222,7 +256,7 @@ class _Topo extends ConsumerWidget {
                 icone: Icons.more_horiz_rounded,
                 legenda: 'Mais',
                 sobreEscuro: true,
-                onTap: () => _perfil(context, ref, r),
+                onTap: () => _perfil(context, ref),
               ),
             ],
           ),
@@ -281,12 +315,11 @@ class _Pastilha extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.16),
-        borderRadius: BorderRadius.circular(100),
+      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(100)),
+      child: Text(
+        texto,
+        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
       ),
-      child: Text(texto,
-          style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
     );
   }
 }
@@ -323,9 +356,11 @@ class _Conta extends StatelessWidget {
           ListTile(
             leading: IconePastilha(Icons.support_agent_rounded, cor: c.onSurfaceVariant),
             title: const Text('Falar com a secretaria'),
-            subtitle: Text(r.mensagensNaoLidas > 0
-                ? '${r.mensagensNaoLidas} ${r.mensagensNaoLidas == 1 ? 'mensagem nova' : 'mensagens novas'}'
-                : 'Suporte'),
+            subtitle: Text(
+              r.mensagensNaoLidas > 0
+                  ? '${r.mensagensNaoLidas} ${r.mensagensNaoLidas == 1 ? 'mensagem nova' : 'mensagens novas'}'
+                  : 'Suporte',
+            ),
             trailing: const Icon(Icons.chevron_right_rounded),
             onTap: () => _emBreve(context),
           ),
@@ -364,8 +399,11 @@ void _emBreve(BuildContext context) {
     ..showSnackBar(const SnackBar(content: Text('Disponível em breve.')));
 }
 
-/// Folha do perfil: por agora, só sair.
-void _perfil(BuildContext context, WidgetRef ref, Resumo r) {
+/// Folha do perfil: é sempre a conta da sessão, mesmo a ver a de um dependente.
+void _perfil(BuildContext context, WidgetRef ref) {
+  final sessao = ref.read(sessaoProvider);
+  if (sessao is! SessaoSocio) return;
+  final s = sessao.socio;
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
@@ -376,22 +414,25 @@ void _perfil(BuildContext context, WidgetRef ref, Resumo r) {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Avatar(nome: r.nomeCompleto, url: r.fotoUrl, tamanho: 72),
+            Avatar(nome: s.nomeCompleto, url: s.fotoUrl, tamanho: 72),
             const SizedBox(height: 12),
-            Text(r.nomeCompleto, textAlign: TextAlign.center, style: Theme.of(sheet).textTheme.titleLarge),
-            Text('Sócio n.º ${r.nrSocio} · ${r.estadoLabel}', style: Theme.of(sheet).textTheme.bodySmall),
+            Text(s.nomeCompleto, textAlign: TextAlign.center, style: Theme.of(sheet).textTheme.titleLarge),
+            Text('Sócio n.º ${s.nrSocio}', style: Theme.of(sheet).textTheme.bodySmall),
             const SizedBox(height: 24),
-            Consumer(builder: (context, ref, _) {
-              final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;
-              if (tipo == null) return const SizedBox.shrink();
-              return SwitchListTile(
-                secondary: IconePastilha(
-                    tipo == TipoBiometria.facial ? Icons.face_retouching_natural : Icons.fingerprint_rounded),
-                title: Text('Entrar com ${tipo.nome}'),
-                value: ref.watch(biometriaProvider.select((b) => b.activa)),
-                onChanged: (v) => ref.read(biometriaProvider.notifier).definir(v),
-              );
-            }),
+            Consumer(
+              builder: (context, ref, _) {
+                final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;
+                if (tipo == null) return const SizedBox.shrink();
+                return SwitchListTile(
+                  secondary: IconePastilha(
+                    tipo == TipoBiometria.facial ? Icons.face_retouching_natural : Icons.fingerprint_rounded,
+                  ),
+                  title: Text('Entrar com ${tipo.nome}'),
+                  value: ref.watch(biometriaProvider.select((b) => b.activa)),
+                  onChanged: (v) => ref.read(biometriaProvider.notifier).definir(v),
+                );
+              },
+            ),
             ListTile(
               leading: IconePastilha(Icons.logout_rounded, cor: Theme.of(sheet).colorScheme.error),
               title: const Text('Terminar sessão'),

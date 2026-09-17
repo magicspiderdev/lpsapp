@@ -29,10 +29,7 @@ class CartaoPage extends ConsumerWidget {
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
-            children: [
-              AvisoDesactualizado(d),
-              if (d.valor == null) const _SemCartao() else ..._conteudo(context, d),
-            ],
+            children: [AvisoDesactualizado(d), if (d.valor == null) const _SemCartao() else ..._conteudo(context, d)],
           ),
         ),
       ),

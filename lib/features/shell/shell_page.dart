@@ -35,7 +35,9 @@ class _ShellPageState extends ConsumerState<ShellPage> {
         children: [
           const _SemLigacao(),
           DecoratedBox(
-            decoration: BoxDecoration(border: Border(top: BorderSide(color: c.outlineVariant))),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: c.outlineVariant)),
+            ),
             child: NavigationBar(
               selectedIndex: nav.currentIndex,
               onDestinationSelected: (i) => nav.goBranch(i, initialLocation: i == nav.currentIndex),
@@ -63,16 +65,18 @@ class _ShellPageState extends ConsumerState<ShellPage> {
     _avisoMostrado = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: const Text('Há uma versão nova da app.'),
-        duration: const Duration(seconds: 8),
-        action: v.urlLoja == null
-            ? null
-            : SnackBarAction(
-                label: 'Actualizar',
-                onPressed: () => launchUrl(Uri.parse(v.urlLoja!), mode: LaunchMode.externalApplication),
-              ),
-      ));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Há uma versão nova da app.'),
+          duration: const Duration(seconds: 8),
+          action: v.urlLoja == null
+              ? null
+              : SnackBarAction(
+                  label: 'Actualizar',
+                  onPressed: () => launchUrl(Uri.parse(v.urlLoja!), mode: LaunchMode.externalApplication),
+                ),
+        ),
+      );
     });
   }
 }

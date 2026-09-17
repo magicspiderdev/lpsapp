@@ -13,13 +13,12 @@ class MarcaClube extends StatelessWidget {
       child: Container(
         width: 56,
         height: 56,
-        decoration: BoxDecoration(
-          gradient: Tema.gradienteClube,
-          borderRadius: BorderRadius.circular(18),
-        ),
+        decoration: BoxDecoration(gradient: Tema.gradienteClube, borderRadius: BorderRadius.circular(18)),
         alignment: Alignment.center,
-        child: const Text('LPS',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: 0.5)),
+        child: const Text(
+          'LPS',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 17, letterSpacing: 0.5),
+        ),
       ),
     );
   }
@@ -44,7 +43,12 @@ class AvisoErro extends StatelessWidget {
         children: [
           Icon(Icons.error_outline_rounded, color: c.error, size: 20),
           const SizedBox(width: 10),
-          Expanded(child: Text(texto, style: TextStyle(color: c.error, fontWeight: FontWeight.w500))),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(color: c.error, fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );

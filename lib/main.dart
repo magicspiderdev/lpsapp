@@ -20,12 +20,14 @@ Future<void> main() async {
   final biometria = BiometriaStore(storage);
   await Future.wait([tokens.carregar(), biometria.carregar()]);
 
-  runApp(ProviderScope(
-    overrides: [
-      tokenStoreProvider.overrideWithValue(tokens),
-      biometriaStoreProvider.overrideWithValue(biometria),
-      cacheProvider.overrideWithValue(cache),
-    ],
-    child: const LpsApp(),
-  ));
+  runApp(
+    ProviderScope(
+      overrides: [
+        tokenStoreProvider.overrideWithValue(tokens),
+        biometriaStoreProvider.overrideWithValue(biometria),
+        cacheProvider.overrideWithValue(cache),
+      ],
+      child: const LpsApp(),
+    ),
+  );
 }

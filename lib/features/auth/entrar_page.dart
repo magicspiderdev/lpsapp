@@ -39,16 +39,15 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
       _erro = null;
     });
     try {
-      await ref.read(sessaoProvider.notifier).entrar(
-            nrSocio: int.parse(_nr.text),
-            password: _password.text,
-          );
+      await ref.read(sessaoProvider.notifier).entrar(nrSocio: int.parse(_nr.text), password: _password.text);
       // O router leva para /socio quando a sessão muda.
     } on ApiException catch (e) {
       final restantes = e.erro == 'credenciais_invalidas' ? e.tentativasRestantes : null;
-      setState(() => _erro = restantes == null
-          ? e.message
-          : '${e.message} ${restantes == 1 ? 'Resta 1 tentativa.' : 'Restam $restantes tentativas.'}');
+      setState(
+        () => _erro = restantes == null
+            ? e.message
+            : '${e.message} ${restantes == 1 ? 'Resta 1 tentativa.' : 'Restam $restantes tentativas.'}',
+      );
     } finally {
       if (mounted) setState(() => _aEnviar = false);
     }
@@ -103,10 +102,7 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
                   onFieldSubmitted: (_) => _entrar(),
                   validator: (v) => (v == null || v.isEmpty) ? 'Indique a palavra-passe' : null,
                 ),
-                if (_erro != null) ...[
-                  const SizedBox(height: 16),
-                  AvisoErro(_erro!),
-                ],
+                if (_erro != null) ...[const SizedBox(height: 16), AvisoErro(_erro!)],
                 const SizedBox(height: 28),
                 FilledButton(
                   onPressed: _aEnviar ? null : _entrar,

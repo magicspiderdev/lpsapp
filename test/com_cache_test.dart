@@ -5,9 +5,11 @@ import 'package:lpsapp/core/cache/com_cache.dart';
 
 const _semRede = ApiException(erro: 'sem_ligacao', message: 'Sem ligação');
 
-Stream<Dados<int>> _correr(CacheLocal cache, Future<Map<String, dynamic>> Function() pedido,
-        {Ambito ambito = Ambito.publico}) =>
-    comCache(cache: cache, ambito: ambito, chave: 'x', pedido: pedido, ler: (j) => j['v'] as int);
+Stream<Dados<int>> _correr(
+  CacheLocal cache,
+  Future<Map<String, dynamic>> Function() pedido, {
+  Ambito ambito = Ambito.publico,
+}) => comCache(cache: cache, ambito: ambito, chave: 'x', pedido: pedido, ler: (j) => j['v'] as int);
 
 void main() {
   test('sem cache e com rede: só os dados do servidor, e ficam guardados', () async {

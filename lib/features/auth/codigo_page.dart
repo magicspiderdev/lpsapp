@@ -52,16 +52,16 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
   }
 
   Future<void> _pedirCodigo() => _executar(() async {
-        final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(int.parse(_nr.text));
-        setState(() => _mensagemEnvio = mensagem);
-      });
+    final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(int.parse(_nr.text));
+    setState(() => _mensagemEnvio = mensagem);
+  });
 
   // Com sucesso a sessão abre e o router leva para /socio.
-  Future<void> _confirmar() => _executar(() => ref.read(sessaoProvider.notifier).confirmarCodigo(
-        nrSocio: int.parse(_nr.text),
-        codigo: _codigo.text,
-        password: _password.text,
-      ));
+  Future<void> _confirmar() => _executar(
+    () => ref
+        .read(sessaoProvider.notifier)
+        .confirmarCodigo(nrSocio: int.parse(_nr.text), codigo: _codigo.text, password: _password.text),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +83,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                 passo2
                     ? _mensagemEnvio!
                     : 'Vamos enviar um código de 6 dígitos para o email da sua ficha de sócio. '
-                        'Serve para o primeiro acesso à app e para definir uma palavra-passe nova.',
+                          'Serve para o primeiro acesso à app e para definir uma palavra-passe nova.',
                 style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
@@ -121,16 +121,11 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
                   validator: (v) => v != _password.text ? 'As palavras-passe não coincidem' : null,
                 ),
               ],
-              if (_erro != null) ...[
-                const SizedBox(height: 12),
-                AvisoErro(_erro!),
-              ],
+              if (_erro != null) ...[const SizedBox(height: 12), AvisoErro(_erro!)],
               const SizedBox(height: 28),
               FilledButton(
                 onPressed: _aEnviar ? null : (passo2 ? _confirmar : _pedirCodigo),
-                child: _aEnviar
-                    ? const ProgressoBotao()
-                    : Text(passo2 ? 'Confirmar e entrar' : 'Enviar código'),
+                child: _aEnviar ? const ProgressoBotao() : Text(passo2 ? 'Confirmar e entrar' : 'Enviar código'),
               ),
               if (passo2)
                 TextButton(

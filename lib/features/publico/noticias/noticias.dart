@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/clientes.dart';
@@ -96,18 +97,18 @@ class PaginaNoticias {
 
 const _porPagina = 12;
 
-Future<Map<String, dynamic>> _pedirPagina(Ref ref, int pagina) => dadosDe(
-  ref.read(dioPublicoProvider).get('/noticias', queryParameters: {'pagina': pagina, 'por_pagina': _porPagina}),
-);
+Future<Map<String, dynamic>> _pedirPagina(Dio dio, int pagina) =>
+    dadosDe(dio.get('/noticias', queryParameters: {'pagina': pagina, 'por_pagina': _porPagina}));
 
 /// Primeira página: com cache, abre sem rede.
 final noticiasProvider = StreamProvider.autoDispose<Dados<PaginaNoticias>>((ref) {
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
+  final dio = ref.read(dioPublicoProvider);
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.publico,
     chave: 'noticias.p1',
-    pedido: () => _pedirPagina(ref, 1),
+    pedido: () => _pedirPagina(dio, 1),
     ler: PaginaNoticias.fromJson,
   );
 });
@@ -138,7 +139,7 @@ class MaisNoticiasController extends AutoDisposeNotifier<MaisNoticias> {
     final antes = state;
     state = MaisNoticias(noticias: antes.noticias, ultimaPagina: antes.ultimaPagina, aCarregar: true);
     try {
-      final p = PaginaNoticias.fromJson(await _pedirPagina(ref, antes.ultimaPagina + 1));
+      final p = PaginaNoticias.fromJson(await _pedirPagina(ref.read(dioPublicoProvider), antes.ultimaPagina + 1));
       state = MaisNoticias(noticias: [...antes.noticias, ...p.noticias], ultimaPagina: p.pagina);
     } catch (_) {
       state = antes; // sem rede: fica o que já está
@@ -148,11 +149,12 @@ class MaisNoticiasController extends AutoDisposeNotifier<MaisNoticias> {
 
 final noticiaProvider = StreamProvider.autoDispose.family<Dados<Noticia>, String>((ref, slug) {
   ref.watch(ligacaoProvider);
+  final dio = ref.read(dioPublicoProvider);
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.publico,
     chave: 'noticia.$slug',
-    pedido: () => dadosDe(ref.read(dioPublicoProvider).get('/noticias/$slug')),
+    pedido: () => dadosDe(dio.get('/noticias/$slug')),
     ler: (j) => Noticia.fromJson((j['noticia'] as Map).cast<String, dynamic>()),
   );
 });

@@ -50,8 +50,10 @@ class _DesbloquearPageState extends ConsumerState<DesbloquearPage> {
                 const SizedBox(height: 20),
                 Text('Olá de novo', style: tema.textTheme.headlineMedium),
                 const SizedBox(height: 6),
-                Text('Sócio n.º ${socio.nrSocio}',
-                    style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant)),
+                Text(
+                  'Sócio n.º ${socio.nrSocio}',
+                  style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+                ),
               ],
               const Spacer(),
               Material(
