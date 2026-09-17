@@ -2,7 +2,7 @@
     <!-- A app fala com o CISOC (API do Sócio e API pública). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <application
-        android:label="LPS Neo"
+        android:label="${appName}"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

@@ -20,7 +20,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "pt.magicspider.mslps"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -28,9 +27,16 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appName"] = "LPS Neo"
     }
 
     buildTypes {
+        // Em debug convive com a app antiga (mesmo applicationId, outra assinatura)
+        // no telemóvel de quem testa.
+        debug {
+            applicationIdSuffix = ".dev"
+            manifestPlaceholders["appName"] = "LPS Neo dev"
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
