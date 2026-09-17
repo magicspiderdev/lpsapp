@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../core/api/clientes.dart';
@@ -10,6 +11,7 @@ import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
+import 'cartao/cartao_page.dart';
 
 /// `GET /me/resumo` — o ecrã inicial do sócio numa só chamada (guia §4.3).
 class Resumo {
@@ -89,7 +91,14 @@ class InicioPage extends ConsumerWidget {
                   padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 32),
                   sliver: SliverList.list(children: [
                     const TituloSeccao('Cartão de sócio'),
-                    _CartaoSocio(r),
+                    CartaoVisual(
+                      nome: r.nomeCompleto,
+                      nrSocio: r.nrSocio,
+                      estadoLabel: r.estadoLabel,
+                      valido: r.ativo,
+                      dataSocio: r.dataSocio,
+                      onTap: () => context.go('/socio/cartao'),
+                    ),
                     const TituloSeccao('A sua conta'),
                     _Conta(r),
                   ]),
@@ -186,7 +195,7 @@ class _Topo extends ConsumerWidget {
                 icone: Icons.qr_code_2_rounded,
                 legenda: 'Cartão',
                 sobreEscuro: true,
-                onTap: () => _emBreve(context),
+                onTap: () => context.go('/socio/cartao'),
               ),
               AccaoRedonda(
                 icone: r.temModalidade ? Icons.receipt_long_rounded : Icons.calendar_month_rounded,
@@ -263,92 +272,6 @@ class _Pastilha extends StatelessWidget {
       ),
       child: Text(texto,
           style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600)),
-    );
-  }
-}
-
-/// Pré-visualização do cartão. O cartão com QR (e offline) é o próximo passo.
-class _CartaoSocio extends StatelessWidget {
-  const _CartaoSocio(this.r);
-
-  final Resumo r;
-
-  @override
-  Widget build(BuildContext context) {
-    final desde = r.dataSocio == null ? null : DateFormat('MM/yy').format(r.dataSocio!);
-
-    return GestureDetector(
-      onTap: () => _emBreve(context),
-      child: AspectRatio(
-        aspectRatio: 1.586, // proporção de um cartão bancário
-        child: Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(Tema.raio),
-            gradient: const LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1B1F24), Color(0xFF0B0D10)],
-            ),
-            boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.18), blurRadius: 24, offset: const Offset(0, 10)),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Text('LEÕES DE PORTO SALVO',
-                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: 1.2)),
-                  const Spacer(),
-                  _EstadoCartao(ativo: r.ativo, label: r.estadoLabel),
-                ],
-              ),
-              const Spacer(),
-              Text(
-                r.nomeCompleto,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Text('N.º ${r.nrSocio}',
-                      style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13, letterSpacing: 1)),
-                  const Spacer(),
-                  if (desde != null)
-                    Text('DESDE $desde',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 12, letterSpacing: 1)),
-                  const SizedBox(width: 12),
-                  Icon(Icons.qr_code_2_rounded, color: Colors.white.withValues(alpha: 0.9)),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _EstadoCartao extends StatelessWidget {
-  const _EstadoCartao({required this.ativo, required this.label});
-
-  final bool ativo;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final cor = ativo ? const Color(0xFF3DD68C) : const Color(0xFFFFB224);
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(width: 8, height: 8, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
-        Text(label, style: TextStyle(color: cor, fontSize: 12, fontWeight: FontWeight.w600)),
-      ],
     );
   }
 }

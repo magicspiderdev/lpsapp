@@ -10,6 +10,7 @@ import '../features/auth/desbloquear_page.dart';
 import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
+import '../features/socio/cartao/cartao_page.dart';
 import '../features/socio/inicio_page.dart';
 import 'arranque/versao_app.dart';
 import 'auth/biometria.dart';
@@ -62,7 +63,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ]),
           StatefulShellBranch(routes: [
-            GoRoute(path: '/socio', builder: (_, _) => const InicioPage()),
+            GoRoute(
+              path: '/socio',
+              builder: (_, _) => const InicioPage(),
+              routes: [
+                GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
+              ],
+            ),
             GoRoute(path: '/desbloquear', builder: (_, _) => const DesbloquearPage()),
             GoRoute(
               path: '/entrar',

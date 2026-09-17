@@ -91,5 +91,15 @@ class TokenStore {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
     await _storage.delete(key: _kSocio);
+    // Caches com dados do sócio (ex.: o cartão) morrem com a sessão.
+    try {
+      final chaves = (await _storage.readAll()).keys.where((k) => k.startsWith(prefixoCache));
+      for (final k in chaves) {
+        await _storage.delete(key: k);
+      }
+    } catch (_) {}
   }
+
+  /// Prefixo das chaves de cache que pertencem à sessão e se apagam com ela.
+  static const prefixoCache = 'lps.sessao.';
 }
