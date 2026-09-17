@@ -26,6 +26,7 @@ Pedidos abertos:
 |--------|----------|
 | `C:\home\cisoc\docs\pedidos-app\2026-09-16-contas-nao-socios.md` | Conta com email para não-sócios; associar conta a sócio; push para não-sócios |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-17-arquivar-conversas.md` | Arquivo de conversas no servidor (hoje só local, por aparelho) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-17-anexos-chat-servidor-antigo.md` | Anexos antigos do chat ainda com `anexo_url` em `api.leoesdeportosalvo.pt` (a app não muda) |
 
 ## Referências para construir a app
 
