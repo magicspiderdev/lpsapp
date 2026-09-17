@@ -7,6 +7,9 @@ import '../features/arranque/arranque_page.dart';
 import '../features/auth/entrar_page.dart';
 import '../features/auth/codigo_page.dart';
 import '../features/auth/desbloquear_page.dart';
+import '../features/publico/agenda/agenda_page.dart';
+import '../features/publico/bilheteira/bilheteira_page.dart';
+import '../features/publico/clube/clube_page.dart';
 import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
@@ -65,9 +68,27 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: '/noticias',
                 builder: (_, _) => const NoticiasPage(),
                 routes: [
+                  GoRoute(path: 'clube', builder: (_, _) => const ClubePage()),
                   GoRoute(
                     path: ':slug',
                     builder: (_, s) => NoticiaPage(slug: s.pathParameters['slug']!),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [GoRoute(path: '/agenda', builder: (_, _) => const AgendaPage())],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/bilhetes',
+                builder: (_, _) => const BilheteiraPage(),
+                routes: [
+                  GoRoute(
+                    path: ':id',
+                    builder: (_, s) => SessaoPage(id: s.pathParameters['id']!),
                   ),
                 ],
               ),

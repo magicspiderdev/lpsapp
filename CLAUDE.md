@@ -27,6 +27,7 @@ Pedidos abertos:
 | `C:\home\cisoc\docs\pedidos-app\2026-09-16-contas-nao-socios.md` | Conta com email para não-sócios; associar conta a sócio; push para não-sócios |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-17-arquivar-conversas.md` | Arquivo de conversas no servidor (hoje só local, por aparelho) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-17-anexos-chat-servidor-antigo.md` | Anexos antigos do chat ainda com `anexo_url` em `api.leoesdeportosalvo.pt` (a app não muda) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-17-zona-publica-agenda-bilhetes-clube.md` | Agenda de jogos e eventos, bilheteira e informação do clube |
 
 ## Referências para construir a app
 
@@ -117,6 +118,9 @@ Consequências para a app:
   `dioSocioProvider` (`/api/v1`, com o interceptor).
 - Correr contra o CISOC local: `flutter run --dart-define=LPS_API_RAIZ=http://10.0.2.2:8080`
   (emulador Android) ou `http://localhost:8080` (simulador iOS). Sem o define, produção.
+- Agenda, bilheteira e informação do clube já têm ecrã mas ainda não têm API:
+  sem nada mostram "brevemente"; com `--dart-define=LPS_DEMO=1` mostram os
+  exemplos de `lib/features/publico/*/…dart`, que são a referência do contrato pedido.
 
 ## Endereços da API
 

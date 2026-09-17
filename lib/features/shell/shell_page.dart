@@ -48,6 +48,16 @@ class _ShellPageState extends ConsumerState<ShellPage> {
                   label: 'Clube',
                 ),
                 NavigationDestination(
+                  icon: Icon(Icons.event_outlined),
+                  selectedIcon: Icon(Icons.event),
+                  label: 'Agenda',
+                ),
+                NavigationDestination(
+                  icon: Icon(Icons.confirmation_number_outlined),
+                  selectedIcon: Icon(Icons.confirmation_number),
+                  label: 'Bilhetes',
+                ),
+                NavigationDestination(
                   icon: Icon(Icons.account_circle_outlined),
                   selectedIcon: Icon(Icons.account_circle),
                   label: 'Sócio',

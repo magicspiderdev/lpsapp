@@ -53,7 +53,16 @@ class NoticiasPage extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        Text('Notícias', style: t.headlineLarge),
+                        Row(
+                          children: [
+                            Expanded(child: Text('Notícias', style: t.headlineLarge)),
+                            IconButton.filledTonal(
+                              tooltip: 'O clube',
+                              onPressed: () => context.push('/noticias/clube'),
+                              icon: const Icon(Icons.info_outline_rounded),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),

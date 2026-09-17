@@ -14,3 +14,11 @@ abstract final class Config {
 
   static String mediaUrl(String uid) => '$apiRaiz/media/$uid';
 }
+
+/// Modo de demonstração: `flutter run --dart-define=LPS_DEMO=1`.
+///
+/// A agenda, a bilheteira e a informação do clube já têm ecrã mas ainda não têm
+/// API (pedido `2026-09-17-zona-publica-agenda-bilhetes-clube` no CISOC). Com
+/// este modo ligado, esses ecrãs mostram dados de exemplo, para se ver o
+/// desenho; sem ele, mostram "em preparação".
+const modoDemonstracao = bool.fromEnvironment('LPS_DEMO');
