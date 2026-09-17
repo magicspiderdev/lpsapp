@@ -8,9 +8,13 @@ import '../../core/api/clientes.dart';
 import '../../core/api/envelope.dart';
 import '../../core/auth/biometria.dart';
 import '../../core/auth/sessao.dart';
+import '../../core/cache/cache_local.dart';
+import '../../core/cache/com_cache.dart';
+import '../../core/rede/ligacao.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
+import '../../core/widgets/estado_dados.dart';
 import 'cartao/cartao_page.dart';
 
 /// `GET /me/resumo` — o ecrã inicial do sócio numa só chamada (guia §4.3).
@@ -50,9 +54,18 @@ class Resumo {
   static DateTime? _data(dynamic v) => (v is String && v.isNotEmpty) ? DateTime.tryParse(v) : null;
 }
 
-final resumoProvider = FutureProvider.autoDispose<Resumo>((ref) async {
-  if (ref.watch(sessaoProvider) is! SessaoSocio) throw StateError('Sem sessão de sócio');
-  return Resumo.fromJson(await dadosDe(ref.read(dioSocioProvider).get('/me/resumo')));
+final resumoProvider = StreamProvider.autoDispose<Dados<Resumo>>((ref) {
+  final sessao = ref.watch(sessaoProvider);
+  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
+
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.sessao,
+    chave: 'resumo.${sessao.socio.nrSocio}',
+    pedido: () => dadosDe(ref.read(dioSocioProvider).get('/me/resumo')),
+    ler: Resumo.fromJson,
+  );
 });
 
 final _euros = NumberFormat.currency(locale: 'pt_PT', symbol: '€');
@@ -76,31 +89,33 @@ class InicioPage extends ConsumerWidget {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         body: resumo.when(
+          skipLoadingOnReload: true,
           loading: () => const _Carregar(),
           error: (e, _) => SafeArea(
             child: ErroView(erro: e, tentarDeNovo: () => ref.invalidate(resumoProvider)),
           ),
-          data: (r) => RefreshIndicator(
+          data: (d) => RefreshIndicator(
             edgeOffset: MediaQuery.paddingOf(context).top,
             onRefresh: () => ref.refresh(resumoProvider.future),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
-                SliverToBoxAdapter(child: _Topo(r)),
+                SliverToBoxAdapter(child: _Topo(d.valor)),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 32),
                   sliver: SliverList.list(children: [
+                    AvisoDesactualizado(d, margem: const EdgeInsets.only(top: 16)),
                     const TituloSeccao('Cartão de sócio'),
                     CartaoVisual(
-                      nome: r.nomeCompleto,
-                      nrSocio: r.nrSocio,
-                      estadoLabel: r.estadoLabel,
-                      valido: r.ativo,
-                      dataSocio: r.dataSocio,
+                      nome: d.valor.nomeCompleto,
+                      nrSocio: d.valor.nrSocio,
+                      estadoLabel: d.valor.estadoLabel,
+                      valido: d.valor.ativo,
+                      dataSocio: d.valor.dataSocio,
                       onTap: () => context.go('/socio/cartao'),
                     ),
                     const TituloSeccao('A sua conta'),
-                    _Conta(r),
+                    _Conta(d.valor),
                   ]),
                 ),
               ],

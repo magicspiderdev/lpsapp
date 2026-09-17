@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../tema/tema.dart';
+import 'imagem_rede.dart';
 
 /// Superfície branca arredondada onde vivem as listas e os resumos.
 class Bloco extends StatelessWidget {
@@ -16,7 +17,10 @@ class Bloco extends StatelessWidget {
       color: Theme.of(context).colorScheme.surfaceContainerLowest,
       borderRadius: BorderRadius.circular(Tema.raio),
       clipBehavior: Clip.antiAlias,
-      child: InkWell(onTap: onTap, child: Padding(padding: padding, child: child)),
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(padding: padding, child: child),
+      ),
     );
   }
 }
@@ -124,9 +128,7 @@ class Avatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = Theme.of(context).colorScheme;
     final partes = nome.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
-    final iniciais = partes.isEmpty
-        ? '?'
-        : (partes.first[0] + (partes.length > 1 ? partes.last[0] : '')).toUpperCase();
+    final iniciais = partes.isEmpty ? '?' : (partes.first[0] + (partes.length > 1 ? partes.last[0] : '')).toUpperCase();
 
     return ClipOval(
       child: Container(
@@ -136,23 +138,19 @@ class Avatar extends StatelessWidget {
         alignment: Alignment.center,
         child: url == null
             ? _iniciais(iniciais, c)
-            : Image.network(
+            : ImagemRede(
                 url!,
-                width: tamanho,
-                height: tamanho,
+                largura: tamanho,
+                altura: tamanho,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _iniciais(iniciais, c),
+                falha: (_) => _iniciais(iniciais, c),
               ),
       ),
     );
   }
 
   Widget _iniciais(String texto, ColorScheme c) => Text(
-        texto,
-        style: TextStyle(
-          fontWeight: FontWeight.w700,
-          fontSize: tamanho * 0.36,
-          color: c.onPrimaryContainer,
-        ),
-      );
+    texto,
+    style: TextStyle(fontWeight: FontWeight.w700, fontSize: tamanho * 0.36, color: c.onPrimaryContainer),
+  );
 }

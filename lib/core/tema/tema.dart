@@ -20,49 +20,53 @@ abstract final class Tema {
     colors: [Color(0xFF14935A), verde, verdeEscuro],
   );
 
-  static ThemeData claro() => _tema(const ColorScheme(
-        brightness: Brightness.light,
-        primary: verde,
-        onPrimary: Colors.white,
-        primaryContainer: Color(0xFFDDF3E7),
-        onPrimaryContainer: verdeEscuro,
-        secondary: verdeVivo,
-        onSecondary: Colors.white,
-        error: alerta,
-        onError: Colors.white,
-        surface: Color(0xFFF4F5F7),
-        onSurface: Color(0xFF16181C),
-        onSurfaceVariant: Color(0xFF75777D),
-        surfaceContainerLowest: Colors.white,
-        surfaceContainerLow: Colors.white,
-        surfaceContainer: Color(0xFFECEEF1),
-        surfaceContainerHigh: Color(0xFFE6E8EC),
-        surfaceContainerHighest: Color(0xFFDFE2E6),
-        outline: Color(0xFFD5D8DD),
-        outlineVariant: Color(0xFFE8EAEE),
-      ));
+  static ThemeData claro() => _tema(
+    const ColorScheme(
+      brightness: Brightness.light,
+      primary: verde,
+      onPrimary: Colors.white,
+      primaryContainer: Color(0xFFDDF3E7),
+      onPrimaryContainer: verdeEscuro,
+      secondary: verdeVivo,
+      onSecondary: Colors.white,
+      error: alerta,
+      onError: Colors.white,
+      surface: Color(0xFFF4F5F7),
+      onSurface: Color(0xFF16181C),
+      onSurfaceVariant: Color(0xFF75777D),
+      surfaceContainerLowest: Colors.white,
+      surfaceContainerLow: Colors.white,
+      surfaceContainer: Color(0xFFECEEF1),
+      surfaceContainerHigh: Color(0xFFE6E8EC),
+      surfaceContainerHighest: Color(0xFFDFE2E6),
+      outline: Color(0xFFD5D8DD),
+      outlineVariant: Color(0xFFE8EAEE),
+    ),
+  );
 
-  static ThemeData escuro() => _tema(const ColorScheme(
-        brightness: Brightness.dark,
-        primary: Color(0xFF3DD68C),
-        onPrimary: Color(0xFF002814),
-        primaryContainer: Color(0xFF0F3D27),
-        onPrimaryContainer: Color(0xFFB8F2D2),
-        secondary: verdeVivo,
-        onSecondary: Colors.white,
-        error: Color(0xFFFF6369),
-        onError: Colors.black,
-        surface: Color(0xFF000000),
-        onSurface: Color(0xFFF2F3F5),
-        onSurfaceVariant: Color(0xFF8E9197),
-        surfaceContainerLowest: Color(0xFF16181B),
-        surfaceContainerLow: Color(0xFF16181B),
-        surfaceContainer: Color(0xFF1F2226),
-        surfaceContainerHigh: Color(0xFF272A2F),
-        surfaceContainerHighest: Color(0xFF2F3338),
-        outline: Color(0xFF3A3E44),
-        outlineVariant: Color(0xFF26292D),
-      ));
+  static ThemeData escuro() => _tema(
+    const ColorScheme(
+      brightness: Brightness.dark,
+      primary: Color(0xFF3DD68C),
+      onPrimary: Color(0xFF002814),
+      primaryContainer: Color(0xFF0F3D27),
+      onPrimaryContainer: Color(0xFFB8F2D2),
+      secondary: verdeVivo,
+      onSecondary: Colors.white,
+      error: Color(0xFFFF6369),
+      onError: Colors.black,
+      surface: Color(0xFF000000),
+      onSurface: Color(0xFFF2F3F5),
+      onSurfaceVariant: Color(0xFF8E9197),
+      surfaceContainerLowest: Color(0xFF16181B),
+      surfaceContainerLow: Color(0xFF16181B),
+      surfaceContainer: Color(0xFF1F2226),
+      surfaceContainerHigh: Color(0xFF272A2F),
+      surfaceContainerHighest: Color(0xFF2F3338),
+      outline: Color(0xFF3A3E44),
+      outlineVariant: Color(0xFF26292D),
+    ),
+  );
 
   static ThemeData _tema(ColorScheme c) {
     final base = ThemeData(colorScheme: c, useMaterial3: true, fontFamily: 'Inter');
@@ -91,7 +95,11 @@ abstract final class Tema {
         centerTitle: false,
         systemOverlayStyle: escuro ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
         titleTextStyle: t.titleLarge?.copyWith(
-            fontFamily: 'Inter', fontWeight: FontWeight.w700, color: c.onSurface, letterSpacing: -0.4),
+          fontFamily: 'Inter',
+          fontWeight: FontWeight.w700,
+          color: c.onSurface,
+          letterSpacing: -0.4,
+        ),
       ),
       cardTheme: CardThemeData(
         color: c.surfaceContainerLowest,
@@ -125,10 +133,7 @@ abstract final class Tema {
         filled: true,
         fillColor: c.surfaceContainerLowest,
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(raioPequeno),
-          borderSide: BorderSide.none,
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(raioPequeno), borderSide: BorderSide.none),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(raioPequeno),
           borderSide: BorderSide.none,
@@ -151,16 +156,17 @@ abstract final class Tema {
         indicatorColor: Colors.transparent,
         elevation: 0,
         labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-        iconTheme: WidgetStateProperty.resolveWith((s) => IconThemeData(
-              size: 26,
-              color: s.contains(WidgetState.selected) ? c.onSurface : c.onSurfaceVariant,
-            )),
-        labelTextStyle: WidgetStateProperty.resolveWith((s) => TextStyle(
-              fontFamily: 'Inter',
-              fontSize: 11,
-              fontWeight: s.contains(WidgetState.selected) ? FontWeight.w600 : FontWeight.w500,
-              color: s.contains(WidgetState.selected) ? c.onSurface : c.onSurfaceVariant,
-            )),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (s) => IconThemeData(size: 26, color: s.contains(WidgetState.selected) ? c.onSurface : c.onSurfaceVariant),
+        ),
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (s) => TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 11,
+            fontWeight: s.contains(WidgetState.selected) ? FontWeight.w600 : FontWeight.w500,
+            color: s.contains(WidgetState.selected) ? c.onSurface : c.onSurfaceVariant,
+          ),
+        ),
       ),
       dividerTheme: DividerThemeData(color: c.outlineVariant, thickness: 1, space: 1),
       listTileTheme: ListTileThemeData(
@@ -172,10 +178,12 @@ abstract final class Tema {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(raioPequeno)),
       ),
-      pageTransitionsTheme: const PageTransitionsTheme(builders: {
-        TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
-        TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-      }),
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: PredictiveBackPageTransitionsBuilder(),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
     );
   }
 }

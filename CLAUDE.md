@@ -106,7 +106,7 @@ Consequências para a app:
 
 - Estado: `flutter_riverpod` (2.x, sem geração de código). Rotas: `go_router`, com
   `redirect` por estado de sessão e de versão (`lib/core/router.dart`).
-- `lib/core/` — `config.dart` (endereços), `api/` (clientes Dio, envelope →
+- `lib/core/` — `config.dart` (endereços), `cache/` (cache local e `comCache`), `rede/` (estado da ligação), `api/` (clientes Dio, envelope →
   `ApiException`), `auth/` (`TokenStore`, `AuthInterceptor`, `sessaoProvider`),
   `arranque/` (`/ping` e versão mínima).
 - `lib/features/<zona ou área>/` — ecrãs e o respectivo acesso à API
@@ -130,3 +130,4 @@ Não chamar o backend antigo `api.leoesdeportosalvo.pt`.
 - Biometria só desbloqueia a sessão guardada no aparelho (`lib/core/auth/biometria.dart`); nunca guardar a palavra-passe. Desliga-se quando a sessão acaba.
 - Dinheiro: não somar quotas e modalidades (usar `divida.total`); `estimado: true` não é pagável; `201` num pagamento não significa pago.
 - Tratar listas de estados/tipos vindas da API como abertas (`default` nos `switch`).
+- Ecrãs com dados da API usam cache (`comCache` em `lib/core/cache/`): mostram logo a última informação guardada, actualizam quando há rede e, sem ligação, avisam com `AvisoDesactualizado`. Dados do sócio em `Ambito.sessao`, credenciais em `Ambito.seguro` — apagam-se com a sessão. Imagens com `ImagemRede`, nunca `Image.network`.

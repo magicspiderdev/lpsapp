@@ -52,8 +52,8 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
-    final sessaoInvalida = (status == 401 &&
-            (erro == 'token_invalido' || erro == 'token_ausente' || erro == 'conta_eliminada')) ||
+    final sessaoInvalida =
+        (status == 401 && (erro == 'token_invalido' || erro == 'token_ausente' || erro == 'conta_eliminada')) ||
         (status == 403 && erro == 'socio_inexistente');
     if (comToken && sessaoInvalida) {
       await _store.terminar();

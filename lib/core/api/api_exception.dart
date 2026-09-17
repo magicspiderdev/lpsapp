@@ -12,12 +12,7 @@ class ApiException implements Exception {
   /// O corpo completo, para campos extra como `tentativas_restantes`.
   final Map<String, dynamic> dados;
 
-  const ApiException({
-    required this.erro,
-    required this.message,
-    this.httpStatus,
-    this.dados = const {},
-  });
+  const ApiException({required this.erro, required this.message, this.httpStatus, this.dados = const {}});
 
   factory ApiException.deDio(DioException e) {
     final corpo = e.response?.data;
@@ -33,16 +28,15 @@ class ApiException implements Exception {
       DioExceptionType.connectionError ||
       DioExceptionType.connectionTimeout ||
       DioExceptionType.receiveTimeout ||
-      DioExceptionType.sendTimeout =>
-        const ApiException(
-          erro: 'sem_ligacao',
-          message: 'Sem ligação ao servidor. Verifique a internet e tente novamente.',
-        ),
+      DioExceptionType.sendTimeout => const ApiException(
+        erro: 'sem_ligacao',
+        message: 'Sem ligação ao servidor. Verifique a internet e tente novamente.',
+      ),
       _ => ApiException(
-          httpStatus: e.response?.statusCode,
-          erro: 'erro_interno',
-          message: 'O serviço está indisponível. Tente novamente daqui a pouco.',
-        ),
+        httpStatus: e.response?.statusCode,
+        erro: 'erro_interno',
+        message: 'O serviço está indisponível. Tente novamente daqui a pouco.',
+      ),
     };
   }
 

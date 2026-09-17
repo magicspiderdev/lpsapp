@@ -4,10 +4,7 @@
 /// `flutter run --dart-define=LPS_API_RAIZ=http://10.0.2.2:8080` (emulador Android
 /// com o CISOC local). Por omissão, produção.
 abstract final class Config {
-  static const apiRaiz = String.fromEnvironment(
-    'LPS_API_RAIZ',
-    defaultValue: 'https://mylps.leoesdeportosalvo.pt/lps',
-  );
+  static const apiRaiz = String.fromEnvironment('LPS_API_RAIZ', defaultValue: 'https://mylps.leoesdeportosalvo.pt/lps');
 
   /// Zona privada: API do Sócio (guia `api-socio-flutter.md`).
   static const socioBase = '$apiRaiz/api/v1';

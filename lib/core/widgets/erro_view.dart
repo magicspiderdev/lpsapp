@@ -12,9 +12,7 @@ class ErroView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final texto = erro is ApiException
-        ? (erro as ApiException).message
-        : 'Não foi possível carregar. Tente novamente.';
+    final texto = erro is ApiException ? (erro as ApiException).message : 'Não foi possível carregar. Tente novamente.';
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),

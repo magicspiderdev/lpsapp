@@ -44,11 +44,11 @@ enum TipoBiometria {
 
   /// "Entrar com …"
   String get nome => switch (this) {
-        TipoBiometria.facial when defaultTargetPlatform == TargetPlatform.iOS => 'Face ID',
-        TipoBiometria.facial => 'reconhecimento facial',
-        TipoBiometria.digital when defaultTargetPlatform == TargetPlatform.iOS => 'Touch ID',
-        TipoBiometria.digital => 'impressão digital',
-      };
+    TipoBiometria.facial when defaultTargetPlatform == TargetPlatform.iOS => 'Face ID',
+    TipoBiometria.facial => 'reconhecimento facial',
+    TipoBiometria.digital when defaultTargetPlatform == TargetPlatform.iOS => 'Touch ID',
+    TipoBiometria.digital => 'impressão digital',
+  };
 }
 
 final _auth = LocalAuthentication();
@@ -90,10 +90,10 @@ class EstadoBiometria {
   const EstadoBiometria({required this.activa, required this.bloqueada, this.oferecer = false});
 
   EstadoBiometria copyWith({bool? activa, bool? bloqueada, bool? oferecer}) => EstadoBiometria(
-        activa: activa ?? this.activa,
-        bloqueada: bloqueada ?? this.bloqueada,
-        oferecer: oferecer ?? this.oferecer,
-      );
+    activa: activa ?? this.activa,
+    bloqueada: bloqueada ?? this.bloqueada,
+    oferecer: oferecer ?? this.oferecer,
+  );
 }
 
 final biometriaProvider = NotifierProvider<BiometriaController, EstadoBiometria>(BiometriaController.new);
@@ -108,10 +108,7 @@ class BiometriaController extends Notifier<EstadoBiometria> {
   EstadoBiometria build() {
     final store = ref.watch(biometriaStoreProvider);
 
-    final ciclo = AppLifecycleListener(
-      onHide: () => _saiuEm ??= DateTime.now(),
-      onShow: _voltou,
-    );
+    final ciclo = AppLifecycleListener(onHide: () => _saiuEm ??= DateTime.now(), onShow: _voltou);
     ref.onDispose(ciclo.dispose);
 
     ref.listen(sessaoProvider, (antes, depois) {
@@ -158,4 +155,3 @@ class BiometriaController extends Notifier<EstadoBiometria> {
 
   void dispensarOferta() => state = state.copyWith(oferecer: false);
 }
-

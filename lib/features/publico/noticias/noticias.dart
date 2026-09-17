@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/clientes.dart';
 import '../../../core/api/envelope.dart';
+import '../../../core/cache/cache_local.dart';
+import '../../../core/cache/com_cache.dart';
+import '../../../core/rede/ligacao.dart';
 
 class Categoria {
   final String slug, nome;
@@ -47,15 +50,13 @@ class NoticiaResumo {
   });
 
   factory NoticiaResumo.fromJson(Map<String, dynamic> j) => NoticiaResumo(
-        slug: j['slug'] as String,
-        titulo: j['titulo'] as String,
-        resumo: j['resumo'] as String?,
-        categoria: j['categoria'] is Map
-            ? Categoria.fromJson((j['categoria'] as Map).cast<String, dynamic>())
-            : null,
-        capa: Capa.fromJson(j['capa']),
-        publicadoEm: j['publicado_em'] == null ? null : DateTime.tryParse(j['publicado_em'] as String),
-      );
+    slug: j['slug'] as String,
+    titulo: j['titulo'] as String,
+    resumo: j['resumo'] as String?,
+    categoria: j['categoria'] is Map ? Categoria.fromJson((j['categoria'] as Map).cast<String, dynamic>()) : null,
+    capa: Capa.fromJson(j['capa']),
+    publicadoEm: j['publicado_em'] == null ? null : DateTime.tryParse(j['publicado_em'] as String),
+  );
 }
 
 class Noticia extends NoticiaResumo {
@@ -63,69 +64,95 @@ class Noticia extends NoticiaResumo {
   final List<Map<String, dynamic>> corpo;
 
   Noticia.fromJson(Map<String, dynamic> j)
-      : corpo = [
-          for (final b in (j['corpo'] as List?) ?? const [])
-            if (b is Map && b['tipo'] is String) b.cast<String, dynamic>(),
-        ],
-        super(
-          slug: j['slug'] as String,
-          titulo: j['titulo'] as String,
-          resumo: j['resumo'] as String?,
-          categoria: j['categoria'] is Map
-              ? Categoria.fromJson((j['categoria'] as Map).cast<String, dynamic>())
-              : null,
-          capa: Capa.fromJson(j['capa']),
-          publicadoEm: j['publicado_em'] == null ? null : DateTime.tryParse(j['publicado_em'] as String),
-        );
+    : corpo = [
+        for (final b in (j['corpo'] as List?) ?? const [])
+          if (b is Map && b['tipo'] is String) b.cast<String, dynamic>(),
+      ],
+      super(
+        slug: j['slug'] as String,
+        titulo: j['titulo'] as String,
+        resumo: j['resumo'] as String?,
+        categoria: j['categoria'] is Map ? Categoria.fromJson((j['categoria'] as Map).cast<String, dynamic>()) : null,
+        capa: Capa.fromJson(j['capa']),
+        publicadoEm: j['publicado_em'] == null ? null : DateTime.tryParse(j['publicado_em'] as String),
+      );
 }
 
-class ListaNoticias {
+class PaginaNoticias {
   final List<NoticiaResumo> noticias;
   final int pagina, paginas;
-  final bool aCarregarMais;
 
-  const ListaNoticias(this.noticias, this.pagina, this.paginas, {this.aCarregarMais = false});
+  const PaginaNoticias(this.noticias, this.pagina, this.paginas);
 
-  bool get haMais => pagina < paginas;
-}
-
-final noticiasProvider = AsyncNotifierProvider<NoticiasController, ListaNoticias>(NoticiasController.new);
-
-class NoticiasController extends AsyncNotifier<ListaNoticias> {
-  static const _porPagina = 12;
-
-  @override
-  Future<ListaNoticias> build() => _pagina(1, const []);
-
-  Future<void> carregarMais() async {
-    final actual = state.valueOrNull;
-    if (actual == null || !actual.haMais || actual.aCarregarMais) return;
-    state = AsyncData(ListaNoticias(actual.noticias, actual.pagina, actual.paginas, aCarregarMais: true));
-    try {
-      state = AsyncData(await _pagina(actual.pagina + 1, actual.noticias));
-    } catch (_) {
-      state = AsyncData(actual); // mantém o que já está; o próximo scroll tenta outra vez
-    }
-  }
-
-  Future<ListaNoticias> _pagina(int pagina, List<NoticiaResumo> anteriores) async {
-    final data = await dadosDe(ref.read(dioPublicoProvider).get(
-      '/noticias',
-      queryParameters: {'pagina': pagina, 'por_pagina': _porPagina},
-    ));
-    final pag = (data['paginacao'] as Map).cast<String, dynamic>();
-    return ListaNoticias(
-      [
-        ...anteriores,
-        for (final n in data['noticias'] as List) NoticiaResumo.fromJson((n as Map).cast<String, dynamic>()),
-      ],
+  factory PaginaNoticias.fromJson(Map<String, dynamic> j) {
+    final pag = (j['paginacao'] as Map).cast<String, dynamic>();
+    return PaginaNoticias(
+      [for (final n in j['noticias'] as List) NoticiaResumo.fromJson((n as Map).cast<String, dynamic>())],
       pag['pagina'] as int,
       pag['paginas'] as int,
     );
   }
 }
 
-final noticiaProvider = FutureProvider.autoDispose.family<Noticia, String>((ref, slug) async {
-  final data = await dadosDe(ref.read(dioPublicoProvider).get('/noticias/$slug'));
-  return Noticia.fromJson((data['noticia'] as Map).cast<String, dynamic>());
+const _porPagina = 12;
+
+Future<Map<String, dynamic>> _pedirPagina(Ref ref, int pagina) => dadosDe(
+  ref.read(dioPublicoProvider).get('/noticias', queryParameters: {'pagina': pagina, 'por_pagina': _porPagina}),
+);
+
+/// Primeira página: com cache, abre sem rede.
+final noticiasProvider = StreamProvider.autoDispose<Dados<PaginaNoticias>>((ref) {
+  ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.publico,
+    chave: 'noticias.p1',
+    pedido: () => _pedirPagina(ref, 1),
+    ler: PaginaNoticias.fromJson,
+  );
+});
+
+/// Páginas seguintes, carregadas ao fazer scroll. Só com rede; recomeçam quando a
+/// primeira página muda.
+class MaisNoticias {
+  final List<NoticiaResumo> noticias;
+  final int ultimaPagina;
+  final bool aCarregar;
+
+  const MaisNoticias({this.noticias = const [], this.ultimaPagina = 1, this.aCarregar = false});
+}
+
+final maisNoticiasProvider = NotifierProvider.autoDispose<MaisNoticiasController, MaisNoticias>(
+  MaisNoticiasController.new,
+);
+
+class MaisNoticiasController extends AutoDisposeNotifier<MaisNoticias> {
+  @override
+  MaisNoticias build() {
+    ref.watch(noticiasProvider.select((d) => d.valueOrNull?.obtidoEm));
+    return const MaisNoticias();
+  }
+
+  Future<void> carregar(int paginas) async {
+    if (state.aCarregar || state.ultimaPagina >= paginas || !ref.read(ligacaoProvider)) return;
+    final antes = state;
+    state = MaisNoticias(noticias: antes.noticias, ultimaPagina: antes.ultimaPagina, aCarregar: true);
+    try {
+      final p = PaginaNoticias.fromJson(await _pedirPagina(ref, antes.ultimaPagina + 1));
+      state = MaisNoticias(noticias: [...antes.noticias, ...p.noticias], ultimaPagina: p.pagina);
+    } catch (_) {
+      state = antes; // sem rede: fica o que já está
+    }
+  }
+}
+
+final noticiaProvider = StreamProvider.autoDispose.family<Dados<Noticia>, String>((ref, slug) {
+  ref.watch(ligacaoProvider);
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.publico,
+    chave: 'noticia.$slug',
+    pedido: () => dadosDe(ref.read(dioPublicoProvider).get('/noticias/$slug')),
+    ler: (j) => Noticia.fromJson((j['noticia'] as Map).cast<String, dynamic>()),
+  );
 });

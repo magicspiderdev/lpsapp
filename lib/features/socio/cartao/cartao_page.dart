@@ -3,9 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
+import '../../../core/cache/com_cache.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
+import '../../../core/widgets/estado_dados.dart';
 import 'cartao.dart';
 
 /// Cartão digital com o QR que a portaria lê. Abre sem rede com o último cartão guardado.
@@ -19,35 +21,29 @@ class CartaoPage extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Cartão de sócio')),
       body: estado.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(cartaoProvider)),
-        data: (s) => RefreshIndicator(
+        data: (d) => RefreshIndicator(
           onRefresh: () => ref.refresh(cartaoProvider.future),
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
-            children: s.semCartao || s.cartao == null ? const [_SemCartao()] : _conteudo(context, s),
+            children: [
+              AvisoDesactualizado(d),
+              if (d.valor == null) const _SemCartao() else ..._conteudo(context, d),
+            ],
           ),
         ),
       ),
     );
   }
 
-  List<Widget> _conteudo(BuildContext context, EstadoCartao s) {
-    final c = s.cartao!;
+  List<Widget> _conteudo(BuildContext context, Dados<CartaoOuNada> d) {
+    final c = d.valor!;
     final tema = Theme.of(context);
 
     return [
-      if (s.deCache) ...[
-        _Aviso(
-          icone: Icons.cloud_off_rounded,
-          texto: s.obtidoEm == null
-              ? 'Sem ligação. A mostrar o último cartão guardado.'
-              : 'Sem ligação. Cartão guardado em ${DateFormat("d MMM 'às' HH:mm", 'pt_PT').format(s.obtidoEm!)}.',
-          cor: tema.colorScheme.onSurfaceVariant,
-        ),
-        const SizedBox(height: 12),
-      ],
       _CartaoQueRoda(cartao: c),
       const SizedBox(height: 8),
       Text('Toque no cartão para o virar', textAlign: TextAlign.center, style: tema.textTheme.bodySmall),

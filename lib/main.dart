@@ -7,6 +7,7 @@ import 'app.dart';
 import 'core/api/clientes.dart';
 import 'core/auth/biometria.dart';
 import 'core/auth/token_store.dart';
+import 'core/cache/cache_local.dart';
 import 'core/config.dart';
 
 Future<void> main() async {
@@ -14,7 +15,8 @@ Future<void> main() async {
   await initializeDateFormatting('pt_PT');
 
   const storage = FlutterSecureStorage();
-  final tokens = TokenStore(storage, novoDio(Config.socioBase));
+  final cache = CacheEmDisco(storage);
+  final tokens = TokenStore(storage, novoDio(Config.socioBase), limparCaches: cache.limparSessao);
   final biometria = BiometriaStore(storage);
   await Future.wait([tokens.carregar(), biometria.carregar()]);
 
@@ -22,6 +24,7 @@ Future<void> main() async {
     overrides: [
       tokenStoreProvider.overrideWithValue(tokens),
       biometriaStoreProvider.overrideWithValue(biometria),
+      cacheProvider.overrideWithValue(cache),
     ],
     child: const LpsApp(),
   ));

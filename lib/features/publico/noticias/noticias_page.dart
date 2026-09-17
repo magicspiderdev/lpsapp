@@ -6,6 +6,8 @@ import 'package:intl/intl.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
+import '../../../core/widgets/estado_dados.dart';
+import '../../../core/widgets/imagem_rede.dart';
 import 'noticias.dart';
 
 String _quando(DateTime? d) => d == null ? '' : DateFormat('d MMM', 'pt_PT').format(d);
@@ -16,6 +18,7 @@ class NoticiasPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lista = ref.watch(noticiasProvider);
+    final mais = ref.watch(maisNoticiasProvider);
     final t = Theme.of(context).textTheme;
 
     return Scaffold(
@@ -24,7 +27,10 @@ class NoticiasPage extends ConsumerWidget {
         onRefresh: () => ref.refresh(noticiasProvider.future),
         child: NotificationListener<ScrollNotification>(
           onNotification: (n) {
-            if (n.metrics.extentAfter < 400) ref.read(noticiasProvider.notifier).carregarMais();
+            final paginas = lista.valueOrNull?.valor.paginas;
+            if (paginas != null && n.metrics.extentAfter < 400) {
+              ref.read(maisNoticiasProvider.notifier).carregar(paginas);
+            }
             return false;
           },
           child: CustomScrollView(
@@ -38,11 +44,14 @@ class NoticiasPage extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('LEÕES DE PORTO SALVO',
-                            style: t.labelMedium?.copyWith(
-                                color: Theme.of(context).colorScheme.primary,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 1.2)),
+                        Text(
+                          'LEÕES DE PORTO SALVO',
+                          style: t.labelMedium?.copyWith(
+                            color: Theme.of(context).colorScheme.primary,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text('Notícias', style: t.headlineLarge),
                       ],
@@ -51,47 +60,56 @@ class NoticiasPage extends ConsumerWidget {
                 ),
               ),
               ...lista.when(
-                loading: () => [
-                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator())),
-                ],
+                skipLoadingOnReload: true,
+                loading: () => [const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))],
                 error: (e, _) => [
                   SliverFillRemaining(
                     child: ErroView(erro: e, tentarDeNovo: () => ref.invalidate(noticiasProvider)),
                   ),
                 ],
-                data: (l) => l.noticias.isEmpty
-                    ? [const SliverFillRemaining(hasScrollBody: false, child: _Vazio())]
-                    : [
+                data: (d) {
+                  final noticias = [...d.valor.noticias, ...mais.noticias];
+                  final haMais = mais.ultimaPagina < d.valor.paginas;
+                  return [
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(Tema.margem, 12, Tema.margem, 0),
+                      sliver: SliverToBoxAdapter(child: AvisoDesactualizado(d, margem: EdgeInsets.zero)),
+                    ),
+                    if (noticias.isEmpty)
+                      const SliverFillRemaining(hasScrollBody: false, child: _Vazio())
+                    else ...[
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(Tema.margem, 12, Tema.margem, 0),
+                        sliver: SliverToBoxAdapter(child: _Destaque(noticias.first)),
+                      ),
+                      if (noticias.length > 1)
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(Tema.margem, 12, Tema.margem, 0),
-                          sliver: SliverToBoxAdapter(child: _Destaque(l.noticias.first)),
-                        ),
-                        if (l.noticias.length > 1)
-                          SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(Tema.margem, 16, Tema.margem, 0),
-                            sliver: SliverToBoxAdapter(
-                              child: Bloco(
-                                padding: const EdgeInsets.symmetric(vertical: 6),
-                                child: Column(
-                                  children: [
-                                    for (final (i, n) in l.noticias.skip(1).indexed) ...[
-                                      if (i > 0) const Divider(indent: 16, endIndent: 16),
-                                      _Linha(n),
-                                    ],
+                          padding: const EdgeInsets.fromLTRB(Tema.margem, 16, Tema.margem, 0),
+                          sliver: SliverToBoxAdapter(
+                            child: Bloco(
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: Column(
+                                children: [
+                                  for (final (i, n) in noticias.skip(1).indexed) ...[
+                                    if (i > 0) const Divider(indent: 16, endIndent: 16),
+                                    _Linha(n),
                                   ],
-                                ),
+                                ],
                               ),
                             ),
                           ),
-                        SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: l.haMais
-                                ? const Center(child: CircularProgressIndicator())
-                                : const SizedBox.shrink(),
-                          ),
                         ),
-                      ],
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.all(24),
+                          child: haMais && !d.desactualizados
+                              ? const Center(child: CircularProgressIndicator())
+                              : const SizedBox.shrink(),
+                        ),
+                      ),
+                    ],
+                  ];
+                },
               ),
             ],
           ),
@@ -120,8 +138,10 @@ class _Destaque extends StatelessWidget {
             fit: StackFit.expand,
             children: [
               if (n.capa != null)
-                Image.network(n.capa!.url, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube)))
+                ImagemRede(
+                  n.capa!.url,
+                  falha: (_) => const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube)),
+                )
               else
                 const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube)),
               DecoratedBox(
@@ -144,8 +164,10 @@ class _Destaque extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(color: c.primary, borderRadius: BorderRadius.circular(100)),
-                        child: Text(n.categoria!.nome,
-                            style: TextStyle(color: c.onPrimary, fontSize: 12, fontWeight: FontWeight.w600)),
+                        child: Text(
+                          n.categoria!.nome,
+                          style: TextStyle(color: c.onPrimary, fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     const SizedBox(height: 10),
                     Text(
@@ -156,8 +178,10 @@ class _Destaque extends StatelessWidget {
                     ),
                     if (n.publicadoEm != null) ...[
                       const SizedBox(height: 6),
-                      Text(_quando(n.publicadoEm),
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13)),
+                      Text(
+                        _quando(n.publicadoEm),
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
+                      ),
                     ],
                   ],
                 ),
@@ -190,8 +214,7 @@ class _Linha extends StatelessWidget {
                 dimension: 64,
                 child: n.capa == null
                     ? const DecoratedBox(decoration: BoxDecoration(gradient: Tema.gradienteClube))
-                    : Image.network(n.capa!.url, fit: BoxFit.cover,
-                        errorBuilder: (_, _, _) => ColoredBox(color: tema.colorScheme.surfaceContainer)),
+                    : ImagemRede(n.capa!.url, falha: (_) => ColoredBox(color: tema.colorScheme.surfaceContainer)),
               ),
             ),
             const SizedBox(width: 14),
@@ -202,9 +225,10 @@ class _Linha extends StatelessWidget {
                   Text(n.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: tema.textTheme.titleSmall),
                   const SizedBox(height: 4),
                   Text(
-                    [if (n.categoria != null) n.categoria!.nome, _quando(n.publicadoEm)]
-                        .where((s) => s.isNotEmpty)
-                        .join(' · '),
+                    [
+                      if (n.categoria != null) n.categoria!.nome,
+                      _quando(n.publicadoEm),
+                    ].where((s) => s.isNotEmpty).join(' · '),
                     style: tema.textTheme.bodySmall,
                   ),
                 ],
@@ -232,8 +256,7 @@ class _Vazio extends StatelessWidget {
           const SizedBox(height: 16),
           Text('Ainda não há notícias', style: tema.textTheme.titleMedium),
           const SizedBox(height: 4),
-          Text('Quando o clube publicar, aparecem aqui.',
-              textAlign: TextAlign.center, style: tema.textTheme.bodySmall),
+          Text('Quando o clube publicar, aparecem aqui.', textAlign: TextAlign.center, style: tema.textTheme.bodySmall),
         ],
       ),
     );

@@ -22,12 +22,12 @@ class SocioSessao {
   });
 
   factory SocioSessao.fromJson(Map<String, dynamic> j) => SocioSessao(
-        nrSocio: j['nr_socio'] as int,
-        nomeCompleto: j['nome_completo'] as String,
-        estado: j['estado'] as int,
-        email: j['email'] as String?,
-        fotoUrl: j['foto_url'] as String?,
-      );
+    nrSocio: j['nr_socio'] as int,
+    nomeCompleto: j['nome_completo'] as String,
+    estado: j['estado'] as int,
+    email: j['email'] as String?,
+    fotoUrl: j['foto_url'] as String?,
+  );
 }
 
 /// Quem está a usar a app. Hoje só há anónimo ou sócio; a conta com email de
@@ -58,39 +58,30 @@ class SessaoController extends Notifier<Sessao> {
     ref.onDispose(() => _sub?.cancel());
 
     final socio = store.socio;
-    return store.temSessao && socio != null
-        ? SessaoSocio(SocioSessao.fromJson(socio))
-        : const SessaoAnonima();
+    return store.temSessao && socio != null ? SessaoSocio(SocioSessao.fromJson(socio)) : const SessaoAnonima();
   }
 
   Future<void> entrar({required int nrSocio, required String password}) async {
-    final data = await dadosDe(ref.read(dioSocioProvider).post(
-      '/auth/login',
-      data: {'nr_socio': nrSocio, 'password': password},
-    ));
+    final data = await dadosDe(
+      ref.read(dioSocioProvider).post('/auth/login', data: {'nr_socio': nrSocio, 'password': password}),
+    );
     await _abrir(data);
   }
 
   /// Primeiro acesso e "esqueci-me": pede o código. A resposta é sempre a
   /// mesma, exista ou não o sócio — devolve a `mensagem` para mostrar.
   Future<String> pedirCodigo(int nrSocio) async {
-    final data = await dadosDe(ref.read(dioSocioProvider).post(
-      '/auth/recuperar',
-      data: {'nr_socio': nrSocio},
-    ));
+    final data = await dadosDe(ref.read(dioSocioProvider).post('/auth/recuperar', data: {'nr_socio': nrSocio}));
     return data['mensagem'] as String;
   }
 
   /// Confirma o código e define a password. O sócio fica logo autenticado.
-  Future<void> confirmarCodigo({
-    required int nrSocio,
-    required String codigo,
-    required String password,
-  }) async {
-    final data = await dadosDe(ref.read(dioSocioProvider).post(
-      '/auth/recuperar/confirmar',
-      data: {'nr_socio': nrSocio, 'codigo': codigo, 'password': password},
-    ));
+  Future<void> confirmarCodigo({required int nrSocio, required String codigo, required String password}) async {
+    final data = await dadosDe(
+      ref
+          .read(dioSocioProvider)
+          .post('/auth/recuperar/confirmar', data: {'nr_socio': nrSocio, 'codigo': codigo, 'password': password}),
+    );
     await _abrir(data);
   }
 

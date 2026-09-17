@@ -1,18 +1,17 @@
-import 'dart:convert';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../../core/api/api_exception.dart';
 import '../../../core/api/clientes.dart';
 import '../../../core/api/envelope.dart';
 import '../../../core/auth/sessao.dart';
-import '../../../core/auth/token_store.dart';
+import '../../../core/cache/cache_local.dart';
+import '../../../core/cache/com_cache.dart';
+import '../../../core/rede/ligacao.dart';
 
 /// `GET /me/cartao` (guia §4.4).
 ///
 /// `hashid` e `qrConteudo` são a credencial que a portaria valida: não vão
-/// para logs e só se guardam no armazenamento seguro.
+/// para logs e a cache fica no armazenamento seguro.
 class Cartao {
   final int nrSocio, estado;
   final String nomeCompleto, estadoLabel, qrConteudo;
@@ -43,58 +42,26 @@ class Cartao {
       );
 }
 
-/// O cartão e de onde veio: sem rede mostra-se o último guardado.
-class EstadoCartao {
-  final Cartao? cartao;
+/// `null` = `409 sem_cartao` (o sócio ainda não tem cartão emitido).
+typedef CartaoOuNada = Cartao?;
 
-  /// `409 sem_cartao`: o sócio ainda não tem cartão emitido.
-  final bool semCartao;
-
-  /// Quando foi obtido do servidor; `deCache` se não foi possível actualizar agora.
-  final DateTime? obtidoEm;
-  final bool deCache;
-
-  const EstadoCartao({this.cartao, this.semCartao = false, this.obtidoEm, this.deCache = false});
-}
-
-const _kCache = '${TokenStore.prefixoCache}cartao';
-
-final cartaoProvider = FutureProvider.autoDispose<EstadoCartao>((ref) async {
+final cartaoProvider = StreamProvider.autoDispose<Dados<CartaoOuNada>>((ref) {
   final sessao = ref.watch(sessaoProvider);
   if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
 
-  const storage = FlutterSecureStorage();
-  // A cache é do sócio que a guardou; outro sócio no mesmo aparelho não a vê.
-  final chave = '$_kCache.${sessao.socio.nrSocio}';
-
-  try {
-    final data = await dadosDe(ref.read(dioSocioProvider).get('/me/cartao'));
-    final agora = DateTime.now();
-    await storage.write(key: chave, value: jsonEncode({'obtido_em': agora.toIso8601String(), 'cartao': data}));
-    return EstadoCartao(cartao: Cartao.fromJson(data), obtidoEm: agora);
-  } on ApiException catch (e) {
-    if (e.erro == 'sem_cartao') {
-      await storage.delete(key: chave);
-      return const EstadoCartao(semCartao: true);
-    }
-    // Sem rede ou servidor em baixo: o cartão tem de abrir na mesma.
-    final guardado = await _lerCache(storage, chave);
-    if (guardado != null) return guardado;
-    rethrow;
-  }
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.seguro,
+    chave: 'cartao.${sessao.socio.nrSocio}',
+    pedido: () async {
+      try {
+        return await dadosDe(ref.read(dioSocioProvider).get('/me/cartao'));
+      } on ApiException catch (e) {
+        if (e.erro == 'sem_cartao') return const {'sem_cartao': true};
+        rethrow;
+      }
+    },
+    ler: (j) => j['sem_cartao'] == true ? null : Cartao.fromJson(j),
+  );
 });
-
-Future<EstadoCartao?> _lerCache(FlutterSecureStorage storage, String chave) async {
-  try {
-    final bruto = await storage.read(key: chave);
-    if (bruto == null) return null;
-    final j = jsonDecode(bruto) as Map<String, dynamic>;
-    return EstadoCartao(
-      cartao: Cartao.fromJson((j['cartao'] as Map).cast<String, dynamic>()),
-      obtidoEm: DateTime.tryParse(j['obtido_em'] as String? ?? ''),
-      deCache: true,
-    );
-  } catch (_) {
-    return null;
-  }
-}

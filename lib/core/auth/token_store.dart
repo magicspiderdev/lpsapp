@@ -12,7 +12,9 @@ import '../api/envelope.dart';
 /// O refresh **não é rotativo** (guia §2.2): o refresh token original serve
 /// até expirar, por isso nunca se substitui a partir da resposta do refresh.
 class TokenStore {
-  TokenStore(this._storage, this._dioSemAuth);
+  TokenStore(this._storage, this._dioSemAuth, {Future<void> Function()? limparCaches}) : _limparCaches = limparCaches;
+
+  final Future<void> Function()? _limparCaches;
 
   static const _kAccess = 'lps.access_token';
   static const _kRefresh = 'lps.refresh_token';
@@ -67,9 +69,7 @@ class TokenStore {
   Future<void> renovar() async {
     final refresh = _refresh;
     if (refresh == null) throw StateError('Sem refresh token');
-    final data = await dadosDe(
-      _dioSemAuth.post('/auth/refresh', data: {'refresh_token': refresh}),
-    );
+    final data = await dadosDe(_dioSemAuth.post('/auth/refresh', data: {'refresh_token': refresh}));
     _access = data['access_token'] as String;
     await _storage.write(key: _kAccess, value: _access);
   }
@@ -91,15 +91,7 @@ class TokenStore {
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
     await _storage.delete(key: _kSocio);
-    // Caches com dados do sócio (ex.: o cartão) morrem com a sessão.
-    try {
-      final chaves = (await _storage.readAll()).keys.where((k) => k.startsWith(prefixoCache));
-      for (final k in chaves) {
-        await _storage.delete(key: k);
-      }
-    } catch (_) {}
+    // Caches com dados do sócio morrem com a sessão.
+    await _limparCaches?.call();
   }
-
-  /// Prefixo das chaves de cache que pertencem à sessão e se apagam com ela.
-  static const prefixoCache = 'lps.sessao.';
 }

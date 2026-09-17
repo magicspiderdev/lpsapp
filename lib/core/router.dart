@@ -50,35 +50,35 @@ final routerProvider = Provider<GoRouter>((ref) {
       StatefulShellRoute.indexedStack(
         builder: (_, _, navegacao) => ShellPage(navegacao: navegacao),
         branches: [
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/noticias',
-              builder: (_, _) => const NoticiasPage(),
-              routes: [
-                GoRoute(
-                  path: ':slug',
-                  builder: (_, s) => NoticiaPage(slug: s.pathParameters['slug']!),
-                ),
-              ],
-            ),
-          ]),
-          StatefulShellBranch(routes: [
-            GoRoute(
-              path: '/socio',
-              builder: (_, _) => const InicioPage(),
-              routes: [
-                GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
-              ],
-            ),
-            GoRoute(path: '/desbloquear', builder: (_, _) => const DesbloquearPage()),
-            GoRoute(
-              path: '/entrar',
-              builder: (_, _) => const EntrarPage(),
-              routes: [
-                GoRoute(path: 'codigo', builder: (_, _) => const CodigoPage()),
-              ],
-            ),
-          ]),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/noticias',
+                builder: (_, _) => const NoticiasPage(),
+                routes: [
+                  GoRoute(
+                    path: ':slug',
+                    builder: (_, s) => NoticiaPage(slug: s.pathParameters['slug']!),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: '/socio',
+                builder: (_, _) => const InicioPage(),
+                routes: [GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage())],
+              ),
+              GoRoute(path: '/desbloquear', builder: (_, _) => const DesbloquearPage()),
+              GoRoute(
+                path: '/entrar',
+                builder: (_, _) => const EntrarPage(),
+                routes: [GoRoute(path: 'codigo', builder: (_, _) => const CodigoPage())],
+              ),
+            ],
+          ),
         ],
       ),
     ],
