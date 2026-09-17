@@ -102,6 +102,20 @@ Consequências para a app:
 - Push para quem não tem sessão: tópicos FCM (`POST /dispositivos` exige token).
 - Rotas protegidas por estado de sessão, não ecrãs duplicados por tipo de utilizador.
 
+## Estrutura e stack
+
+- Estado: `flutter_riverpod` (2.x, sem geração de código). Rotas: `go_router`, com
+  `redirect` por estado de sessão e de versão (`lib/core/router.dart`).
+- `lib/core/` — `config.dart` (endereços), `api/` (clientes Dio, envelope →
+  `ApiException`), `auth/` (`TokenStore`, `AuthInterceptor`, `sessaoProvider`),
+  `arranque/` (`/ping` e versão mínima).
+- `lib/features/<zona ou área>/` — ecrãs e o respectivo acesso à API
+  (`publico/noticias`, `auth`, `socio`, `shell`).
+- Dois clientes Dio: `dioPublicoProvider` (`/api/v2/publico`, nunca leva token) e
+  `dioSocioProvider` (`/api/v1`, com o interceptor).
+- Correr contra o CISOC local: `flutter run --dart-define=LPS_API_RAIZ=http://10.0.2.2:8080`
+  (emulador Android) ou `http://localhost:8080` (simulador iOS). Sem o define, produção.
+
 ## Endereços da API
 
 - Produção: `https://mylps.leoesdeportosalvo.pt/lps/api/v1`

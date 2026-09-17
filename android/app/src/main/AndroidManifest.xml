@@ -1,4 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- A app fala com o CISOC (API do Sócio e API pública). -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="LPS Neo"
         android:name="${applicationName}"
