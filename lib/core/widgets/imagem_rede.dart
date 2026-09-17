@@ -20,7 +20,9 @@ class ImagemRede extends StatelessWidget {
       width: largura,
       height: altura,
       fadeInDuration: const Duration(milliseconds: 200),
-      errorWidget: (context, _, _) => falha?.call(context) ?? const SizedBox.shrink(),
+      // Centrado: o CachedNetworkImage põe o substituto no canto da caixa.
+      errorWidget: (context, _, _) => Center(child: falha?.call(context) ?? const SizedBox.shrink()),
+      placeholder: falha == null ? null : (context, _) => Center(child: falha!(context)),
     );
   }
 }
