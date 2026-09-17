@@ -129,5 +129,6 @@ Não chamar o backend antigo `api.leoesdeportosalvo.pt`.
 - Tokens só em `flutter_secure_storage`; refresh automático apenas em `401 token_expirado`.
 - Biometria só desbloqueia a sessão guardada no aparelho (`lib/core/auth/biometria.dart`); nunca guardar a palavra-passe. Desliga-se quando a sessão acaba.
 - Dinheiro: não somar quotas e modalidades (usar `divida.total`); `estimado: true` não é pagável; `201` num pagamento não significa pago.
+- Pagamentos (`lib/features/socio/pagamentos/`): nunca enviar valores, mostrar o `total` e o `metodo` da resposta, nunca pagar com dados da cache, acompanhar a confirmação por polling. Contra o CISOC local o IfthenPay é real — um MB WAY de teste chega a um telemóvel verdadeiro.
 - Tratar listas de estados/tipos vindas da API como abertas (`default` nos `switch`).
 - Ecrãs com dados da API usam cache (`comCache` em `lib/core/cache/`): mostram logo a última informação guardada, actualizam quando há rede e, sem ligação, avisam com `AvisoDesactualizado`. Dados do sócio em `Ambito.sessao`, credenciais em `Ambito.seguro` — apagam-se com a sessão. Imagens com `ImagemRede`, nunca `Image.network`.

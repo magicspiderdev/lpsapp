@@ -22,6 +22,9 @@ class Resumo {
   final String nomeCompleto, estadoLabel;
   final int nrSocio, estado;
   final String? fotoUrl;
+
+  /// Telemóvel da ficha, só dígitos: sugestão para MB WAY.
+  final String? telefone;
   final DateTime? dataSocio, ultimaQuota;
   final bool temModalidade;
 
@@ -36,6 +39,7 @@ class Resumo {
       estado = j['socio']['estado'] as int,
       nrSocio = j['socio']['nr_socio'] as int,
       fotoUrl = j['socio']['foto_url'] as String?,
+      telefone = (j['socio']['telefone_1'] as String?)?.replaceAll(RegExp(r'\D'), ''),
       dataSocio = _data(j['socio']['data_socio']),
       ultimaQuota = _data(j['ultima_quota']),
       temModalidade = j['tem_modalidade'] as bool,
@@ -114,7 +118,7 @@ class InicioPage extends ConsumerWidget {
                         estadoLabel: d.valor.estadoLabel,
                         valido: d.valor.ativo,
                         dataSocio: d.valor.dataSocio,
-                        onTap: () => context.go('/socio/cartao'),
+                        onTap: () => context.push('/socio/cartao'),
                       ),
                       TituloSeccao(
                         ref.watch(contaActivaProvider) == null ? 'A sua conta' : 'Conta de ${d.valor.primeiroNome}',
@@ -238,19 +242,19 @@ class _Topo extends ConsumerWidget {
                   icone: Icons.add_rounded,
                   legenda: 'Pagar',
                   sobreEscuro: true,
-                  onTap: () => _emBreve(context),
+                  onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas?pagar=1'),
                 ),
               AccaoRedonda(
                 icone: Icons.qr_code_2_rounded,
                 legenda: 'Cartão',
                 sobreEscuro: true,
-                onTap: () => context.go('/socio/cartao'),
+                onTap: () => context.push('/socio/cartao'),
               ),
               AccaoRedonda(
                 icone: r.temModalidade ? Icons.receipt_long_rounded : Icons.calendar_month_rounded,
                 legenda: r.temModalidade ? 'Faturas' : 'Quotas',
                 sobreEscuro: true,
-                onTap: () => _emBreve(context),
+                onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas'),
               ),
               AccaoRedonda(
                 icone: Icons.more_horiz_rounded,
@@ -342,7 +346,7 @@ class _Conta extends StatelessWidget {
             title: const Text('Última quota paga'),
             subtitle: Text(r.ultimaQuota == null ? 'Sem registo' : _capital(mes.format(r.ultimaQuota!))),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _emBreve(context),
+            onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas'),
           ),
           const Divider(indent: 72),
           ListTile(
@@ -350,7 +354,7 @@ class _Conta extends StatelessWidget {
             title: const Text('Pagamentos'),
             subtitle: const Text('Histórico e referências'),
             trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => _emBreve(context),
+            onTap: () => context.push('/socio/pagamentos'),
           ),
           const Divider(indent: 72),
           ListTile(

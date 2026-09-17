@@ -11,6 +11,10 @@ import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
 import '../features/socio/cartao/cartao_page.dart';
+import '../features/socio/pagamentos/faturas_page.dart';
+import '../features/socio/pagamentos/modelos.dart';
+import '../features/socio/pagamentos/quotas_page.dart';
+import '../features/socio/pagamentos/resultado_page.dart';
 import '../features/socio/inicio_page.dart';
 import 'arranque/versao_app.dart';
 import 'auth/biometria.dart';
@@ -69,7 +73,30 @@ final routerProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: '/socio',
                 builder: (_, _) => const InicioPage(),
-                routes: [GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage())],
+                routes: [
+                  GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
+                  GoRoute(
+                    path: 'quotas',
+                    builder: (_, s) => QuotasPage(abrirPagamento: s.uri.queryParameters['pagar'] == '1'),
+                  ),
+                  GoRoute(
+                    path: 'faturas',
+                    builder: (_, _) => const FaturasPage(),
+                    routes: [
+                      GoRoute(
+                        path: ':id',
+                        builder: (_, s) => FaturaPage(id: int.parse(s.pathParameters['id']!)),
+                      ),
+                    ],
+                  ),
+                  GoRoute(path: 'pagamentos', builder: (_, _) => const HistoricoPagamentosPage()),
+                  GoRoute(
+                    path: 'pagamento',
+                    // Só se chega aqui com o resultado acabado de criar; sem ele, volta ao início.
+                    redirect: (_, s) => s.extra is ResultadoPagamento ? null : '/socio',
+                    builder: (_, s) => ResultadoPagamentoPage(resultado: s.extra! as ResultadoPagamento),
+                  ),
+                ],
               ),
               GoRoute(path: '/desbloquear', builder: (_, _) => const DesbloquearPage()),
               GoRoute(

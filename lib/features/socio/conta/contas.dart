@@ -129,9 +129,21 @@ class PedidosNaConta {
   /// Parte da chave de cache: cada conta tem a sua.
   String get chave => _nr?.toString() ?? 'proprio';
 
-  Future<Map<String, dynamic>> get(String caminho) async {
+  Options? get _opcoes => _nr == null ? null : Options(headers: {'X-Socio': '$_nr'});
+
+  Future<Map<String, dynamic>> get(String caminho, {Map<String, dynamic>? query}) =>
+      _tratar(_dio.get(caminho, queryParameters: query, options: _opcoes));
+
+  Future<Map<String, dynamic>> post(String caminho, Map<String, dynamic> corpo) =>
+      _tratar(_dio.post(caminho, data: corpo, options: _opcoes));
+
+  /// Corpo em JSON: um DELETE form-encoded não é lido pelo servidor (guia §7).
+  Future<Map<String, dynamic>> delete(String caminho) =>
+      _tratar(_dio.delete(caminho, data: const {}, options: _opcoes));
+
+  Future<Map<String, dynamic>> _tratar(Future<Response<dynamic>> pedido) async {
     try {
-      return await dadosDe(_dio.get(caminho, options: _nr == null ? null : Options(headers: {'X-Socio': '$_nr'})));
+      return await dadosDe(pedido);
     } on ApiException catch (e) {
       if (_nr != null && e.erro == 'socio_nao_associado') _conta.ligacaoRemovida();
       rethrow;
