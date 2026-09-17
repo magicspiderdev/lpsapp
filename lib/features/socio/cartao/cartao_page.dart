@@ -55,7 +55,8 @@ class CartaoPage extends ConsumerWidget {
       if (!c.valido) ...[
         _Aviso(
           icone: Icons.info_outline_rounded,
-          texto: 'O cartão não está válido (${c.estadoLabel.toLowerCase()}). Para o regularizar, contacte a secretaria.',
+          texto:
+              'O cartão não está válido (${c.estadoLabel.toLowerCase()}). Para o regularizar, contacte a secretaria.',
           cor: const Color(0xFFB7791F),
         ),
         const SizedBox(height: 16),
@@ -77,7 +78,9 @@ class CartaoPage extends ConsumerWidget {
                   backgroundColor: Colors.white,
                   eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0B0D10)),
                   dataModuleStyle: const QrDataModuleStyle(
-                      dataModuleShape: QrDataModuleShape.square, color: Color(0xFF0B0D10)),
+                    dataModuleShape: QrDataModuleShape.square,
+                    color: Color(0xFF0B0D10),
+                  ),
                 ),
               ),
             ),
@@ -128,68 +131,95 @@ class CartaoVisual extends StatelessWidget {
       onTap: onTap,
       child: _FundoCartao(
         imagem: 'assets/images/card1.png',
-        child: LayoutBuilder(builder: (context, c) {
-          // Tudo proporcional à largura: o cartão tem de ler bem de 320 a 430 px.
-          final u = c.maxWidth / 360;
-          final suave = Colors.white.withValues(alpha: 0.72);
+        // A altura é a da imagem: com a letra do sistema muito aumentada o texto
+        // deixaria de caber. Dentro do cartão cresce no máximo 15%.
+        child: MediaQuery.withClampedTextScaling(
+          maxScaleFactor: 1.15,
+          child: LayoutBuilder(
+            builder: (context, c) {
+              // Tudo proporcional à largura: o cartão tem de ler bem de 280 a 430 px.
+              final u = c.maxWidth / 360;
+              final suave = Colors.white.withValues(alpha: 0.72);
+              // Nomes compridos descem um pouco de tamanho antes de chegarem às reticências.
+              final tamanhoNome = (nome.length > 34 ? 13.0 : 15.0) * u;
 
-          return Padding(
-            // À esquerda fica o emblema e o nome do clube, que já vêm na imagem.
-            padding: EdgeInsets.fromLTRB(c.maxWidth * 0.19, 14 * u, 16 * u, 14 * u),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Align(alignment: Alignment.topRight, child: _EstadoCartao(valido: valido, label: estadoLabel, escala: u)),
-                const Spacer(),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+              return Padding(
+                // À esquerda fica o emblema e o nome do clube, que já vêm na imagem.
+                padding: EdgeInsets.fromLTRB(c.maxWidth * 0.19, 14 * u, 16 * u, 14 * u),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (fotoUrl != null) ...[
-                      Container(
-                        padding: const EdgeInsets.all(1.5),
-                        decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                        child: Avatar(nome: nome, url: fotoUrl, tamanho: 40 * u),
-                      ),
-                      SizedBox(width: 10 * u),
-                    ],
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            nome,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 15 * u,
-                              height: 1.15,
-                              fontWeight: FontWeight.w700,
-                              shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
-                            ),
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: _EstadoCartao(valido: valido, label: estadoLabel, escala: u),
+                    ),
+                    const Spacer(),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (fotoUrl != null) ...[
+                          Container(
+                            padding: const EdgeInsets.all(1.5),
+                            decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                            child: Avatar(nome: nome, url: fotoUrl, tamanho: 40 * u),
                           ),
-                          SizedBox(height: 4 * u),
-                          Text.rich(
-                            TextSpan(children: [
-                              TextSpan(text: 'SÓCIO N.º ', style: TextStyle(color: suave)),
-                              TextSpan(
-                                text: '$nrSocio',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
-                              ),
-                              if (desde != null) TextSpan(text: '   ·   DESDE $desde', style: TextStyle(color: suave)),
-                            ]),
-                            style: TextStyle(fontSize: 11 * u, letterSpacing: 0.8),
-                          ),
+                          SizedBox(width: 10 * u),
                         ],
-                      ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                nome,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: tamanhoNome,
+                                  height: 1.15,
+                                  fontWeight: FontWeight.w700,
+                                  shadows: const [Shadow(color: Colors.black54, blurRadius: 8)],
+                                ),
+                              ),
+                              SizedBox(height: 4 * u),
+                              // Uma linha só: encolhe em vez de passar para a seguinte.
+                              FittedBox(
+                                fit: BoxFit.scaleDown,
+                                alignment: Alignment.centerLeft,
+                                child: Text.rich(
+                                  TextSpan(
+                                    children: [
+                                      TextSpan(
+                                        text: 'SÓCIO N.º ',
+                                        style: TextStyle(color: suave),
+                                      ),
+                                      TextSpan(
+                                        text: '$nrSocio',
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                                      ),
+                                      if (desde != null)
+                                        TextSpan(
+                                          text: '   ·   DESDE $desde',
+                                          style: TextStyle(color: suave),
+                                        ),
+                                    ],
+                                  ),
+                                  maxLines: 1,
+                                  style: TextStyle(fontSize: 11 * u, letterSpacing: 0.8),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          );
-        }),
+              );
+            },
+          ),
+        ),
       ),
     );
   }
@@ -205,17 +235,19 @@ class _VersoCartao extends StatelessWidget {
   Widget build(BuildContext context) {
     return _FundoCartao(
       imagem: 'assets/images/card2.png',
-      child: LayoutBuilder(builder: (context, c) {
-        final u = c.maxWidth / 360;
-        return Padding(
-          // Por baixo da banda magnética, à esquerda do leão.
-          padding: EdgeInsets.fromLTRB(20 * u, c.maxHeight * 0.36, 16 * u, 0),
-          child: Text(
-            'Cartão pessoal e intransmissível.\nSócio n.º $nrSocio',
-            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11 * u, height: 1.5),
-          ),
-        );
-      }),
+      child: LayoutBuilder(
+        builder: (context, c) {
+          final u = c.maxWidth / 360;
+          return Padding(
+            // Por baixo da banda magnética, à esquerda do leão.
+            padding: EdgeInsets.fromLTRB(20 * u, c.maxHeight * 0.36, 16 * u, 0),
+            child: Text(
+              'Cartão pessoal e intransmissível.\nSócio n.º $nrSocio',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11 * u, height: 1.5),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -311,10 +343,7 @@ class _EstadoCartao extends StatelessWidget {
     final cor = valido ? const Color(0xFF3DD68C) : const Color(0xFFFFB224);
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 9 * escala, vertical: 4 * escala),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(100),
-      ),
+      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.35), borderRadius: BorderRadius.circular(100)),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -324,7 +353,10 @@ class _EstadoCartao extends StatelessWidget {
             decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
           ),
           SizedBox(width: 5 * escala),
-          Text(label, style: TextStyle(color: cor, fontSize: 11 * escala, fontWeight: FontWeight.w600)),
+          Text(
+            label,
+            style: TextStyle(color: cor, fontSize: 11 * escala, fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );
@@ -351,7 +383,12 @@ class _Aviso extends StatelessWidget {
         children: [
           Icon(icone, size: 20, color: cor),
           const SizedBox(width: 10),
-          Expanded(child: Text(texto, style: TextStyle(color: cor, fontWeight: FontWeight.w500))),
+          Expanded(
+            child: Text(
+              texto,
+              style: TextStyle(color: cor, fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );
