@@ -16,7 +16,7 @@ import '../../core/widgets/erro_view.dart';
 import '../../core/widgets/estado_dados.dart';
 import 'cartao/cartao_page.dart';
 import 'conta/contas.dart';
-import 'conta/seletor_conta.dart';
+import 'barra_socio.dart';
 
 /// `GET /me/resumo` — o ecrã inicial do sócio numa só chamada (guia §4.3).
 class Resumo {
@@ -153,76 +153,24 @@ class _Topo extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context).textTheme;
     final emDia = r.dividaTotal <= 0;
-    final temDependentes = (ref.watch(dependentesProvider).valueOrNull?.valor ?? const []).isNotEmpty;
-    final aVerDependente = ref.watch(contaActivaProvider) != null;
     final dependente = ref.watch(dependenteActivoProvider);
     // Dependente "só consulta": sem botão de pagar (guia §2.3.4).
     final podePagar = dependente?.podePagar ?? true;
 
     return Container(
+      // Começa no verde da barra do sócio, que fica por cima: parecem uma só peça.
       decoration: const BoxDecoration(
-        gradient: Tema.gradienteClube,
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Tema.verde, Tema.verdeEscuro],
+        ),
         borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
       ),
-      padding: EdgeInsets.fromLTRB(Tema.margem, MediaQuery.paddingOf(context).top + 8, Tema.margem, 24),
+      padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 24),
       child: Column(
         children: [
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () => _perfil(context, ref),
-                child: Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 1.5),
-                  ),
-                  child: Avatar(nome: r.nomeCompleto, url: r.fotoUrl, tamanho: 38),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                // Com sócios a seu cargo, o nome abre o seletor de conta.
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: temDependentes ? () => mostrarSeletorConta(context) : null,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              aVerDependente ? r.primeiroNome : 'Olá, ${r.primeiroNome}',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: t.titleMedium?.copyWith(color: Colors.white),
-                            ),
-                          ),
-                          if (temDependentes) ...[
-                            const SizedBox(width: 2),
-                            const Icon(Icons.keyboard_arrow_down_rounded, color: Colors.white, size: 22),
-                          ],
-                        ],
-                      ),
-                      Text(
-                        aVerDependente ? 'Conta a seu cargo · N.º ${r.nrSocio}' : 'Sócio n.º ${r.nrSocio}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: t.bodySmall?.copyWith(color: Colors.white.withValues(alpha: 0.72)),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              _BotaoVidro(
-                icone: Icons.chat_bubble_outline_rounded,
-                marca: r.mensagensNaoLidas > 0,
-                onTap: () => context.push('/socio/suporte'),
-              ),
-            ],
-          ),
-          const SizedBox(height: 36),
+          const SizedBox(height: 12),
           Text(
             emDia ? 'Tudo em dia' : 'Em dívida',
             style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
@@ -268,7 +216,7 @@ class _Topo extends ConsumerWidget {
                   icone: Icons.more_horiz_rounded,
                   legenda: 'Mais',
                   sobreEscuro: true,
-                  onTap: () => _perfil(context, ref),
+                  onTap: () => mostrarPerfil(context, ref),
                 ),
               ])
                 Expanded(child: accao),
@@ -276,46 +224,6 @@ class _Topo extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _BotaoVidro extends StatelessWidget {
-  const _BotaoVidro({required this.icone, required this.onTap, this.marca = false});
-
-  final IconData icone;
-  final VoidCallback onTap;
-  final bool marca;
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Material(
-          color: Colors.white.withValues(alpha: 0.16),
-          shape: const CircleBorder(),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
-            child: SizedBox.square(dimension: 40, child: Icon(icone, color: Colors.white, size: 20)),
-          ),
-        ),
-        if (marca)
-          Positioned(
-            right: 2,
-            top: 2,
-            child: Container(
-              width: 10,
-              height: 10,
-              decoration: BoxDecoration(
-                color: Tema.alerta,
-                shape: BoxShape.circle,
-                border: Border.all(color: Tema.verde, width: 1.5),
-              ),
-            ),
-          ),
-      ],
     );
   }
 }
@@ -422,9 +330,13 @@ class _Carregar extends StatelessWidget {
     return Column(
       children: [
         Container(
-          height: 360 + MediaQuery.paddingOf(context).top,
+          height: 300,
           decoration: const BoxDecoration(
-            gradient: Tema.gradienteClube,
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [Tema.verde, Tema.verdeEscuro],
+            ),
             borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
           ),
           alignment: Alignment.center,
@@ -433,67 +345,6 @@ class _Carregar extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Folha do perfil: é sempre a conta da sessão, mesmo a ver a de um dependente.
-void _perfil(BuildContext context, WidgetRef ref) {
-  final sessao = ref.read(sessaoProvider);
-  if (sessao is! SessaoSocio) return;
-  final s = sessao.socio;
-  showModalBottomSheet<void>(
-    context: context,
-    showDragHandle: true,
-    // Altura pelo conteúdo, com scroll: com letra grande ou ecrã pequeno não cabe na altura por omissão.
-    isScrollControlled: true,
-    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
-    builder: (sheet) => SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, Tema.margem),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Avatar(nome: s.nomeCompleto, url: s.fotoUrl, tamanho: 72),
-            const SizedBox(height: 12),
-            Text(s.nomeCompleto, textAlign: TextAlign.center, style: Theme.of(sheet).textTheme.titleLarge),
-            Text('Sócio n.º ${s.nrSocio}', style: Theme.of(sheet).textTheme.bodySmall),
-            const SizedBox(height: 24),
-            ListTile(
-              leading: const IconePastilha(Icons.person_outline_rounded),
-              title: const Text('Dados pessoais'),
-              subtitle: const Text('Contactos, fotografia, palavra-passe'),
-              trailing: const Icon(Icons.chevron_right_rounded),
-              onTap: () {
-                Navigator.pop(sheet);
-                context.push('/socio/perfil');
-              },
-            ),
-            Consumer(
-              builder: (context, ref, _) {
-                final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;
-                if (tipo == null) return const SizedBox.shrink();
-                return SwitchListTile(
-                  secondary: IconePastilha(
-                    tipo == TipoBiometria.facial ? Icons.face_retouching_natural : Icons.fingerprint_rounded,
-                  ),
-                  title: Text('Entrar com ${tipo.nome}'),
-                  value: ref.watch(biometriaProvider.select((b) => b.activa)),
-                  onChanged: (v) => ref.read(biometriaProvider.notifier).definir(v),
-                );
-              },
-            ),
-            ListTile(
-              leading: IconePastilha(Icons.logout_rounded, cor: Theme.of(sheet).colorScheme.error),
-              title: const Text('Terminar sessão'),
-              onTap: () {
-                Navigator.pop(sheet);
-                ref.read(sessaoProvider.notifier).sair();
-              },
-            ),
-          ],
-        ),
-      ),
-    ),
-  );
 }
 
 void _oferecerBiometria(BuildContext context, WidgetRef ref, TipoBiometria tipo) {
