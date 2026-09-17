@@ -70,8 +70,8 @@ class AccaoRedonda extends StatelessWidget {
     final fundo = sobreEscuro ? Colors.white.withValues(alpha: 0.16) : c.surfaceContainerLowest;
     final frente = sobreEscuro ? Colors.white : c.onSurface;
 
-    return SizedBox(
-      width: 76,
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 76),
       child: Column(
         children: [
           Material(

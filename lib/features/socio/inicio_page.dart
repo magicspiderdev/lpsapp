@@ -242,33 +242,36 @@ class _Topo extends ConsumerWidget {
           ),
           const SizedBox(height: 28),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              if (podePagar)
+              // Partilham a largura: com larguras fixas não cabiam em ecrãs de 320 px.
+              for (final accao in [
+                if (podePagar)
+                  AccaoRedonda(
+                    icone: Icons.add_rounded,
+                    legenda: 'Pagar',
+                    sobreEscuro: true,
+                    onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas?pagar=1'),
+                  ),
                 AccaoRedonda(
-                  icone: Icons.add_rounded,
-                  legenda: 'Pagar',
+                  icone: Icons.qr_code_2_rounded,
+                  legenda: 'Cartão',
                   sobreEscuro: true,
-                  onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas?pagar=1'),
+                  onTap: () => context.push('/socio/cartao'),
                 ),
-              AccaoRedonda(
-                icone: Icons.qr_code_2_rounded,
-                legenda: 'Cartão',
-                sobreEscuro: true,
-                onTap: () => context.push('/socio/cartao'),
-              ),
-              AccaoRedonda(
-                icone: r.temModalidade ? Icons.receipt_long_rounded : Icons.calendar_month_rounded,
-                legenda: r.temModalidade ? 'Faturas' : 'Quotas',
-                sobreEscuro: true,
-                onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas'),
-              ),
-              AccaoRedonda(
-                icone: Icons.more_horiz_rounded,
-                legenda: 'Mais',
-                sobreEscuro: true,
-                onTap: () => _perfil(context, ref),
-              ),
+                AccaoRedonda(
+                  icone: r.temModalidade ? Icons.receipt_long_rounded : Icons.calendar_month_rounded,
+                  legenda: r.temModalidade ? 'Faturas' : 'Quotas',
+                  sobreEscuro: true,
+                  onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas'),
+                ),
+                AccaoRedonda(
+                  icone: Icons.more_horiz_rounded,
+                  legenda: 'Mais',
+                  sobreEscuro: true,
+                  onTap: () => _perfil(context, ref),
+                ),
+              ])
+                Expanded(child: accao),
             ],
           ),
         ],
@@ -446,9 +449,11 @@ void _perfil(BuildContext context, WidgetRef ref) {
   showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    // Altura pelo conteúdo, com scroll: com letra grande ou ecrã pequeno não cabe na altura por omissão.
+    isScrollControlled: true,
     backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
     builder: (sheet) => SafeArea(
-      child: Padding(
+      child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, Tema.margem),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -504,11 +509,12 @@ void _oferecerBiometria(BuildContext context, WidgetRef ref, TipoBiometria tipo)
 
   showModalBottomSheet<void>(
     context: context,
+    isScrollControlled: true,
     backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
     builder: (sheet) {
       final tema = Theme.of(sheet);
       return SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(Tema.margem + 8, 32, Tema.margem + 8, Tema.margem),
           child: Column(
             mainAxisSize: MainAxisSize.min,
