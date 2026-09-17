@@ -115,4 +115,16 @@ final sessoesExemplo = [
       {'id': 'Z8', 'nome': 'Bancada lateral', 'preco': 9, 'disponivel': false},
     ],
   }),
+  Sessao.fromJson({
+    'id': 'S4',
+    'titulo': 'Passeio de sócios a Sintra',
+    'subtitulo': 'Autocarro, almoço e visita guiada',
+    'local': 'Partida da sede do clube',
+    'inicio': _daqui(25, 9).toIso8601String(),
+    'preco_desde': 15,
+    'zonas': [
+      {'id': 'Z9', 'nome': 'Sócio', 'preco': 15, 'nota': 'Inclui almoço'},
+      {'id': 'Z10', 'nome': 'Convidado', 'preco': 25},
+    ],
+  }),
 ];

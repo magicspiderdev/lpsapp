@@ -21,4 +21,6 @@ abstract final class Config {
 /// API (pedido `2026-09-17-zona-publica-agenda-bilhetes-clube` no CISOC). Com
 /// este modo ligado, esses ecrãs mostram dados de exemplo, para se ver o
 /// desenho; sem ele, mostram "em preparação".
-const modoDemonstracao = bool.fromEnvironment('LPS_DEMO');
+// Aceita `1` e `true`: `bool.fromEnvironment` sozinho só reconhece `true`.
+const _demo = String.fromEnvironment('LPS_DEMO');
+const modoDemonstracao = _demo == '1' || _demo == 'true';

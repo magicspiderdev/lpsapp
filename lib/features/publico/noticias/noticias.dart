@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/api/clientes.dart';
 import '../../../core/api/envelope.dart';
+import '../../../core/config.dart';
 import '../../../core/cache/cache_local.dart';
 import '../../../core/cache/com_cache.dart';
 import '../../../core/rede/ligacao.dart';
@@ -102,6 +103,7 @@ Future<Map<String, dynamic>> _pedirPagina(Dio dio, int pagina) =>
 
 /// Primeira página: com cache, abre sem rede.
 final noticiasProvider = StreamProvider.autoDispose<Dados<PaginaNoticias>>((ref) {
+  if (modoDemonstracao) return Stream.value(Dados(paginaNoticiasExemplo, DateTime.now()));
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
   final dio = ref.read(dioPublicoProvider);
   return comCache(
@@ -148,6 +150,7 @@ class MaisNoticiasController extends AutoDisposeNotifier<MaisNoticias> {
 }
 
 final noticiaProvider = StreamProvider.autoDispose.family<Dados<Noticia>, String>((ref, slug) {
+  if (modoDemonstracao) return Stream.value(Dados(noticiaExemplo(slug), DateTime.now()));
   ref.watch(ligacaoProvider);
   final dio = ref.read(dioPublicoProvider);
   return comCache(
@@ -158,3 +161,107 @@ final noticiaProvider = StreamProvider.autoDispose.family<Dados<Noticia>, String
     ler: (j) => Noticia.fromJson((j['noticia'] as Map).cast<String, dynamic>()),
   );
 });
+
+// ── Exemplos para o modo de demonstração (`--dart-define=LPS_DEMO=1`) ───────
+//
+// Só servem para ver o desenho enquanto o clube não publica notícias. As
+// fotografias vêm de um serviço de imagens de exemplo.
+
+String _foto(String semente) => 'https://picsum.photos/seed/$semente/1200/800';
+
+final noticiasExemplo = <Map<String, dynamic>>[
+  {
+    'slug': 'vitoria-no-derby',
+    'titulo': 'Vitória no dérbi diante do Sporting por 4-3',
+    'resumo': 'Reviravolta nos últimos cinco minutos, com dois golos de Rui Martins e a bancada em euforia.',
+    'categoria': {'slug': 'hoquei', 'nome': 'Hóquei em patins', 'cor': '#0b5d3b'},
+    'capa': {'url': _foto('lps-derby'), 'credito': 'Foto: Ricardo Silva'},
+    'publicado_em': '2026-09-16 22:40:00',
+    'corpo': [
+      {
+        'tipo': 'texto',
+        'html':
+            '<p>O pavilhão esgotou e não desiludiu. Os Leões entraram a perder por 1-3 ao intervalo, mas a segunda parte foi outra história.</p>',
+      },
+      {'tipo': 'citacao', 'texto': 'Nunca duvidámos. Esta equipa vive destas noites.'},
+      {
+        'tipo': 'texto',
+        'html':
+            '<p>Com este resultado, o clube sobe ao terceiro lugar do campeonato, a dois pontos do segundo classificado.</p>',
+      },
+      {'tipo': 'imagem', 'uid': 'demo', 'url': 'https://picsum.photos/seed/lps-derby2/1200/800'},
+    ],
+  },
+  {
+    'slug': 'inscricoes-abertas-formacao',
+    'titulo': 'Inscrições abertas para a formação 2026/2027',
+    'resumo': 'Hóquei em patins, futsal, patinagem artística e ginástica, dos 4 aos 18 anos.',
+    'categoria': {'slug': 'clube', 'nome': 'Clube', 'cor': '#0b5d3b'},
+    'capa': {'url': _foto('lps-formacao')},
+    'publicado_em': '2026-09-15 10:00:00',
+    'corpo': [
+      {
+        'tipo': 'texto',
+        'html': '<p>As inscrições decorrem na secretaria e no portal do sócio. Os treinos começam a 1 de outubro.</p>',
+      },
+      {'tipo': 'texto', 'html': '<p>Irmãos têm desconto de 20% na mensalidade a partir do segundo atleta.</p>'},
+    ],
+  },
+  {
+    'slug': 'jantar-de-natal',
+    'titulo': 'Jantar de Natal do clube com entrega de prémios',
+    'resumo': 'Bilhetes à venda na app a partir desta semana.',
+    'categoria': {'slug': 'eventos', 'nome': 'Eventos', 'cor': '#12a15f'},
+    'capa': {'url': _foto('lps-jantar')},
+    'publicado_em': '2026-09-14 18:30:00',
+    'corpo': [
+      {
+        'tipo': 'texto',
+        'html': '<p>O jantar é na sede, com lugares limitados. Cada sócio pode levar dois convidados.</p>',
+      },
+      {'tipo': 'separador'},
+      {'tipo': 'texto', 'html': '<p>Haverá entrega de prémios às equipas campeãs da época passada.</p>'},
+    ],
+  },
+  {
+    'slug': 'obras-no-pavilhao',
+    'titulo': 'Pavilhão com piso novo já em outubro',
+    'resumo': 'A obra arranca depois do jogo com o Oeiras e demora três semanas.',
+    'categoria': {'slug': 'clube', 'nome': 'Clube', 'cor': '#0b5d3b'},
+    'capa': {'url': _foto('lps-pavilhao')},
+    'publicado_em': '2026-09-12 09:15:00',
+    'corpo': [
+      {'tipo': 'texto', 'html': '<p>Durante as obras, os treinos passam para o pavilhão municipal de Oeiras.</p>'},
+    ],
+  },
+  {
+    'slug': 'patinagem-medalhas',
+    'titulo': 'Três medalhas na prova regional de patinagem',
+    'resumo': 'Ouro em juvenis e dois bronzes em iniciados.',
+    'categoria': {'slug': 'patinagem', 'nome': 'Patinagem', 'cor': '#12a15f'},
+    'capa': {'url': _foto('lps-patinagem')},
+    'publicado_em': '2026-09-10 20:05:00',
+    'corpo': [
+      {'tipo': 'texto', 'html': '<p>As atletas apuraram-se para o campeonato nacional, em novembro.</p>'},
+    ],
+  },
+  {
+    'slug': 'quotas-na-app',
+    'titulo': 'Já pode pagar as quotas pela app',
+    'resumo': 'MB WAY ou referência, sem ir à secretaria.',
+    'categoria': {'slug': 'socios', 'nome': 'Sócios', 'cor': '#0b5d3b'},
+    'capa': {'url': _foto('lps-quotas')},
+    'publicado_em': '2026-09-08 11:00:00',
+    'corpo': [
+      {
+        'tipo': 'texto',
+        'html': '<p>Entre na área de sócio, toque em Pagar e escolha quantos meses quer regularizar.</p>',
+      },
+    ],
+  },
+];
+
+final paginaNoticiasExemplo = PaginaNoticias([for (final n in noticiasExemplo) NoticiaResumo.fromJson(n)], 1, 1);
+
+Noticia noticiaExemplo(String slug) =>
+    Noticia.fromJson(noticiasExemplo.firstWhere((n) => n['slug'] == slug, orElse: () => noticiasExemplo.first));

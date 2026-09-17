@@ -198,7 +198,7 @@ class _Cartao extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Bloco(
         padding: const EdgeInsets.all(14),
-        onTap: i.temBilhetes ? () => context.go('/bilhetes') : null,
+        onTap: i.temBilhetes ? () => context.push('/bilhetes/${i.sessaoBilhetes}') : null,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
