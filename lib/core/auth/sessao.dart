@@ -85,6 +85,24 @@ class SessaoController extends Notifier<Sessao> {
     await _abrir(data);
   }
 
+  /// `POST /auth/password`: a resposta traz tokens novos (o refresh anterior deixa
+  /// de valer). Guardam-se no lugar dos antigos.
+  Future<void> alterarPassword({required String actual, required String nova}) async {
+    final data = await dadosDe(
+      ref.read(dioSocioProvider).post('/auth/password', data: {'password_atual': actual, 'password_nova': nova}),
+    );
+    await _abrir(data);
+  }
+
+  /// `DELETE /me/conta`. Devolve a `mensagem` do servidor para mostrar depois;
+  /// a sessão e as caches locais acabam logo.
+  Future<String> eliminarConta(String password) async {
+    final data = await dadosDe(ref.read(dioSocioProvider).delete('/me/conta', data: {'password': password}));
+    await ref.read(tokenStoreProvider).limpar();
+    state = const SessaoAnonima();
+    return (data['mensagem'] as String?) ?? 'A sua conta da app foi eliminada.';
+  }
+
   Future<void> sair() async {
     final store = ref.read(tokenStoreProvider);
     try {
@@ -98,6 +116,9 @@ class SessaoController extends Notifier<Sessao> {
 
   Future<void> _abrir(Map<String, dynamic> data) async {
     await ref.read(tokenStoreProvider).guardarLogin(data);
-    state = SessaoSocio(SocioSessao.fromJson((data['socio'] as Map).cast<String, dynamic>()));
+    // Ao mudar a password a sessão é a mesma: se não vier `socio`, mantém-se o actual.
+    if (data['socio'] is Map) {
+      state = SessaoSocio(SocioSessao.fromJson((data['socio'] as Map).cast<String, dynamic>()));
+    }
   }
 }

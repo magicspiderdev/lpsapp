@@ -458,6 +458,16 @@ void _perfil(BuildContext context, WidgetRef ref) {
             Text(s.nomeCompleto, textAlign: TextAlign.center, style: Theme.of(sheet).textTheme.titleLarge),
             Text('Sócio n.º ${s.nrSocio}', style: Theme.of(sheet).textTheme.bodySmall),
             const SizedBox(height: 24),
+            ListTile(
+              leading: const IconePastilha(Icons.person_outline_rounded),
+              title: const Text('Dados pessoais'),
+              subtitle: const Text('Contactos, fotografia, palavra-passe'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () {
+                Navigator.pop(sheet);
+                context.push('/socio/perfil');
+              },
+            ),
             Consumer(
               builder: (context, ref, _) {
                 final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;

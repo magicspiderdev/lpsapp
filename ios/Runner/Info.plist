@@ -2,6 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>Para tirar a fotografia do seu perfil de sócio.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Para escolher a fotografia do seu perfil de sócio.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Para abrir a área de sócio sem escrever a palavra-passe.</string>
 	<key>NSAppTransportSecurity</key>

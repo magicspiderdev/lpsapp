@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/router.dart';
 import 'core/tema/tema.dart';
 
+/// Mensagens que têm de sobreviver a uma mudança de ecrã (ex.: conta eliminada).
+final mensagensGlobais = GlobalKey<ScaffoldMessengerState>();
+
 class LpsApp extends ConsumerWidget {
   const LpsApp({super.key});
 
@@ -13,6 +16,7 @@ class LpsApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'LPS Neo',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: mensagensGlobais,
       routerConfig: ref.watch(routerProvider),
       locale: const Locale('pt', 'PT'),
       supportedLocales: const [Locale('pt', 'PT')],

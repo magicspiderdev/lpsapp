@@ -49,6 +49,7 @@ dependencies:
   path_provider: ^2.1.6
   cached_network_image: ^3.4.1
   open_filex: ^4.7.0
+  image_picker: ^1.2.3
 
 dev_dependencies:
   flutter_test:
