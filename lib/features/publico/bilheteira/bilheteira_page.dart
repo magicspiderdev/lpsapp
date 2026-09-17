@@ -166,9 +166,7 @@ class _MeusBilhetes extends StatelessWidget {
     final t = Theme.of(context);
     return Bloco(
       padding: const EdgeInsets.all(16),
-      onTap: () => ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Os bilhetes comprados aparecem aqui quando a bilheteira abrir.'))),
+      onTap: () => context.push('/bilhetes/meus'),
       child: Row(
         children: [
           const IconePastilha(Icons.qr_code_2_rounded),

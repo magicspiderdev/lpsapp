@@ -128,3 +128,100 @@ final sessoesExemplo = [
     ],
   }),
 ];
+
+// ── Bilhetes comprados (a carteira) ────────────────────────────────────────
+
+/// Um bilhete que já é do utilizador. O `codigo` é o que o QR mostra e a
+/// portaria valida — como o `hashid` do cartão de sócio, trata-se como
+/// credencial: não vai para logs nem é partilhado fora do ecrã do bilhete.
+class BilheteComprado {
+  final String id, codigo, titulo, zona;
+  final String? subtitulo, local, titular, lugar;
+  final DateTime inicio;
+  final double preco;
+
+  /// `valido`, `usado`, `anulado` — lista aberta.
+  final String estado;
+
+  const BilheteComprado({
+    required this.id,
+    required this.codigo,
+    required this.titulo,
+    required this.zona,
+    required this.inicio,
+    required this.preco,
+    required this.estado,
+    this.subtitulo,
+    this.local,
+    this.titular,
+    this.lugar,
+  });
+
+  factory BilheteComprado.fromJson(Map<String, dynamic> j) => BilheteComprado(
+    id: j['id'].toString(),
+    codigo: (j['codigo'] ?? '') as String,
+    titulo: (j['titulo'] ?? '') as String,
+    zona: (j['zona'] ?? '') as String,
+    inicio: dataApi(j['inicio']) ?? DateTime.now(),
+    preco: ((j['preco'] as num?) ?? 0).toDouble(),
+    estado: ((j['estado'] ?? 'valido') as String).toLowerCase(),
+    subtitulo: j['subtitulo'] as String?,
+    local: j['local'] as String?,
+    titular: j['titular'] as String?,
+    lugar: j['lugar'] as String?,
+  );
+
+  bool get valido => estado == 'valido';
+  bool get usado => estado == 'usado';
+}
+
+final meusBilhetesProvider = FutureProvider.autoDispose<List<BilheteComprado>>((ref) async {
+  if (!modoDemonstracao) throw const EmPreparacao();
+  return bilhetesExemplo;
+});
+
+final bilheteProvider = FutureProvider.autoDispose.family<BilheteComprado, String>((ref, id) async {
+  if (!modoDemonstracao) throw const EmPreparacao();
+  return bilhetesExemplo.firstWhere((b) => b.id == id);
+});
+
+/// Exemplos só para ver o desenho (modo de demonstração).
+final bilhetesExemplo = [
+  BilheteComprado.fromJson({
+    'id': 'B1',
+    'codigo': 'LPS-2026-0001-8F3A',
+    'titulo': 'Leões Porto Salvo x Sporting CP',
+    'subtitulo': 'Hóquei em patins · Campeonato Nacional',
+    'local': 'Pavilhão Municipal de Porto Salvo',
+    'inicio': _daqui(1, 21).toIso8601String(),
+    'zona': 'Sócio',
+    'lugar': 'Bancada central · Fila C',
+    'preco': 5,
+    'titular': 'João Pedro Lopes Mendes',
+    'estado': 'valido',
+  }),
+  BilheteComprado.fromJson({
+    'id': 'B2',
+    'codigo': 'LPS-2026-0002-2C7D',
+    'titulo': 'Jantar de Natal do clube',
+    'subtitulo': 'Com entrega de prémios às equipas',
+    'local': 'Sede do clube',
+    'inicio': _daqui(3, 20).toIso8601String(),
+    'zona': 'Adulto',
+    'preco': 20,
+    'titular': 'João Pedro Lopes Mendes',
+    'estado': 'valido',
+  }),
+  BilheteComprado.fromJson({
+    'id': 'B3',
+    'codigo': 'LPS-2026-0003-9A1B',
+    'titulo': 'Leões Porto Salvo x CD Oeiras',
+    'subtitulo': 'Futsal · Distrital',
+    'local': 'Pavilhão Municipal de Porto Salvo',
+    'inicio': _daqui(-6, 18).toIso8601String(),
+    'zona': 'Bancada lateral',
+    'preco': 7.5,
+    'titular': 'João Pedro Lopes Mendes',
+    'estado': 'usado',
+  }),
+];

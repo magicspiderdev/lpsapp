@@ -6,6 +6,8 @@ import 'package:lpsapp/features/publico/clube/clube.dart';
 /// Os ecrãs da agenda, bilheteira e clube já existem; a API ainda não. Os
 /// modelos seguem o contrato pedido ao CISOC.
 void main() {
+  group('bilhetes comprados', _bilhetesComprados);
+
   group('agenda', () {
     test('jogo com resultado, equipa do clube e bilhetes', () {
       final i = ItemAgenda.fromJson({
@@ -87,5 +89,39 @@ void main() {
       expect(c.contactos, isEmpty);
       expect(c.redes, isEmpty);
     });
+  });
+}
+
+/// Bilhetes comprados (a carteira): o código é a credencial que a portaria lê.
+void _bilhetesComprados() {
+  test('bilhete válido e bilhete usado', () {
+    final b = BilheteComprado.fromJson({
+      'id': 'B1',
+      'codigo': 'LPS-2026-0001-8F3A',
+      'titulo': 'Jogo',
+      'zona': 'Sócio',
+      'inicio': '2026-09-18 21:00:00',
+      'preco': 5,
+      'estado': 'VALIDO',
+      'titular': 'João',
+    });
+    expect(b.valido, isTrue);
+    expect(b.usado, isFalse);
+    expect(b.codigo, 'LPS-2026-0001-8F3A');
+
+    final usado = BilheteComprado.fromJson({'id': 'B3', 'titulo': 'x', 'zona': 'y', 'estado': 'usado'});
+    expect(usado.usado, isTrue);
+    expect(usado.valido, isFalse);
+  });
+
+  test('estado desconhecido não conta como válido', () {
+    final b = BilheteComprado.fromJson({'id': 'B4', 'titulo': 'x', 'zona': 'y', 'estado': 'reembolsado'});
+    expect(b.valido, isFalse);
+  });
+
+  test('exemplos têm bilhetes por usar e um já usado', () {
+    expect(bilhetesExemplo.where((b) => b.valido).length, greaterThan(1));
+    expect(bilhetesExemplo.any((b) => b.usado), isTrue);
+    expect(bilhetesExemplo.every((b) => b.codigo.isNotEmpty), isTrue);
   });
 }
