@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -10,7 +10,6 @@ import '../features/auth/desbloquear_page.dart';
 import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
-import '../features/socio/barra_socio.dart';
 import '../features/socio/cartao/cartao_page.dart';
 import '../features/socio/documentos/documentos_page.dart';
 import '../features/socio/pagamentos/faturas_page.dart';
@@ -26,8 +25,6 @@ import 'arranque/versao_app.dart';
 import 'auth/biometria.dart';
 import 'auth/sessao.dart';
 
-final _navegadorRaiz = GlobalKey<NavigatorState>();
-
 /// Rotas protegidas por estado de sessão, não ecrãs duplicados por tipo de
 /// utilizador. Tudo o que está debaixo de `/socio` exige sessão de sócio.
 final routerProvider = Provider<GoRouter>((ref) {
@@ -38,7 +35,6 @@ final routerProvider = Provider<GoRouter>((ref) {
   ref.onDispose(mudou.dispose);
 
   final router = GoRouter(
-    navigatorKey: _navegadorRaiz,
     initialLocation: '/arranque',
     refreshListenable: mudou,
     redirect: (context, estado) {
@@ -79,58 +75,50 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              // Zona do sócio: a barra do sócio fica fixa por cima de todos estes ecrãs.
-              ShellRoute(
-                builder: (_, _, child) => SocioShell(child: child),
+              GoRoute(
+                path: '/socio',
+                builder: (_, _) => const InicioPage(),
                 routes: [
+                  GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
                   GoRoute(
-                    path: '/socio',
-                    builder: (_, _) => const InicioPage(),
+                    path: 'quotas',
+                    builder: (_, s) => QuotasPage(abrirPagamento: s.uri.queryParameters['pagar'] == '1'),
+                  ),
+                  GoRoute(
+                    path: 'faturas',
+                    builder: (_, _) => const FaturasPage(),
                     routes: [
-                      GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
                       GoRoute(
-                        path: 'quotas',
-                        builder: (_, s) => QuotasPage(abrirPagamento: s.uri.queryParameters['pagar'] == '1'),
-                      ),
-                      GoRoute(
-                        path: 'faturas',
-                        builder: (_, _) => const FaturasPage(),
-                        routes: [
-                          GoRoute(
-                            path: ':id',
-                            builder: (_, s) => FaturaPage(id: int.parse(s.pathParameters['id']!)),
-                          ),
-                        ],
-                      ),
-                      GoRoute(path: 'pagamentos', builder: (_, _) => const HistoricoPagamentosPage()),
-                      GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
-                      GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
-                      GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
-                      GoRoute(
-                        path: 'suporte',
-                        builder: (_, _) => const SuportePage(),
-                        routes: [
-                          GoRoute(path: 'nova', builder: (_, _) => const ConversaPage()),
-                          GoRoute(
-                            path: ':id',
-                            builder: (_, s) => ConversaPage(id: int.parse(s.pathParameters['id']!)),
-                          ),
-                        ],
-                      ),
-                      GoRoute(
-                        path: 'perfil',
-                        builder: (_, _) => const PerfilPage(),
-                        routes: [GoRoute(path: 'password', builder: (_, _) => const AlterarPasswordPage())],
-                      ),
-                      GoRoute(
-                        path: 'pagamento',
-                        // Ecrã inteiro, por cima da barra e da navegação: é um passo de um pagamento.
-                        parentNavigatorKey: _navegadorRaiz,
-                        // Só se chega aqui com o resultado acabado de criar; sem ele, volta ao início.
-                        redirect: (_, s) => s.extra is ResultadoPagamento ? null : '/socio',
-                        builder: (_, s) => ResultadoPagamentoPage(resultado: s.extra! as ResultadoPagamento),
+                        path: ':id',
+                        builder: (_, s) => FaturaPage(id: int.parse(s.pathParameters['id']!)),
                       ),
                     ],
+                  ),
+                  GoRoute(path: 'pagamentos', builder: (_, _) => const HistoricoPagamentosPage()),
+                  GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
+                  GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
+                  GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
+                  GoRoute(
+                    path: 'suporte',
+                    builder: (_, _) => const SuportePage(),
+                    routes: [
+                      GoRoute(path: 'nova', builder: (_, _) => const ConversaPage()),
+                      GoRoute(
+                        path: ':id',
+                        builder: (_, s) => ConversaPage(id: int.parse(s.pathParameters['id']!)),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'perfil',
+                    builder: (_, _) => const PerfilPage(),
+                    routes: [GoRoute(path: 'password', builder: (_, _) => const AlterarPasswordPage())],
+                  ),
+                  GoRoute(
+                    path: 'pagamento',
+                    // Só se chega aqui com o resultado acabado de criar; sem ele, volta ao início.
+                    redirect: (_, s) => s.extra is ResultadoPagamento ? null : '/socio',
+                    builder: (_, s) => ResultadoPagamentoPage(resultado: s.extra! as ResultadoPagamento),
                   ),
                 ],
               ),

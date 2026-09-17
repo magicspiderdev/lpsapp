@@ -9,8 +9,6 @@ import 'package:lpsapp/core/cache/com_cache.dart';
 import 'package:lpsapp/core/rede/ligacao.dart';
 import 'package:lpsapp/core/tema/tema.dart';
 import 'package:lpsapp/features/socio/conta/contas.dart';
-import 'package:lpsapp/core/widgets/blocos.dart';
-import 'package:lpsapp/features/socio/barra_socio.dart';
 import 'package:lpsapp/features/socio/inicio_page.dart';
 
 class _Sessao extends SessaoController {
@@ -59,15 +57,15 @@ void main() {
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(escala)),
               child: child!,
             ),
-            home: const SocioShell(child: InicioPage()),
+            home: const InicioPage(),
           ),
         ),
       );
       await t.pumpAndSettle();
       expect(t.takeException(), isNull, reason: "ecrã inicial");
 
-      // A foto na barra do sócio abre a folha do perfil.
-      await t.tap(find.byType(Avatar).first);
+      // O avatar no topo abre a folha do perfil.
+      await t.tap(find.byType(GestureDetector).first);
       await t.pumpAndSettle();
 
       expect(find.text('Terminar sessão'), findsOneWidget);
