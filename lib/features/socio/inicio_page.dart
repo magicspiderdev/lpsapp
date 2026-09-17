@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 
 import '../../core/api/clientes.dart';
 import '../../core/api/envelope.dart';
+import '../../core/auth/biometria.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
@@ -60,6 +61,14 @@ class InicioPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resumo = ref.watch(resumoProvider);
+
+    // Acabou de entrar com palavra-passe e o aparelho tem biometria: oferecer uma vez.
+    final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;
+    if (tipo != null && ref.watch(biometriaProvider.select((b) => b.oferecer))) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) _oferecerBiometria(context, ref, tipo);
+      });
+    }
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -434,6 +443,17 @@ void _perfil(BuildContext context, WidgetRef ref, Resumo r) {
             Text(r.nomeCompleto, textAlign: TextAlign.center, style: Theme.of(sheet).textTheme.titleLarge),
             Text('Sócio n.º ${r.nrSocio} · ${r.estadoLabel}', style: Theme.of(sheet).textTheme.bodySmall),
             const SizedBox(height: 24),
+            Consumer(builder: (context, ref, _) {
+              final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;
+              if (tipo == null) return const SizedBox.shrink();
+              return SwitchListTile(
+                secondary: IconePastilha(
+                    tipo == TipoBiometria.facial ? Icons.face_retouching_natural : Icons.fingerprint_rounded),
+                title: Text('Entrar com ${tipo.nome}'),
+                value: ref.watch(biometriaProvider.select((b) => b.activa)),
+                onChanged: (v) => ref.read(biometriaProvider.notifier).definir(v),
+              );
+            }),
             ListTile(
               leading: IconePastilha(Icons.logout_rounded, cor: Theme.of(sheet).colorScheme.error),
               title: const Text('Terminar sessão'),
@@ -446,5 +466,58 @@ void _perfil(BuildContext context, WidgetRef ref, Resumo r) {
         ),
       ),
     ),
+  );
+}
+
+void _oferecerBiometria(BuildContext context, WidgetRef ref, TipoBiometria tipo) {
+  final controlo = ref.read(biometriaProvider.notifier);
+  if (!ref.read(biometriaProvider).oferecer) return;
+  controlo.dispensarOferta();
+
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+    builder: (sheet) {
+      final tema = Theme.of(sheet);
+      return SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(Tema.margem + 8, 32, Tema.margem + 8, Tema.margem),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(color: tema.colorScheme.primaryContainer, shape: BoxShape.circle),
+                child: Icon(
+                  tipo == TipoBiometria.facial ? Icons.face_retouching_natural : Icons.fingerprint_rounded,
+                  size: 40,
+                  color: tema.colorScheme.primary,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text('Entrar com ${tipo.nome}?', textAlign: TextAlign.center, style: tema.textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(
+                'Da próxima vez abre a área de sócio sem escrever a palavra-passe. '
+                'Pode desligar a qualquer momento no seu perfil.',
+                textAlign: TextAlign.center,
+                style: tema.textTheme.bodyMedium?.copyWith(color: tema.colorScheme.onSurfaceVariant),
+              ),
+              const SizedBox(height: 28),
+              FilledButton(
+                onPressed: () async {
+                  Navigator.pop(sheet);
+                  await controlo.definir(true);
+                },
+                child: const Text('Activar'),
+              ),
+              const SizedBox(height: 4),
+              TextButton(onPressed: () => Navigator.pop(sheet), child: const Text('Agora não')),
+            ],
+          ),
+        ),
+      );
+    },
   );
 }

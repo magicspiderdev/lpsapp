@@ -127,5 +127,6 @@ Não chamar o backend antigo `api.leoesdeportosalvo.pt`.
 
 - Se faltar um endpoint, pedi-lo no backend — não o inventar nem usar outro servidor.
 - Tokens só em `flutter_secure_storage`; refresh automático apenas em `401 token_expirado`.
+- Biometria só desbloqueia a sessão guardada no aparelho (`lib/core/auth/biometria.dart`); nunca guardar a palavra-passe. Desliga-se quando a sessão acaba.
 - Dinheiro: não somar quotas e modalidades (usar `divida.total`); `estimado: true` não é pagável; `201` num pagamento não significa pago.
 - Tratar listas de estados/tipos vindas da API como abertas (`default` nos `switch`).

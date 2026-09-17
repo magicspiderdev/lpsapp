@@ -1,5 +1,6 @@
 package pt.magicspider.mslps
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// FragmentActivity: exigido pelo local_auth para o diálogo de biometria.
+class MainActivity : FlutterFragmentActivity()

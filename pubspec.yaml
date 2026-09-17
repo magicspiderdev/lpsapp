@@ -43,6 +43,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   intl: ^0.20.2
+  local_auth: ^3.0.2
 
 dev_dependencies:
   flutter_test:

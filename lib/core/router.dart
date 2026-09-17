@@ -6,11 +6,13 @@ import '../features/arranque/actualizar_page.dart';
 import '../features/arranque/arranque_page.dart';
 import '../features/auth/entrar_page.dart';
 import '../features/auth/codigo_page.dart';
+import '../features/auth/desbloquear_page.dart';
 import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
 import '../features/socio/inicio_page.dart';
 import 'arranque/versao_app.dart';
+import 'auth/biometria.dart';
 import 'auth/sessao.dart';
 
 /// Rotas protegidas por estado de sessão, não ecrãs duplicados por tipo de
@@ -19,6 +21,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   final mudou = ValueNotifier(0);
   ref.listen(sessaoProvider, (_, _) => mudou.value++);
   ref.listen(estadoVersaoProvider, (_, _) => mudou.value++);
+  ref.listen(biometriaProvider.select((b) => b.bloqueada), (_, _) => mudou.value++);
   ref.onDispose(mudou.dispose);
 
   final router = GoRouter(
@@ -33,7 +36,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (local == '/arranque' || local == '/actualizar') return '/noticias';
 
       final socio = ref.read(sessaoProvider) is SessaoSocio;
+      final bloqueada = ref.read(biometriaProvider).bloqueada;
       if (local.startsWith('/socio') && !socio) return '/entrar';
+      if (local.startsWith('/socio') && bloqueada) return '/desbloquear';
+      if (local == '/desbloquear') return !socio ? '/entrar' : (bloqueada ? null : '/socio');
       if (local.startsWith('/entrar') && socio) return '/socio';
       return null;
     },
@@ -57,6 +63,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           ]),
           StatefulShellBranch(routes: [
             GoRoute(path: '/socio', builder: (_, _) => const InicioPage()),
+            GoRoute(path: '/desbloquear', builder: (_, _) => const DesbloquearPage()),
             GoRoute(
               path: '/entrar',
               builder: (_, _) => const EntrarPage(),
