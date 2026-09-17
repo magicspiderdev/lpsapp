@@ -20,12 +20,20 @@ String horaCurta(DateTime? d) {
   return DateFormat('dd/MM').format(d);
 }
 
-class SuportePage extends ConsumerWidget {
+class SuportePage extends ConsumerStatefulWidget {
   const SuportePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SuportePage> createState() => _SuportePageState();
+}
+
+class _SuportePageState extends ConsumerState<SuportePage> {
+  bool _verArquivadas = false;
+
+  @override
+  Widget build(BuildContext context) {
     final estado = ref.watch(conversasProvider);
+    final arquivo = ref.watch(arquivoConversasProvider);
     final t = Theme.of(context);
 
     return Scaffold(
@@ -39,45 +47,125 @@ class SuportePage extends ConsumerWidget {
         skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(conversasProvider)),
-        data: (d) => RefreshIndicator(
-          onRefresh: () => ref.refresh(conversasProvider.future),
-          child: ListView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 100),
-            children: [
-              AvisoDesactualizado(d),
-              if (d.valor.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 64),
-                  child: Column(
-                    children: [
-                      const IconePastilha(Icons.support_agent_rounded),
-                      const SizedBox(height: 16),
-                      Text('Fale com a secretaria', style: t.textTheme.titleMedium),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Dúvidas sobre quotas, pagamentos ou inscrições.\nA resposta aparece aqui.',
-                        textAlign: TextAlign.center,
-                        style: t.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                )
-              else
-                Bloco(
-                  padding: const EdgeInsets.symmetric(vertical: 4),
-                  child: Column(
-                    children: [
-                      for (final (i, c) in d.valor.indexed) ...[
-                        if (i > 0) const Divider(indent: 72),
-                        _LinhaConversa(c),
+        data: (d) {
+          final activas = d.valor.where((c) => !estaArquivada(c, arquivo)).toList();
+          final arquivadas = d.valor.where((c) => estaArquivada(c, arquivo)).toList();
+
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(conversasProvider.future),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 100),
+              children: [
+                AvisoDesactualizado(d),
+                if (activas.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 56),
+                    child: Column(
+                      children: [
+                        const IconePastilha(Icons.support_agent_rounded),
+                        const SizedBox(height: 16),
+                        Text(
+                          arquivadas.isEmpty ? 'Fale com a secretaria' : 'Sem conversas por arquivar',
+                          style: t.textTheme.titleMedium,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Dúvidas sobre quotas, pagamentos ou inscrições.\nA resposta aparece aqui.',
+                          textAlign: TextAlign.center,
+                          style: t.textTheme.bodySmall,
+                        ),
                       ],
-                    ],
+                    ),
+                  )
+                else ...[
+                  _ListaConversas(activas, arquivadas: false),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                    child: Text('Deslize uma conversa para a arquivar.', style: t.textTheme.bodySmall),
                   ),
+                ],
+                if (arquivadas.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(Tema.raioPequeno),
+                    onTap: () => setState(() => _verArquivadas = !_verArquivadas),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                      child: Row(
+                        children: [
+                          Icon(Icons.inventory_2_outlined, size: 20, color: t.colorScheme.onSurfaceVariant),
+                          const SizedBox(width: 10),
+                          Expanded(child: Text('Arquivadas (${arquivadas.length})', style: t.textTheme.titleSmall)),
+                          Icon(_verArquivadas ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (_verArquivadas) _ListaConversas(arquivadas, arquivadas: true),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ListaConversas extends ConsumerWidget {
+  const _ListaConversas(this.conversas, {required this.arquivadas});
+
+  final List<Conversa> conversas;
+  final bool arquivadas;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final t = Theme.of(context);
+    final arquivo = ref.read(arquivoConversasProvider.notifier);
+
+    return Bloco(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        children: [
+          for (final (i, c) in conversas.indexed) ...[
+            if (i > 0) const Divider(indent: 72),
+            Dismissible(
+              key: ValueKey('conversa-${c.id}-$arquivadas'),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                color: arquivadas ? t.colorScheme.primaryContainer : t.colorScheme.surfaceContainerHigh,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(arquivadas ? 'Desarquivar' : 'Arquivar', style: t.textTheme.labelLarge),
+                    const SizedBox(width: 8),
+                    Icon(arquivadas ? Icons.unarchive_outlined : Icons.archive_outlined),
+                  ],
                 ),
-            ],
-          ),
-        ),
+              ),
+              onDismissed: (_) {
+                final mensagens = ScaffoldMessenger.of(context);
+                if (arquivadas) {
+                  arquivo.desarquivar(c.id);
+                } else {
+                  arquivo.arquivar(c);
+                  mensagens
+                    ..hideCurrentSnackBar()
+                    ..showSnackBar(
+                      SnackBar(
+                        content: const Text('Conversa arquivada.'),
+                        action: SnackBarAction(label: 'Desfazer', onPressed: () => arquivo.desarquivar(c.id)),
+                      ),
+                    );
+                }
+              },
+              child: _LinhaConversa(c),
+            ),
+          ],
+        ],
       ),
     );
   }

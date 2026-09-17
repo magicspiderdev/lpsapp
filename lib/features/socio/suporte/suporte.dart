@@ -139,3 +139,57 @@ extension AccoesSuporte on Dio {
     );
   }
 }
+
+/// Conversas arquivadas **neste aparelho**: id → `ultima_em` quando se arquivou.
+///
+/// A API ainda não tem arquivo (pedido `2026-09-17-arquivar-conversas` no
+/// CISOC). Não se apaga nada no servidor: a conversa é a mesma que a secretaria
+/// vê. Guardado na cache da sessão, por isso desaparece ao terminar sessão.
+final arquivoConversasProvider = NotifierProvider<ArquivoConversas, Map<int, DateTime?>>(ArquivoConversas.new);
+
+class ArquivoConversas extends Notifier<Map<int, DateTime?>> {
+  String? _chave;
+
+  @override
+  Map<int, DateTime?> build() {
+    final sessao = ref.watch(sessaoProvider);
+    if (sessao is! SessaoSocio) return const {};
+    _chave = 'suporte.arquivo.${sessao.socio.nrSocio}';
+    _carregar();
+    return const {};
+  }
+
+  Future<void> _carregar() async {
+    final e = await ref.read(cacheProvider).ler(Ambito.sessao, _chave!);
+    if (e == null) return;
+    // O que se arquivou entretanto (antes de acabar de ler) prevalece.
+    state = {
+      for (final MapEntry(:key, :value) in e.dados.entries)
+        ?int.tryParse(key): value is String ? DateTime.tryParse(value) : null,
+      ...state,
+    };
+  }
+
+  Future<void> _guardar() => ref.read(cacheProvider).guardar(Ambito.sessao, _chave!, {
+    for (final MapEntry(:key, :value) in state.entries) '$key': value?.toIso8601String(),
+  });
+
+  Future<void> arquivar(Conversa c) async {
+    state = {...state, c.id: c.ultimaEm};
+    await _guardar();
+  }
+
+  Future<void> desarquivar(int id) async {
+    state = {...state}..remove(id);
+    await _guardar();
+  }
+}
+
+/// Arquivada e sem nada de novo desde então. Uma mensagem nova (da secretaria ou
+/// do próprio, noutro aparelho ou no portal) tira-a do arquivo.
+bool estaArquivada(Conversa c, Map<int, DateTime?> arquivo) {
+  if (!arquivo.containsKey(c.id)) return false;
+  final quando = arquivo[c.id];
+  final ultima = c.ultimaEm;
+  return quando == null || ultima == null || !ultima.isAfter(quando);
+}

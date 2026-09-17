@@ -196,8 +196,9 @@ class _ConversaPageState extends ConsumerState<ConversaPage> {
         ref.invalidate(conversasProvider);
       }
     });
-    final fechada =
-        ref.watch(conversasProvider).valueOrNull?.valor.where((c) => c.id == id).firstOrNull?.fechada ?? false;
+    final conversa = ref.watch(conversasProvider).valueOrNull?.valor.where((c) => c.id == id).firstOrNull;
+    final fechada = conversa?.fechada ?? false;
+    final arquivada = conversa != null && estaArquivada(conversa, ref.watch(arquivoConversasProvider));
 
     return Scaffold(
       appBar: AppBar(
@@ -208,6 +209,30 @@ class _ConversaPageState extends ConsumerState<ConversaPage> {
             Text('Conversa n.º $id', style: Theme.of(context).textTheme.bodySmall),
           ],
         ),
+        actions: [
+          if (conversa != null)
+            IconButton(
+              tooltip: arquivada ? 'Desarquivar' : 'Arquivar',
+              icon: Icon(arquivada ? Icons.unarchive_outlined : Icons.archive_outlined),
+              onPressed: () {
+                final arquivo = ref.read(arquivoConversasProvider.notifier);
+                if (arquivada) {
+                  arquivo.desarquivar(id);
+                  _mensagem('Conversa desarquivada.');
+                } else {
+                  arquivo.arquivar(conversa);
+                  context.pop();
+                  // Volta à lista, onde se vê o resultado e se pode desfazer.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: const Text('Conversa arquivada.'),
+                      action: SnackBarAction(label: 'Desfazer', onPressed: () => arquivo.desarquivar(id)),
+                    ),
+                  );
+                }
+              },
+            ),
+        ],
       ),
       body: Column(
         children: [

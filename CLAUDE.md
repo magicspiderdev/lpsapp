@@ -25,6 +25,7 @@ Pedidos abertos:
 | Pedido | Bloqueia |
 |--------|----------|
 | `C:\home\cisoc\docs\pedidos-app\2026-09-16-contas-nao-socios.md` | Conta com email para não-sócios; associar conta a sócio; push para não-sócios |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-17-arquivar-conversas.md` | Arquivo de conversas no servidor (hoje só local, por aparelho) |
 
 ## Referências para construir a app
 
