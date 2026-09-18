@@ -16,6 +16,7 @@ import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
 import '../features/socio/cartao/cartao_page.dart';
 import '../features/socio/documentos/documentos_page.dart';
+import '../features/socio/notificacoes/notificacoes_page.dart';
 import '../features/socio/pagamentos/faturas_page.dart';
 import '../features/socio/perfil/perfil_page.dart';
 import '../features/socio/suporte/conversa_page.dart';
@@ -131,6 +132,7 @@ final routerProvider = Provider<GoRouter>((ref) {
                   GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
                   GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
                   GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
+                  GoRoute(path: 'notificacoes', builder: (_, _) => const NotificacoesPage()),
                   GoRoute(
                     path: 'suporte',
                     builder: (_, _) => const SuportePage(),

@@ -16,6 +16,7 @@ import '../../core/widgets/erro_view.dart';
 import '../../core/widgets/estado_dados.dart';
 import 'cartao/cartao_page.dart';
 import 'conta/contas.dart';
+import 'notificacoes/notificacoes.dart';
 import 'conta/seletor_conta.dart';
 
 /// `GET /me/resumo` — o ecrã inicial do sócio numa só chamada (guia §4.3).
@@ -215,6 +216,12 @@ class _Topo extends ConsumerWidget {
                   ),
                 ),
               ),
+              _BotaoVidro(
+                icone: Icons.notifications_none_rounded,
+                marca: ref.watch(notificacoesNovasProvider) > 0,
+                onTap: () => context.push('/socio/notificacoes'),
+              ),
+              const SizedBox(width: 8),
               _BotaoVidro(
                 icone: Icons.chat_bubble_outline_rounded,
                 marca: r.mensagensNaoLidas > 0,
