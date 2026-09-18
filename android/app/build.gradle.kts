@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+}
+
+// A app substitui a antiga na Play Store: o release tem de ser assinado com a
+// chave dela. O `key.properties` e o `.jks` ficam fora do repositório (ver
+// `android/.gitignore`); sem eles, só se constrói debug.
+val chaves = Properties().apply {
+    val ficheiro = rootProject.file("key.properties")
+    if (ficheiro.exists()) ficheiro.inputStream().use { load(it) }
 }
 
 android {
@@ -30,6 +40,17 @@ android {
         manifestPlaceholders["appName"] = "LPS Neo"
     }
 
+    signingConfigs {
+        if (chaves.getProperty("storeFile") != null) {
+            create("release") {
+                storeFile = file(chaves.getProperty("storeFile"))
+                storePassword = chaves.getProperty("storePassword")
+                keyAlias = chaves.getProperty("keyAlias")
+                keyPassword = chaves.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         // Em debug convive com a app antiga (mesmo applicationId, outra assinatura)
         // no telemóvel de quem testa.
@@ -38,9 +59,9 @@ android {
             manifestPlaceholders["appName"] = "LPS Neo dev"
         }
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Sem `key.properties` fica com a chave de debug, para `flutter run
+            // --release` funcionar — mas um APK desses não entra na Play Store.
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
         }
     }
 }

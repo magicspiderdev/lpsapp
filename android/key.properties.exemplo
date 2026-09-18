@@ -1,0 +1,10 @@
+# Copiar para `android/key.properties` (esse fica fora do repositório) e
+# preencher com os dados da chave da app antiga.
+#
+# A chave está em `mylps251/android/app/my-release-key.jks`. Guardar uma cópia
+# fora do projecto: perder esta chave é perder a possibilidade de actualizar a
+# app na Play Store.
+storeFile=C:/caminho/para/my-release-key.jks
+storePassword=
+keyAlias=my-key-alias
+keyPassword=

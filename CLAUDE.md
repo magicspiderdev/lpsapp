@@ -71,10 +71,28 @@ No iOS a app antiga nunca existiu: é uma publicação nova na App Store.
 - Android `applicationId`: `pt.magicspider.mslps` (confirmado pelos links da Play Store nos emails do CISOC)
 - iOS Bundle ID: `pt.magicspider.mslps` — o mesmo, por coerência; registá-lo no
   Apple Developer ao criar a app no App Store Connect
-- Android: a assinatura de release tem de usar a chave da app antiga (ou Play App Signing)
-- O `versionCode` (número depois do `+` em `pubspec.yaml`) tem de ser maior do que o
-  da última versão publicada da app antiga — confirmar na Play Console
 - A versão da app nova começa em `2.0.0`
+
+### A app antiga: `C:\Users\joaop\Documents\mylps251`
+
+O projecto Flutter da app que está na Play Store. É lá que estão as coisas que
+esta app tem de herdar.
+
+| O quê | Onde |
+|-------|------|
+| **Chave de assinatura** (sem ela não se actualiza a app na Play Store) | `android/app/my-release-key.jks` (cópia igual na raiz) |
+| Alias e palavras-passe da chave | `android/gradle.properties` (`MYAPP_RELEASE_*`), alias `my-key-alias` |
+| `versionCode` publicado | `pubspec.yaml`: `1.0.3+11` — o da app nova tem de ser maior; confirmar na Play Console, que pode ter subido |
+| Projecto Firebase (push) | `android/app/google-services.json`: `mylps-3fbdb`, remetente `333604454420`, pacote `pt.magicspider.mslps` |
+
+- **O `applicationId` é o mesmo**, por isso o Firebase da app antiga serve tal
+  qual para o push desta — não é preciso projecto novo.
+- A assinatura de release lê `android/key.properties` (fora do repositório, ver
+  `android/key.properties.exemplo`). Sem esse ficheiro, o release é assinado com
+  a chave de debug e **não serve para a loja**.
+- A chave e a palavra-passe estão dentro de um repositório git na app antiga.
+  Convém uma cópia de segurança fora do projecto: perder a chave é perder a app.
+- Não há material de assinatura de iOS na app antiga (nunca foi publicada).
 
 ## Zonas da app
 

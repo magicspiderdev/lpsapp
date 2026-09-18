@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Fundo do ícone adaptativo: o verde da própria arte, para a placa do
-     emblema não ficar a flutuar numa moldura de outra cor. -->
+<!-- Fundo do ícone adaptativo: o gradiente do clube, o mesmo do cabeçalho do
+     sócio (Tema.gradienteClube). O brasão vive na camada da frente. -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
     <gradient
-        android:angle="270"
-        android:startColor="#22A85D"
-        android:centerColor="#0C7C41"
-        android:endColor="#01682F"
+        android:angle="315"
+        android:startColor="#14935A"
+        android:centerColor="#0B5D3B"
+        android:endColor="#06341F"
         android:type="linear" />
 </shape>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Verde escuro do emblema: o arranque nativo tem de casar com o ecrã de
-         arranque da app, senão vê-se um flash branco entre os dois. -->
-    <color name="splash_background">#06341F</color>
+    <!-- Fundo da app em claro (Tema.claro: surface #F4F5F7). O arranque nativo
+         usa a mesma cor para a app não abrir com um flash de outra cor. -->
+    <color name="fundo_arranque">#F4F5F7</color>
 </resources>

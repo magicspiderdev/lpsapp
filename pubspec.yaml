@@ -16,7 +16,11 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 2.0.0+1
+# O número depois do `+` é o versionCode do Android e tem de ser maior do que o
+# da última versão publicada da app antiga. O código dela ia em 11
+# (`mylps251/pubspec.yaml`: 1.0.3+11) — confirmar na Play Console antes de
+# publicar, que pode ter subido depois disso.
+version: 2.0.0+12
 
 environment:
   sdk: ^3.11.5
