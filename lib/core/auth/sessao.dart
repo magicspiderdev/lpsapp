@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/clientes.dart';
 import '../api/envelope.dart';
+import '../push/push.dart';
 
 /// O sócio tal como vem no bloco `socio` do login.
 class SocioSessao {
@@ -98,6 +99,7 @@ class SessaoController extends Notifier<Sessao> {
   /// a sessão e as caches locais acabam logo.
   Future<String> eliminarConta(String password) async {
     final data = await dadosDe(ref.read(dioSocioProvider).delete('/me/conta', data: {'password': password}));
+    await ref.read(pushProvider.notifier).apagar();
     await ref.read(tokenStoreProvider).limpar();
     state = const SessaoAnonima();
     return (data['mensagem'] as String?) ?? 'A sua conta da app foi eliminada.';
@@ -105,6 +107,8 @@ class SessaoController extends Notifier<Sessao> {
 
   Future<void> sair() async {
     final store = ref.read(tokenStoreProvider);
+    // Antes de limpar os tokens: o DELETE precisa da sessão que está a sair.
+    await ref.read(pushProvider.notifier).apagar();
     try {
       await dadosDe(ref.read(dioSocioProvider).post('/auth/logout', data: {}));
     } catch (_) {
@@ -120,5 +124,7 @@ class SessaoController extends Notifier<Sessao> {
     if (data['socio'] is Map) {
       state = SessaoSocio(SocioSessao.fromJson((data['socio'] as Map).cast<String, dynamic>()));
     }
+    // O token do aparelho só se entrega com sessão aberta (§4.15).
+    await ref.read(pushProvider.notifier).registar();
   }
 }

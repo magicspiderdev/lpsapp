@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/push/push.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
@@ -69,6 +70,7 @@ class _NotificacoesPageState extends ConsumerState<NotificacoesPage> {
                 padding: const EdgeInsets.fromLTRB(Tema.margem, 12, Tema.margem, 32),
                 children: [
                   AvisoDesactualizado(d),
+                  const _PedirPermissao(),
                   if (todas.isEmpty)
                     const _Vazio()
                   else
@@ -86,6 +88,54 @@ class _NotificacoesPageState extends ConsumerState<NotificacoesPage> {
               );
             },
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// O push está disponível mas o aparelho ainda não deixa mostrar avisos.
+///
+/// Pede-se aqui, e não ao entrar: neste ecrã já se percebe para que serve, e o
+/// ecrã inicial já oferece a biometria — duas caixas do sistema seguidas é de
+/// mais.
+class _PedirPermissao extends ConsumerWidget {
+  const _PedirPermissao();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final push = ref.watch(pushProvider);
+    if (!push.disponivel || push.autorizado) return const SizedBox.shrink();
+    final c = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Bloco(
+        padding: const EdgeInsets.fromLTRB(14, 14, 14, 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                IconePastilha(Icons.notifications_active_outlined, cor: c.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Receba os avisos do clube no telemóvel, mesmo com a app fechada.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              ],
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () => ref.read(pushProvider.notifier).pedirPermissao(),
+                child: const Text('Activar notificações'),
+              ),
+            ),
+          ],
         ),
       ),
     );

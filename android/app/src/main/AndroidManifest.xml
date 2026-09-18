@@ -1,6 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- A app fala com o CISOC (API do Sócio e API pública). -->
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- Android 13+: mostrar notificações é permissão que se pede em execução. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
         android:label="${appName}"
         android:allowBackup="false"
