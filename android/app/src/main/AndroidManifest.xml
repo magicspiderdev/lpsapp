@@ -8,10 +8,15 @@
         android:allowBackup="false"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <!-- `screenOrientation`: arranca vertical. Sem isto, abrir a app com o
+             telemóvel deitado mostrava-a deitada até o Flutter correr. O
+             `fixarVertical()` do `main()` manda em tempo de execução e pode
+             abrir a excepção para um vídeo (ver `lib/core/orientacao.dart`). -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
+            android:screenOrientation="portrait"
             android:taskAffinity=""
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"

@@ -9,10 +9,12 @@ import 'core/auth/biometria.dart';
 import 'core/auth/token_store.dart';
 import 'core/cache/cache_local.dart';
 import 'core/config.dart';
+import 'core/orientacao.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('pt_PT');
+  await fixarVertical();
 
   const storage = FlutterSecureStorage();
   final cache = CacheEmDisco(storage);
