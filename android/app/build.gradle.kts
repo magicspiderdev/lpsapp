@@ -62,6 +62,15 @@ android {
             // Sem `key.properties` fica com a chave de debug, para `flutter run
             // --release` funcionar — mas um APK desses não entra na Play Store.
             signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+
+            // Um release de ensaio não se instala por cima da app publicada: o
+            // Android recusa (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) quando a
+            // assinatura não é a mesma. Com `LPS_SUFIXO_ENSAIO=.ensaio` o APK
+            // leva outro identificador e convive com ela no mesmo telemóvel.
+            System.getenv("LPS_SUFIXO_ENSAIO")?.let {
+                applicationIdSuffix = it
+                manifestPlaceholders["appName"] = "LPS Neo ensaio"
+            }
         }
     }
 }
