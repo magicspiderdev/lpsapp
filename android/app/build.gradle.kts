@@ -31,9 +31,20 @@ android {
 
     defaultConfig {
         applicationId = "pt.magicspider.mslps"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+
+        // Android 7.0. Fixo de propósito, e não `flutter.minSdkVersion`: este
+        // número é o único que deixa telemóveis de fora, e uma actualização do
+        // Flutter podia subi-lo sem ninguém dar por isso — quem ficasse abaixo
+        // deixava de receber actualizações, em silêncio. Subir daqui é uma
+        // decisão a tomar com os números da Play Console à frente, não um efeito
+        // secundário de `flutter upgrade`.
+        //
+        // 24 é hoje o chão do próprio Flutter, por isso não dá para descer: a
+        // app antiga chegava ao 21 por ter sido feita com um Flutter mais velho.
+        minSdk = 24
+
+        // Estes seguem o Flutter de propósito: é o que mantém a app a par das
+        // regras novas do Android. Nenhum deles exclui aparelhos.
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
