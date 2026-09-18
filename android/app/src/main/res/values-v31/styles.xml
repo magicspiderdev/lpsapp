@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Android 12+: o arranque é do sistema (ícone ao centro sobre uma cor), o
+     `windowBackground` deixa de contar. -->
+<resources>
+    <style name="LaunchTheme" parent="@android:style/Theme.DeviceDefault.DayNight">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@color/splash_background</item>
+    </style>
+</resources>

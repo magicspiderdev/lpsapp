@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Verde escuro do emblema: o arranque nativo tem de casar com o ecrã de
+         arranque da app, senão vê-se um flash branco entre os dois. -->
+    <color name="splash_background">#06341F</color>
+</resources>

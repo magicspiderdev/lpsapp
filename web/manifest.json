@@ -3,9 +3,9 @@
     "short_name": "LPS Neo",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#06341F",
+    "theme_color": "#06341F",
+    "description": "App dos sócios dos Leões de Porto Salvo.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [
