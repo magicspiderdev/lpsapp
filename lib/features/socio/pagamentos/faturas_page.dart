@@ -99,7 +99,7 @@ class FaturaPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final estado = ref.watch(faturaProvider(id));
     final podePagarConta = ref.watch(dependenteActivoProvider)?.podePagar ?? true;
-    final podePagarIdade = sessaoPode(ref.watch(sessaoProvider), 'pagar');
+    final podePagarIdade = sessaoTem(ref.watch(sessaoProvider), Capacidade.pagar);
     final d = estado.valueOrNull;
 
     return Scaffold(
@@ -114,8 +114,9 @@ class FaturaPage extends ConsumerWidget {
         ),
       ),
       bottomNavigationBar: switch (d) {
-        final d? when !d.valor.fatura.paga && podePagarConta && !podePagarIdade =>
-          SafeArea(child: NotaPermissao(explicacaoPermissao('pagar'))),
+        final d? when !d.valor.fatura.paga && podePagarConta && !podePagarIdade => SafeArea(
+          child: NotaPermissao(explicacaoPermissao('pagar')),
+        ),
         final d? when !d.valor.fatura.paga && podePagarConta => SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),
@@ -255,50 +256,53 @@ class HistoricoPagamentosPage extends ConsumerWidget {
                     children: [
                       for (final (i, p) in d.valor.indexed) ...[
                         if (i > 0) const Divider(indent: 16, endIndent: 16),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                          child: Row(
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                        InkWell(
+                          onTap: () => context.push('/socio/pagamentos/${p.idPagamento}'),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        p.descricao ?? 'Pagamento',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: t.textTheme.titleSmall,
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        [
+                                          if ((p.pagoEm ?? p.data) != null) dataCurta((p.pagoEm ?? p.data)!),
+                                          if (p.metodo == 'mbway') 'MB WAY',
+                                          if (p.metodo == 'paybylink') 'Referência',
+                                        ].join(' · '),
+                                        style: t.textTheme.bodySmall,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
                                   children: [
-                                    Text(
-                                      p.descricao ?? 'Pagamento',
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: t.textTheme.titleSmall,
-                                    ),
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      [
-                                        if ((p.pagoEm ?? p.data) != null) dataCurta((p.pagoEm ?? p.data)!),
-                                        if (p.metodo == 'mbway') 'MB WAY',
-                                        if (p.metodo == 'paybylink') 'Referência',
-                                      ].join(' · '),
-                                      style: t.textTheme.bodySmall,
+                                    Text(euros(p.valor), style: t.textTheme.titleSmall),
+                                    const SizedBox(height: 4),
+                                    Builder(
+                                      builder: (context) {
+                                        final (texto, cor) = estadoPagamentoVisual(
+                                          p.estado,
+                                          t.colorScheme.onSurfaceVariant,
+                                        );
+                                        return EtiquetaEstado(texto, cor: cor);
+                                      },
                                     ),
                                   ],
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(euros(p.valor), style: t.textTheme.titleSmall),
-                                  const SizedBox(height: 4),
-                                  Builder(
-                                    builder: (context) {
-                                      final (texto, cor) = estadoPagamentoVisual(
-                                        p.estado,
-                                        t.colorScheme.onSurfaceVariant,
-                                      );
-                                      return EtiquetaEstado(texto, cor: cor);
-                                    },
-                                  ),
-                                ],
-                              ),
-                            ],
+                              ],
+                            ),
                           ),
                         ),
                       ],

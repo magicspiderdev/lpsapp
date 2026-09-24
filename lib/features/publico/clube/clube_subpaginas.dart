@@ -7,6 +7,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
 import '../../../core/widgets/estado_dados.dart';
+import '../../modalidades_pedidos/modalidades_pedidos.dart' show RotasModalidades;
 import '../noticias/corpo_blocos.dart';
 import 'clube.dart';
 import 'clube_widgets.dart';
@@ -196,6 +197,18 @@ class ModalidadePage extends StatelessWidget {
         final cores = AppColors.of(context);
         return Scaffold(
           appBar: AppBar(title: Text(m.nome)),
+          // Pedir a inscrição (§4.22). Se a modalidade não recebe inscrições
+          // pela app, o servidor diz (`modalidade_sem_inscricao`) — não se
+          // adivinha aqui. Sem sessão, o router manda entrar primeiro.
+          bottomNavigationBar: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.md),
+              child: FilledButton.tonal(
+                onPressed: () => context.push(RotasModalidades.pedirCom(modalidade: m.slug)),
+                child: const Text('Pedir inscrição'),
+              ),
+            ),
+          ),
           body: ListView(
             padding: const EdgeInsets.fromLTRB(AppSpacing.screen, AppSpacing.sm, AppSpacing.screen, AppSpacing.xxxl),
             children: [
@@ -279,10 +292,7 @@ class _CorpoModalidade extends ConsumerWidget {
           error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(paginaModalidadeProvider(slug))),
           data: (d) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              AvisoDesactualizado(d),
-              CorpoBlocos(d.valor.corpo),
-            ],
+            children: [AvisoDesactualizado(d), CorpoBlocos(d.valor.corpo)],
           ),
         );
   }

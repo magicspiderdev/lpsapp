@@ -28,20 +28,42 @@ Pedidos abertos:
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-transferir-bilhete.md` | Transferência a sério de um bilhete (a app envia o código, com aviso) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-detalhe-de-evento.md` | Abrir um evento por link ou fora da janela da agenda (a ficha já funciona com o item da lista) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-ja-existe-id.md` | Nada — o `409 ja_existe` da inscrição traz `inscricao` e não `id`; a app lê os dois |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-24-push-pagamento-emitido.md` | O push "pagamento emitido" (a app já abre `/socio/pagamentos/{id}?socio=`), e os destinos dos avisos de modalidades, chat e pagamento confirmado, que hoje não abrem nada |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-pagamento-pendente.md` | Mostrar a referência já pedida ao reabrir uma inscrição por pagar (hoje a app remete para o email) |
 
-**Menores** (§2.10, pedido `2026-09-23-menores-limites-de-idade`): a app só
-lê `conta.permissoes` (lista aberta — o que falta é permitido) e **nunca
-calcula idades**. As permissões chegam também em cada `/auth/refresh`, e a
-sessão muda sem login (`TokenStore.contaRenovada`). Uma permissão a `false`
-esconde o botão e põe no lugar dele a `NotaPermissao` (quem o faz é o
-encarregado de educação); `comprar` fecha também as zonas gratuitas
-(`QuemPode.soEncarregado`). `401 socio_menor` é fim de sessão; `422
-socio_menor` e `403 menor_de_idade` mostram a `message`. Convites na carteira
-(`convite`, §4.18) levam o selo "Oferta do clube".
+**Menores** (§2.10–§2.12, política de menores do CISOC, fases 1 a 9): a app
+**nunca calcula idades** — nem no registo, onde a data é só declarada
+(`declara_idade: true`; abaixo da mínima o servidor responde `403
+encarregado_necessario`). Desenha-se com `conta.capacidades`
+(`ContaSessao.tem(Capacidade.x)`, `sessaoTem`); numa sessão guardada antes das
+capacidades valem as `permissoes` antigas. Tudo chega também em cada
+`/auth/refresh`, e a sessão muda sem login (`TokenStore.contaRenovada`). Sem a
+capacidade, esconde-se o botão e põe-se a `NotaPermissao` no lugar (quem o faz é
+o encarregado de educação): pagar, comprar (também zonas gratuitas,
+`QuemPode.soEncarregado`), contratar, editar a ficha e a fotografia. `401
+socio_menor` é fim de sessão; `422 socio_menor`, `403 menor_de_idade`, `403
+sem_capacidade` mostram a `message`. Passatempos `so_maiores` pedem a idade
+**verificada** (`motivo: idade_por_verificar`).
 
-Feitos no CISOC e ainda por alinhar na app: arquivo de conversas no servidor e
-`anexo_url: null` (`2026-09-17-…`), inscrição de sócio pela app (§4.21) e
-inscrição em modalidade (§4.22).
+**Encarregados** (§2.3.4, §2.3.5): um encarregado pode não ser sócio. Uma conta
+sem ficha com `conta.dependentes[]` (`eEncarregadoSemFicha`) entra na zona
+privada sempre com `X-Socio` de um educando (`temZonaPrivada`,
+`contaActivaProvider` começa no primeiro): a página da conta lista-os e abre
+`/socio/educando` (o Início do sócio, sem notificações, suporte nem ficha —
+isso é da ficha própria). As caches da zona privada usam `chaveDaSessao`.
+Pedir para acompanhar um educando, e os consentimentos (§2.11), vivem em
+`lib/features/conta/`. Bilhetes para um dependente: `para` na encomenda
+(`paraQuem`), e a carteira mostra `para`/`comprado_por_outro`.
+
+O push chega a qualquer conta (`/api/v2/dispositivos`), e os `data.params` vêm
+como texto JSON (`destinoDoPush`). A época da competição é a que o clube põe em
+vigor; uma época escolhida que deixou de existir dá `404` e volta-se à actual.
+
+Inscrição de sócio (§4.21) em `lib/features/inscricao/`, pedidos de inscrição
+e baixa em modalidades (§4.22) em `lib/features/modalidades_pedidos/` (rotas
+em `/socio/conta/modalidades`, abertas a qualquer conta), e o arquivo das
+conversas do suporte é do servidor (`POST /suporte/{id}/arquivar`).
 
 **Comunidade** (§4.23, `lib/features/comunidade/`): 5.º separador (Clube,
 Agenda, Comunidade, Bilhetes, Sócio) com Jogos, Classificação e Passatempos, e

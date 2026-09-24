@@ -68,14 +68,14 @@ class Resumo {
 
 final resumoProvider = StreamProvider.autoDispose<Dados<Resumo>>((ref) {
   final sessao = ref.watch(sessaoProvider);
-  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  if (!temZonaPrivada(sessao)) throw StateError('Sem zona privada');
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
   final conta = PedidosNaConta(ref);
 
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: 'resumo.${sessao.socio.nrSocio}.${conta.chave}',
+    chave: 'resumo.${chaveDaSessao(sessao)}.${conta.chave}',
     pedido: () => conta.get('/me/resumo'),
     ler: Resumo.fromJson,
   );
@@ -135,7 +135,7 @@ class InicioPage extends ConsumerWidget {
                       TituloSeccao(
                         ref.watch(contaActivaProvider) == null ? 'A sua conta' : 'Conta de ${d.valor.primeiroNome}',
                       ),
-                      _Conta(d.valor),
+                      _Conta(d.valor, encarregado: eEncarregadoSemFicha(ref.watch(sessaoProvider))),
                       // À vista, e não só no seletor do cabeçalho: quem tem
                       // filhos a cargo tem de dar com eles sem saber o truque.
                       if ((ref.watch(dependentesProvider).valueOrNull?.valor ?? const []).isNotEmpty) ...[
@@ -168,7 +168,10 @@ class _Topo extends ConsumerWidget {
     final aVerDependente = ref.watch(contaActivaProvider) != null;
     final dependente = ref.watch(dependenteActivoProvider);
     // Dependente "só consulta": sem botão de pagar (guia §2.3.4).
-    final podePagar = (dependente?.podePagar ?? true) && sessaoPode(ref.watch(sessaoProvider), 'pagar');
+    final podePagar = (dependente?.podePagar ?? true) && sessaoTem(ref.watch(sessaoProvider), Capacidade.pagar);
+    // Encarregado sem ficha (§2.3.4): notificações, suporte e ficha são da
+    // conta de sócio, que ele não tem. Entrou aqui a partir da conta: volta lá.
+    final encarregado = eEncarregadoSemFicha(ref.watch(sessaoProvider));
 
     return Container(
       decoration: const BoxDecoration(
@@ -226,17 +229,24 @@ class _Topo extends ConsumerWidget {
                   ),
                 ),
               ),
-              _BotaoVidro(
-                icone: Icons.notifications_none_rounded,
-                marca: ref.watch(notificacoesNovasProvider) > 0,
-                onTap: () => context.push('/socio/notificacoes'),
-              ),
-              const SizedBox(width: 8),
-              _BotaoVidro(
-                icone: Icons.chat_bubble_outline_rounded,
-                marca: r.mensagensNaoLidas > 0,
-                onTap: () => context.push('/socio/suporte'),
-              ),
+              if (encarregado)
+                _BotaoVidro(
+                  icone: Icons.close_rounded,
+                  onTap: () => context.canPop() ? context.pop() : context.go('/socio'),
+                )
+              else ...[
+                _BotaoVidro(
+                  icone: Icons.notifications_none_rounded,
+                  marca: ref.watch(notificacoesNovasProvider) > 0,
+                  onTap: () => context.push('/socio/notificacoes'),
+                ),
+                const SizedBox(width: 8),
+                _BotaoVidro(
+                  icone: Icons.chat_bubble_outline_rounded,
+                  marca: r.mensagensNaoLidas > 0,
+                  onTap: () => context.push('/socio/suporte'),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 36),
@@ -281,12 +291,13 @@ class _Topo extends ConsumerWidget {
                   sobreEscuro: true,
                   onTap: () => context.push(r.temModalidade ? '/socio/faturas' : '/socio/quotas'),
                 ),
-                AccaoRedonda(
-                  icone: Icons.more_horiz_rounded,
-                  legenda: 'Mais',
-                  sobreEscuro: true,
-                  onTap: () => _perfil(context, ref),
-                ),
+                if (!encarregado)
+                  AccaoRedonda(
+                    icone: Icons.more_horiz_rounded,
+                    legenda: 'Mais',
+                    sobreEscuro: true,
+                    onTap: () => _perfil(context, ref),
+                  ),
               ])
                 Expanded(child: accao),
             ],
@@ -356,9 +367,12 @@ class _Pastilha extends StatelessWidget {
 }
 
 class _Conta extends StatelessWidget {
-  const _Conta(this.r);
+  const _Conta(this.r, {this.encarregado = false});
 
   final Resumo r;
+
+  /// Encarregado sem ficha: o suporte é da conta da app e sem ficha não há.
+  final bool encarregado;
 
   @override
   Widget build(BuildContext context) {
@@ -395,6 +409,24 @@ class _Conta extends StatelessWidget {
           ],
           const Divider(indent: 72),
           ListTile(
+            leading: const IconePastilha(Icons.how_to_reg_outlined),
+            title: const Text('Inscrições em modalidades'),
+            subtitle: const Text('Pedir a inscrição ou a baixa'),
+            trailing: const Icon(Icons.chevron_right_rounded),
+            onTap: () => context.push('/socio/conta/modalidades'),
+          ),
+          if (!encarregado) ...[
+            const Divider(indent: 72),
+            ListTile(
+              leading: const IconePastilha(Icons.person_add_alt_outlined),
+              title: const Text('Inscrever um filho como sócio'),
+              subtitle: const Text('E acompanhar as inscrições a meio'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/inscricoes'),
+            ),
+          ],
+          const Divider(indent: 72),
+          ListTile(
             leading: const IconePastilha(Icons.account_balance_wallet_outlined),
             title: const Text('Conta corrente'),
             subtitle: Text(r.walletSaldo > 0 ? '${euros(r.walletSaldo)} a seu favor' : 'Créditos e débitos'),
@@ -412,17 +444,18 @@ class _Conta extends StatelessWidget {
             ),
           ],
           const Divider(indent: 72),
-          ListTile(
-            leading: IconePastilha(Icons.support_agent_rounded, cor: c.onSurfaceVariant),
-            title: const Text('Falar com a secretaria'),
-            subtitle: Text(
-              r.mensagensNaoLidas > 0
-                  ? '${r.mensagensNaoLidas} ${r.mensagensNaoLidas == 1 ? 'mensagem nova' : 'mensagens novas'}'
-                  : 'Suporte',
+          if (!encarregado)
+            ListTile(
+              leading: IconePastilha(Icons.support_agent_rounded, cor: c.onSurfaceVariant),
+              title: const Text('Falar com a secretaria'),
+              subtitle: Text(
+                r.mensagensNaoLidas > 0
+                    ? '${r.mensagensNaoLidas} ${r.mensagensNaoLidas == 1 ? 'mensagem nova' : 'mensagens novas'}'
+                    : 'Suporte',
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => context.push('/socio/suporte'),
             ),
-            trailing: const Icon(Icons.chevron_right_rounded),
-            onTap: () => context.push('/socio/suporte'),
-          ),
         ],
       ),
     );
@@ -484,6 +517,28 @@ void _perfil(BuildContext context, WidgetRef ref) {
                 context.push('/socio/perfil');
               },
             ),
+            if (sessao.conta.tem(Capacidade.consentimentos))
+              ListTile(
+                leading: const IconePastilha(Icons.privacy_tip_outlined),
+                title: const Text('Privacidade'),
+                subtitle: const Text('Uso de imagem, avisos e comunicações'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  context.push('/socio/conta/privacidade');
+                },
+              ),
+            if (sessao.conta.tem(Capacidade.gerirDependentes) || sessao.conta.dependentes.isNotEmpty)
+              ListTile(
+                leading: const IconePastilha(Icons.family_restroom_rounded),
+                title: const Text('Educandos'),
+                subtitle: const Text('Quem tem a seu cargo, e pedir para acompanhar'),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () {
+                  Navigator.pop(sheet);
+                  context.push('/socio/dependentes');
+                },
+              ),
             Consumer(
               builder: (context, ref, _) {
                 final tipo = ref.watch(tipoBiometriaProvider).valueOrNull;

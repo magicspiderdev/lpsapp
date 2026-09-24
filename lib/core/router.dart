@@ -29,6 +29,17 @@ import '../features/publico/noticias/noticia_page.dart';
 import '../features/publico/noticias/noticias_page.dart';
 import '../features/shell/shell_page.dart';
 import '../features/socio/cartao/cartao_page.dart';
+import '../features/conta/educandos/acompanhar_educando_page.dart';
+import '../features/conta/educandos/educandos_page.dart';
+import '../features/conta/privacidade/privacidade_page.dart';
+import '../features/inscricao/inscricao_form_page.dart';
+import '../features/inscricao/inscricao_page.dart';
+import '../features/inscricao/inscricoes_page.dart';
+import '../features/modalidades_pedidos/modalidades_pedidos.dart' show PedidoModalidade;
+import '../features/modalidades_pedidos/modalidades_pedidos_page.dart';
+import '../features/modalidades_pedidos/pedido_modalidade_page.dart';
+import '../features/modalidades_pedidos/pedir_modalidade_page.dart';
+import '../features/socio/inicio_page.dart' show InicioPage;
 import '../features/socio/documentos/documentos_page.dart';
 import '../features/socio/notificacoes/notificacoes_page.dart';
 import '../features/socio/pagamentos/faturas_page.dart';
@@ -37,6 +48,7 @@ import '../features/socio/suporte/conversa_page.dart';
 import '../features/socio/suporte/suporte_page.dart';
 import '../features/socio/pagamentos/mensalidades_page.dart';
 import '../features/socio/pagamentos/modelos.dart';
+import '../features/socio/pagamentos/pagamento_page.dart';
 import '../features/socio/pagamentos/quotas_page.dart';
 import '../features/socio/pagamentos/resultado_page.dart';
 import '../features/conta/conta_page.dart';
@@ -66,6 +78,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       boasVindas: ref.read(boasVindasProvider).valueOrNull == false,
       bloquearVersao: ref.read(estadoVersaoProvider).valueOrNull?.bloquear ?? false,
       socio: ref.read(sessaoProvider) is SessaoSocio,
+      encarregado: eEncarregadoSemFicha(ref.read(sessaoProvider)),
       temConta: ref.read(sessaoProvider) is! SessaoAnonima,
       bloqueada: ref.read(biometriaProvider).bloqueada,
     ),
@@ -228,6 +241,48 @@ final rotasDaApp = <RouteBase>[
               // Da conta, e não do sócio: quem entrou só com email também
               // precisa de mudar a palavra-passe.
               GoRoute(path: 'conta/password', builder: (_, _) => const AlterarPasswordPage()),
+              // A conta de um educando, para um encarregado sem ficha própria
+              // (§2.3.4): o Início do sócio, sempre com `X-Socio`.
+              GoRoute(path: 'educando', builder: (_, _) => const InicioPage()),
+              // Consentimentos (§2.11): os da conta e os de cada educando.
+              GoRoute(path: 'conta/privacidade', builder: (_, _) => const PrivacidadePage()),
+              // Os educandos (§2.3.5) — é a rota que o push traz quando a
+              // secretaria decide um pedido. Aberta a qualquer conta.
+              GoRoute(
+                path: 'dependentes',
+                builder: (_, _) => const EducandosPage(),
+                routes: [
+                  // Antes de `:nr`, senão "pedir" lia-se como um número.
+                  GoRoute(path: 'pedir', builder: (_, _) => const AcompanharEducandoPage()),
+                  GoRoute(
+                    path: ':nr/privacidade',
+                    // Um link com lixo no número volta à lista, em vez de rebentar.
+                    redirect: (_, s) => int.tryParse(s.pathParameters['nr']!) == null ? '/socio/dependentes' : null,
+                    builder: (_, s) => PrivacidadePage(nrSocio: int.parse(s.pathParameters['nr']!)),
+                  ),
+                ],
+              ),
+              // Pedidos de inscrição e baixa numa modalidade (§4.22). Da conta:
+              // um encarregado sem ficha também pede pelos educandos.
+              GoRoute(
+                path: 'conta/modalidades',
+                builder: (_, _) => const ModalidadesPedidosPage(),
+                routes: [
+                  // Antes de `:id`, senão "pedir" lia-se como um id.
+                  GoRoute(
+                    path: 'pedir',
+                    builder: (_, s) => PedirModalidadePage(
+                      modalidade: s.uri.queryParameters['modalidade'],
+                      tipo: s.uri.queryParameters['tipo'],
+                    ),
+                  ),
+                  GoRoute(
+                    path: ':id',
+                    builder: (_, s) =>
+                        PedidoModalidadePage(id: s.pathParameters['id']!, inicial: s.extra as PedidoModalidade?),
+                  ),
+                ],
+              ),
               GoRoute(path: 'cartao', builder: (_, _) => const CartaoPage()),
               GoRoute(
                 path: 'quotas',
@@ -243,7 +298,22 @@ final rotasDaApp = <RouteBase>[
                   ),
                 ],
               ),
-              GoRoute(path: 'pagamentos', builder: (_, _) => const HistoricoPagamentosPage()),
+              GoRoute(
+                path: 'pagamentos',
+                builder: (_, _) => const HistoricoPagamentosPage(),
+                routes: [
+                  // Destino da notificação "pagamento emitido"; `?socio=` quando
+                  // é de um educando. Um id que não é número volta à lista.
+                  GoRoute(
+                    path: ':id',
+                    redirect: (_, s) => int.tryParse(s.pathParameters['id']!) == null ? '/socio/pagamentos' : null,
+                    builder: (_, s) => PagamentoPage(
+                      id: int.parse(s.pathParameters['id']!),
+                      socio: int.tryParse(s.uri.queryParameters['socio'] ?? ''),
+                    ),
+                  ),
+                ],
+              ),
               GoRoute(path: 'mensalidades', builder: (_, _) => const MensalidadesPage()),
               GoRoute(path: 'wallet', builder: (_, _) => const WalletPage()),
               GoRoute(path: 'documentos', builder: (_, _) => const DocumentosPage()),
@@ -295,6 +365,23 @@ final rotasDaApp = <RouteBase>[
   // Associar a ficha a uma conta que já existe. Fora dos ramos, como o login:
   // também é um ecrã que só existe até se fazer o que ele pede.
   GoRoute(path: '/associar-socio', builder: (_, _) => const AssociarSocioPage()),
+  // Inscrever-se como sócio (§4.21), ou inscrever um menor a cargo. Fora dos
+  // ramos: é um fluxo com princípio e fim, de qualquer conta.
+  GoRoute(
+    path: '/inscricoes',
+    builder: (_, _) => const InscricoesPage(),
+    routes: [
+      // Antes de `:id`, senão "nova" lia-se como um id.
+      GoRoute(
+        path: 'nova',
+        builder: (_, s) => InscricaoFormPage(dependente: s.uri.queryParameters['para'] == 'dependente'),
+      ),
+      GoRoute(
+        path: ':id',
+        builder: (_, s) => InscricaoPage(id: s.pathParameters['id']!),
+      ),
+    ],
+  ),
 ];
 
 /// Para onde levar um pedido de rota, ou `null` para seguir.
@@ -310,6 +397,7 @@ String? destinoDoRedirect(
   required bool socio,
   required bool bloqueada,
   bool temConta = false,
+  bool encarregado = false,
   bool boasVindas = false,
 }) {
   // Link partilhado (`https://…/lps/noticias/x`): tira o prefixo do servidor.
@@ -340,20 +428,27 @@ String? destinoDoRedirect(
   // Uma compra é da conta: sem sessão não há encomenda nenhuma para ver, e
   // um link para uma passa primeiro por entrar.
   if (local.startsWith('/bilhetes/encomenda') && !comSessao) return com('/entrar', 'voltar', pedido);
+  // Uma inscrição é da conta: sem sessão, entrar (ou criar conta) primeiro.
+  if (local.startsWith('/inscricoes') && !comSessao) return com('/entrar', 'voltar', pedido);
 
   // A raiz do separador e os ecrãs da conta abrem para qualquer sessão: é lá
   // que quem não tem ficha muda a palavra-passe, termina sessão e elimina a
   // conta. Sem isto, uma conta sem sócio não teria onde fazer nada disso.
-  final daConta = local == '/socio' || local.startsWith('/socio/conta');
+  final daConta = local == '/socio' || local.startsWith('/socio/conta') || local.startsWith('/socio/dependentes');
+
+  // Um encarregado sem ficha vê a conta dos educandos (`X-Socio`), mas não o
+  // que é só da ficha própria: perfil, suporte, notificações.
+  final soDaFicha = const ['/socio/perfil', '/socio/suporte', '/socio/notificacoes'].any(local.startsWith);
+  final doEducando = encarregado && !soDaFicha;
 
   // O resto da zona privada é do sócio. Quem já tem conta e lá bate não
   // precisa de entrar — precisa de associar a ficha.
-  if (local.startsWith('/socio') && !socio && !(daConta && comSessao)) {
+  if (local.startsWith('/socio') && !socio && !doEducando && !(daConta && comSessao)) {
     return com(comSessao ? '/associar-socio' : '/entrar', 'voltar', pedido);
   }
   if (local.startsWith('/socio') && bloqueada) return com('/desbloquear', 'voltar', pedido);
   if (local == '/desbloquear') {
-    if (!socio) return voltar == null ? '/entrar' : com('/entrar', 'voltar', voltar);
+    if (!socio && !encarregado) return voltar == null ? '/entrar' : com('/entrar', 'voltar', voltar);
     return bloqueada ? null : voltar ?? '/socio';
   }
   if (local == '/associar-socio') {
