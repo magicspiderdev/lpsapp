@@ -6,11 +6,13 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../api/envelope.dart';
 
-/// Tokens da sessão do sócio, guardados só em `flutter_secure_storage`
+/// Tokens da sessão da conta (v2), guardados só em `flutter_secure_storage`
 /// (Keychain/Keystore) e espelhados em memória para os pedidos.
 ///
-/// O refresh **não é rotativo** (guia §2.2): o refresh token original serve
-/// até expirar, por isso nunca se substitui a partir da resposta do refresh.
+/// **O refresh roda** (guia §2.9): cada `/auth/refresh` devolve um par novo e
+/// o anterior deixa de valer. Guarda-se sempre o último, e faz-se **um refresh
+/// de cada vez** — um refresh já trocado, reutilizado mais de 30 segundos
+/// depois, é tratado como roubo e o servidor revoga a sessão deste aparelho.
 class TokenStore {
   TokenStore(this._storage, this._dioSemAuth, {Future<void> Function()? limparCaches}) : _limparCaches = limparCaches;
 
@@ -18,7 +20,11 @@ class TokenStore {
 
   static const _kAccess = 'lps.access_token';
   static const _kRefresh = 'lps.refresh_token';
-  static const _kSocio = 'lps.socio';
+  static const _kConta = 'lps.conta';
+
+  /// Chave da versão anterior da app, quando a sessão era do sócio e não da
+  /// conta. Só se lê para a apagar: um token da v1 não serve na v2.
+  static const _kSocioV1 = 'lps.socio';
 
   final FlutterSecureStorage _storage;
 
@@ -27,15 +33,19 @@ class TokenStore {
 
   String? _access;
   String? _refresh;
-  Map<String, dynamic>? _socio;
+  Map<String, dynamic>? _conta;
 
   final _terminada = StreamController<void>.broadcast();
 
   String? get accessToken => _access;
   bool get temSessao => _refresh != null;
 
-  /// O bloco `socio` do login, para mostrar nome e foto sem rede.
-  Map<String, dynamic>? get socio => _socio;
+  /// O bloco `conta` da sessão, para mostrar nome e sócio sem rede.
+  Map<String, dynamic>? get conta => _conta;
+
+  /// O `socio` da conta, ou `null` se a conta não tem ficha associada.
+  Map<String, dynamic>? get socio =>
+      _conta?['socio'] is Map ? (_conta!['socio'] as Map).cast<String, dynamic>() : null;
 
   /// Emite quando a sessão acaba sem ser pelo utilizador (refresh recusado,
   /// token inválido, conta eliminada).
@@ -45,33 +55,52 @@ class TokenStore {
     try {
       _access = await _storage.read(key: _kAccess);
       _refresh = await _storage.read(key: _kRefresh);
-      final s = await _storage.read(key: _kSocio);
-      _socio = s == null ? null : (jsonDecode(s) as Map).cast<String, dynamic>();
+      final c = await _storage.read(key: _kConta);
+      _conta = c == null ? null : (jsonDecode(c) as Map).cast<String, dynamic>();
+
+      // Sessão deixada pela versão anterior: os tokens da v1 não servem na v2
+      // (`401 token_invalido`), por isso começa-se limpo em vez de deixar a
+      // app bater com a cabeça no primeiro pedido.
+      if (_conta == null && await _storage.read(key: _kSocioV1) != null) {
+        await _apagar();
+      }
     } catch (_) {
       // Keystore ilegível (ex.: backup restaurado noutro aparelho): começa sem sessão.
       await _apagar();
     }
   }
 
-  /// Guarda a resposta de login, de `recuperar/confirmar` ou de `auth/password`.
-  Future<void> guardarLogin(Map<String, dynamic> data) async {
+  /// Guarda uma sessão vinda do login, da confirmação do registo, de repor ou
+  /// alterar a password, ou de associar/desassociar o sócio.
+  ///
+  /// O bloco `conta` só vem quando muda; um refresh não o traz, e aí mantém-se
+  /// o que estava.
+  Future<void> guardarSessao(Map<String, dynamic> data) async {
     _access = data['access_token'] as String;
-    _refresh = data['refresh_token'] as String;
     await _storage.write(key: _kAccess, value: _access);
-    await _storage.write(key: _kRefresh, value: _refresh);
-    if (data['socio'] is Map) {
-      _socio = (data['socio'] as Map).cast<String, dynamic>();
-      await _storage.write(key: _kSocio, value: jsonEncode(_socio));
+
+    if (data['refresh_token'] case final String r) {
+      _refresh = r;
+      await _storage.write(key: _kRefresh, value: r);
+    }
+
+    if (data['conta'] is Map) {
+      _conta = (data['conta'] as Map).cast<String, dynamic>();
+      await _storage.write(key: _kConta, value: jsonEncode(_conta));
     }
   }
 
-  /// `POST /auth/refresh`. Lança se o refresh for recusado.
+  /// `POST /api/v2/auth/refresh`. Lança se o refresh for recusado.
+  ///
+  /// O par novo substitui o antigo **antes** de qualquer pedido voltar a sair:
+  /// guardar só o access deixaria o refresh gasto no disco, e o próximo
+  /// arranque da app usava-o — que é precisamente o que o servidor lê como
+  /// roubo.
   Future<void> renovar() async {
     final refresh = _refresh;
     if (refresh == null) throw StateError('Sem refresh token');
     final data = await dadosDe(_dioSemAuth.post('/auth/refresh', data: {'refresh_token': refresh}));
-    _access = data['access_token'] as String;
-    await _storage.write(key: _kAccess, value: _access);
+    await guardarSessao(data);
   }
 
   /// Fim de sessão imposto pelo servidor: limpa e avisa quem estiver a ouvir.
@@ -87,10 +116,11 @@ class TokenStore {
   Future<void> _apagar() async {
     _access = null;
     _refresh = null;
-    _socio = null;
+    _conta = null;
     await _storage.delete(key: _kAccess);
     await _storage.delete(key: _kRefresh);
-    await _storage.delete(key: _kSocio);
+    await _storage.delete(key: _kConta);
+    await _storage.delete(key: _kSocioV1);
     // Caches com dados do sócio morrem com a sessão.
     await _limparCaches?.call();
   }

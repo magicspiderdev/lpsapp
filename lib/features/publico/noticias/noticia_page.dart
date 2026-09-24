@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/cache/com_cache.dart';
-import '../../../core/config.dart';
+import '../../../core/links.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/erro_view.dart';
 import '../../../core/widgets/estado_dados.dart';
+import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/imagem_rede.dart';
+import 'corpo_blocos.dart';
 import 'noticias.dart';
+import 'noticias_page.dart';
 
 class NoticiaPage extends ConsumerWidget {
   const NoticiaPage({super.key, required this.slug});
@@ -38,6 +42,11 @@ class NoticiaPage extends ConsumerWidget {
   Widget _conteudo(BuildContext context, Dados<Noticia> d) {
     final n = d.valor;
     final tema = Theme.of(context);
+    // Botões redondos claros, legíveis por cima da fotografia da capa.
+    final sobreCapa = IconButton.styleFrom(
+      backgroundColor: tema.colorScheme.surfaceContainerLowest.withValues(alpha: 0.9),
+      foregroundColor: tema.colorScheme.onSurface,
+    );
     return CustomScrollView(
       slivers: [
         SliverAppBar(
@@ -47,14 +56,26 @@ class NoticiaPage extends ConsumerWidget {
           leading: Padding(
             padding: const EdgeInsets.all(8),
             child: IconButton.filled(
-              style: IconButton.styleFrom(
-                backgroundColor: tema.colorScheme.surfaceContainerLowest.withValues(alpha: 0.9),
-                foregroundColor: tema.colorScheme.onSurface,
-              ),
+              tooltip: 'Voltar',
+              style: sobreCapa,
               icon: const Icon(Icons.arrow_back_rounded, size: 20),
-              onPressed: () => Navigator.of(context).maybePop(),
+              // Aberta por link não há nada atrás: vai para a lista.
+              onPressed: () => context.canPop() ? context.pop() : context.go('/noticias'),
             ),
           ),
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: Builder(
+                builder: (botao) => IconButton.filled(
+                  tooltip: 'Partilhar',
+                  style: sobreCapa,
+                  icon: Icon(Icons.adaptive.share, size: 20),
+                  onPressed: () => Links.partilhar(botao, titulo: n.titulo, link: Links.noticia(n.slug)),
+                ),
+              ),
+            ),
+          ],
           flexibleSpace: n.capa == null
               ? null
               : FlexibleSpaceBar(stretchModes: const [StretchMode.zoomBackground], background: ImagemRede(n.capa!.url)),
@@ -94,59 +115,146 @@ class NoticiaPage extends ConsumerWidget {
                 Text('Fotografia: ${n.capa!.credito}', style: tema.textTheme.bodySmall),
               ],
               const SizedBox(height: 8),
-              for (final b in n.corpo) ?_bloco(context, b),
+              CorpoBlocos(n.corpo),
+              if (n.etiquetas.isNotEmpty) _Etiquetas(n.etiquetas),
+              if (n.relacionados.isNotEmpty) _Relacionados(n.relacionados),
+              if (n.relacionadas.isNotEmpty) _VejaTambem(n.relacionadas),
             ],
           ),
         ),
       ],
     );
   }
+}
 
-  /// Só os tipos que a app já sabe compor; os outros ignoram-se (invariante I7).
-  Widget? _bloco(BuildContext context, Map<String, dynamic> b) {
+/// As etiquetas do artigo. Cada uma abre a lista do seu tema.
+class _Etiquetas extends StatelessWidget {
+  const _Etiquetas(this.etiquetas);
+
+  final List<Etiqueta> etiquetas;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          for (final e in etiquetas)
+            Material(
+              color: c.surfaceContainerHigh,
+              shape: const StadiumBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: () => context.push(
+                  Uri(path: '/noticias/etiqueta/${Uri.encodeComponent(e.slug)}', queryParameters: {'nome': e.nome})
+                      .toString(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  child: Text(
+                    e.nome,
+                    style: TextStyle(color: c.onSurface, fontWeight: FontWeight.w600, fontSize: 13),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// O jogo da crónica, o evento da antevisão, a sessão cujos bilhetes estão à
+/// venda. Só a sessão tem ecrã próprio; o resto mostra-se e fica por ali.
+class _Relacionados extends StatelessWidget {
+  const _Relacionados(this.itens);
+
+  final List<Relacionado> itens;
+
+  @override
+  Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    Widget espaco(Widget w) => Padding(padding: const EdgeInsets.only(top: 16), child: w);
-
-    return switch (b['tipo']) {
-      'texto' => espaco(
-        Text(_textoSimples(b['html'] as String? ?? ''), style: tema.textTheme.bodyLarge?.copyWith(height: 1.6)),
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Nesta notícia', style: tema.textTheme.titleMedium),
+          const SizedBox(height: 10),
+          for (final r in itens)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Bloco(
+                padding: const EdgeInsets.all(12),
+                onTap: r.rota == null ? null : () => context.push(r.rota!),
+                child: Row(
+                  children: [
+                    IconePastilha(switch (r.tipo) {
+                      'jogo' => Icons.sports_soccer_outlined,
+                      'evento' => Icons.celebration_outlined,
+                      'sessao' => Icons.confirmation_number_outlined,
+                      _ => Icons.link_rounded,
+                    }),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(r.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: tema.textTheme.titleSmall),
+                          if (_legenda(r) case final l when l.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(l, style: tema.textTheme.bodySmall),
+                          ],
+                        ],
+                      ),
+                    ),
+                    if (r.rota != null) Icon(Icons.chevron_right_rounded, color: tema.colorScheme.onSurfaceVariant),
+                  ],
+                ),
+              ),
+            ),
+        ],
       ),
-      'imagem' when b['uid'] is String => espaco(
-        ClipRRect(
-          borderRadius: BorderRadius.circular(Tema.raioPequeno),
-          child: ImagemRede(b['url'] as String? ?? Config.mediaUrl(b['uid'] as String), fit: BoxFit.fitWidth),
-        ),
-      ),
-      'citacao' => espaco(
-        Container(
-          padding: const EdgeInsets.only(left: 12),
-          decoration: BoxDecoration(
-            border: Border(left: BorderSide(color: tema.colorScheme.primary, width: 3)),
-          ),
-          child: Text(
-            b['texto'] as String? ?? '',
-            style: tema.textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
-          ),
-        ),
-      ),
-      'separador' => espaco(const Divider()),
-      _ => null,
-    };
+    );
   }
 
-  /// O HTML dos blocos de texto é limitado e já sanitizado no editor; por agora
-  /// mostra-se como texto corrido, com os parágrafos preservados.
-  static String _textoSimples(String html) => html
-      .replaceAll(RegExp(r'<br\s*/?>', caseSensitive: false), '\n')
-      .replaceAll(RegExp(r'</(p|li|h\d)>', caseSensitive: false), '\n\n')
-      .replaceAll(RegExp(r'<li[^>]*>', caseSensitive: false), '• ')
-      .replaceAll(RegExp(r'<[^>]+>'), '')
-      .replaceAll('&nbsp;', ' ')
-      .replaceAll('&amp;', '&')
-      .replaceAll('&lt;', '<')
-      .replaceAll('&gt;', '>')
-      .replaceAll('&quot;', '"')
-      .replaceAll('&#39;', "'")
-      .replaceAll(RegExp(r'\n{3,}'), '\n\n')
-      .trim();
+  static String _legenda(Relacionado r) => [
+    ?switch (r.inicio) {
+      final DateTime i => DateFormat("d 'de' MMMM', às' HH:mm", 'pt_PT').format(i),
+      _ => null,
+    },
+    ?r.local,
+    if (r.tipo == 'sessao' && r.estado == 'a_venda') 'Bilhetes à venda',
+  ].join(' · ');
+}
+
+/// "Veja também": notícias que partilham etiquetas com esta.
+class _VejaTambem extends StatelessWidget {
+  const _VejaTambem(this.noticias);
+
+  final List<NoticiaResumo> noticias;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 28),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Veja também', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          // A linha traz a sua própria margem lateral: aqui tira-se a do texto
+          // para as fotografias alinharem com o corpo do artigo.
+          for (final n in noticias)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 0),
+              child: LinhaNoticia(n),
+            ),
+        ],
+      ),
+    );
+  }
 }

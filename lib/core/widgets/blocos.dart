@@ -40,7 +40,8 @@ class TituloSeccao extends StatelessWidget {
       child: Row(
         children: [
           Expanded(child: Text(texto, style: tema.textTheme.titleMedium)),
-          ?accao,
+          // Com a letra do sistema grande, título e acção dividem a largura.
+          if (accao case final a?) Flexible(child: a),
         ],
       ),
     );
@@ -70,27 +71,31 @@ class AccaoRedonda extends StatelessWidget {
     final fundo = sobreEscuro ? Colors.white.withValues(alpha: 0.16) : c.surfaceContainerLowest;
     final frente = sobreEscuro ? Colors.white : c.onSurface;
 
-    return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 76),
-      child: Column(
-        children: [
-          Material(
-            color: fundo,
-            shape: const CircleBorder(),
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: onTap,
-              child: SizedBox.square(dimension: 52, child: Icon(icone, color: frente, size: 24)),
+    // Uma só coisa para o leitor de ecrã: "Ligar, botão", e não um botão sem
+    // nome seguido de um texto solto.
+    return MergeSemantics(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 76),
+        child: Column(
+          children: [
+            Material(
+              color: fundo,
+              shape: const CircleBorder(),
+              clipBehavior: Clip.antiAlias,
+              child: InkWell(
+                onTap: onTap,
+                child: SizedBox.square(dimension: 52, child: Icon(icone, color: frente, size: 24)),
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            legenda,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: frente),
-          ),
-        ],
+            const SizedBox(height: 8),
+            Text(
+              legenda,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: frente),
+            ),
+          ],
+        ),
       ),
     );
   }

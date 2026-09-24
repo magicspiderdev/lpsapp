@@ -20,7 +20,20 @@ final tokenStoreProvider = Provider<TokenStore>(
   (ref) => throw UnimplementedError('tokenStoreProvider tem de ser sobreposto em main()'),
 );
 
-/// Zona privada: `/api/v1`, com Bearer e refresh automático.
+/// A conta: `/api/v2`, com Bearer e refresh automático. É por aqui que se
+/// entra, se cria conta e se usa tudo o que é pessoal e não exige sócio
+/// (bilhetes comprados, interesses, inscrições).
+final dioContaProvider = Provider<Dio>((ref) {
+  final dio = novoDio(Config.contaBase);
+  dio.interceptors
+    ..add(LigacaoInterceptor(ref))
+    ..add(AuthInterceptor(dio, ref.watch(tokenStoreProvider)));
+  return dio;
+});
+
+/// Zona privada: `/api/v1`, com o **mesmo token da conta**. Sem sócio
+/// associado responde `403 conta_sem_socio` — esconder a zona, não deitar os
+/// tokens fora.
 final dioSocioProvider = Provider<Dio>((ref) {
   final dio = novoDio(Config.socioBase);
   dio.interceptors

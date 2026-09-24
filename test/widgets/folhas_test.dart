@@ -13,7 +13,7 @@ import 'package:lpsapp/features/socio/inicio_page.dart';
 
 class _Sessao extends SessaoController {
   @override
-  Sessao build() => const SessaoSocio(SocioSessao(nrSocio: 16, nomeCompleto: 'JOÃO PEDRO LOPES MENDES', estado: 1));
+  Sessao build() => sessaoDeSocio(const SocioSessao(nrSocio: 16, nomeCompleto: 'JOÃO PEDRO LOPES MENDES', estado: 1));
 }
 
 class _Ligacao extends LigacaoController {

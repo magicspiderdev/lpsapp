@@ -6,6 +6,7 @@ import '../../../core/api/envelope.dart';
 import '../../../core/config.dart';
 import '../../../core/cache/cache_local.dart';
 import '../../../core/cache/com_cache.dart';
+import '../../../core/formatos.dart';
 import '../../../core/rede/ligacao.dart';
 
 class Categoria {
@@ -61,14 +62,94 @@ class NoticiaResumo {
   );
 }
 
+/// Uma etiqueta do artigo. O `slug` serve para pedir a lista:
+/// `/noticias?etiqueta=juniores`.
+class Etiqueta {
+  final String slug, nome;
+
+  const Etiqueta({required this.slug, required this.nome});
+
+  factory Etiqueta.fromJson(Map<String, dynamic> j) =>
+      Etiqueta(slug: (j['slug'] ?? '') as String, nome: (j['nome'] ?? '') as String);
+}
+
+/// Coisa de outro módulo a que o artigo diz respeito: o jogo da crónica, o
+/// evento da antevisão, a sessão cujos bilhetes estão à venda.
+///
+/// Vem já resolvida — título, data e o identificador público — para compor o
+/// cartão sem um segundo pedido. **Lista aberta**: um `tipo` desconhecido
+/// ignora-se, como os blocos do corpo.
+class Relacionado {
+  /// `jogo`, `evento` ou `sessao` — lista aberta.
+  final String tipo;
+
+  /// O id que a API desse módulo usa: inteiro nos jogos e eventos, texto
+  /// (ULID) nas sessões. Guarda-se como texto porque só serve de chave.
+  final String id;
+  final String titulo;
+  final DateTime? inicio;
+  final String? local;
+
+  /// Estado da sessão de bilhética, quando é uma.
+  final String? estado;
+
+  const Relacionado({
+    required this.tipo,
+    required this.id,
+    required this.titulo,
+    this.inicio,
+    this.local,
+    this.estado,
+  });
+
+  static Relacionado? fromJson(Map<String, dynamic> j) {
+    final tipo = j['tipo'];
+    if (tipo is! String || j['id'] == null) return null;
+    return Relacionado(
+      tipo: tipo,
+      id: j['id'].toString(),
+      titulo: (j['titulo'] ?? '') as String,
+      inicio: dataApi(j['inicio']),
+      local: j['local'] as String?,
+      estado: j['estado'] as String?,
+    );
+  }
+
+  /// Só a sessão de bilhética tem ecrã próprio na app; um jogo ou um evento
+  /// mostram-se, mas não levam a lado nenhum.
+  String? get rota => tipo == 'sessao' ? '/bilhetes/$id' : null;
+}
+
 class Noticia extends NoticiaResumo {
   /// Lista de blocos `{tipo, ...}`. Tipos desconhecidos ignoram-se na leitura.
   final List<Map<String, dynamic>> corpo;
+
+  /// As etiquetas do artigo, para saltar daqui para o que partilha o tema.
+  final List<Etiqueta> etiquetas;
+
+  /// O "veja também": até quatro notícias que partilham etiquetas.
+  final List<NoticiaResumo> relacionadas;
+
+  /// Jogos, eventos e sessões ligados ao artigo.
+  final List<Relacionado> relacionados;
 
   Noticia.fromJson(Map<String, dynamic> j)
     : corpo = [
         for (final b in (j['corpo'] as List?) ?? const [])
           if (b is Map && b['tipo'] is String) b.cast<String, dynamic>(),
+      ],
+      etiquetas = [
+        for (final e in (j['etiquetas'] as List?) ?? const [])
+          if (e is Map) Etiqueta.fromJson(e.cast<String, dynamic>()),
+      ],
+      relacionadas = [
+        for (final n in (j['relacionadas'] as List?) ?? const [])
+          if (n is Map) NoticiaResumo.fromJson(n.cast<String, dynamic>()),
+      ],
+      relacionados = [
+        for (final r in (j['relacionados'] as List?) ?? const [])
+          if (r is Map)
+              ?Relacionado.fromJson(r.cast<String, dynamic>()),
       ],
       super(
         slug: j['slug'] as String,
@@ -149,6 +230,27 @@ class MaisNoticiasController extends AutoDisposeNotifier<MaisNoticias> {
   }
 }
 
+/// As notícias com uma etiqueta.
+///
+/// Uma etiqueta que não existe devolve `200` com lista vazia, e não `404`: a
+/// pergunta é legítima e a resposta é "não há nada com isso" (§4.20).
+final noticiasDaEtiquetaProvider = StreamProvider.autoDispose.family<Dados<PaginaNoticias>, String>((ref, etiqueta) {
+  if (modoDemonstracao) {
+    return Stream.value(Dados(paginaNoticiasExemplo, DateTime.now()));
+  }
+  ref.watch(ligacaoProvider);
+  final dio = ref.read(dioPublicoProvider);
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.publico,
+    chave: 'noticias.etiqueta.$etiqueta',
+    pedido: () => dadosDe(
+      dio.get('/noticias', queryParameters: {'etiqueta': etiqueta, 'por_pagina': _porPagina}),
+    ),
+    ler: PaginaNoticias.fromJson,
+  );
+});
+
 final noticiaProvider = StreamProvider.autoDispose.family<Dados<Noticia>, String>((ref, slug) {
   if (modoDemonstracao) return Stream.value(Dados(noticiaExemplo(slug), DateTime.now()));
   ref.watch(ligacaoProvider);
@@ -190,6 +292,23 @@ final noticiasExemplo = <Map<String, dynamic>>[
             '<p>Com este resultado, o clube sobe ao terceiro lugar do campeonato, a dois pontos do segundo classificado.</p>',
       },
       {'tipo': 'imagem', 'uid': 'demo', 'url': 'https://picsum.photos/seed/lps-derby2/1200/800'},
+    ],
+    'etiquetas': [
+      {'slug': 'hoquei', 'nome': 'Hóquei em patins'},
+      {'slug': 'seniores', 'nome': 'Seniores'},
+      {'slug': 'derby', 'nome': 'Dérbi'},
+    ],
+    'relacionados': [
+      {
+        'tipo': 'jogo',
+        'id': 4,
+        'titulo': 'Leões Porto Salvo x Sporting CP',
+        'inicio': '2026-09-16 21:00:00',
+        'local': 'Pavilhão Municipal de Porto Salvo',
+      },
+      {'tipo': 'sessao', 'id': 'S1', 'titulo': 'Próximo jogo em casa', 'inicio': '2026-10-03 21:00:00', 'estado': 'a_venda'},
+      // Tipo que a app não conhece: tem de ser ignorado sem rebentar.
+      {'tipo': 'galeria', 'id': 9, 'titulo': 'Fotografias do dérbi'},
     ],
   },
   {
@@ -263,5 +382,13 @@ final noticiasExemplo = <Map<String, dynamic>>[
 
 final paginaNoticiasExemplo = PaginaNoticias([for (final n in noticiasExemplo) NoticiaResumo.fromJson(n)], 1, 1);
 
-Noticia noticiaExemplo(String slug) =>
-    Noticia.fromJson(noticiasExemplo.firstWhere((n) => n['slug'] == slug, orElse: () => noticiasExemplo.first));
+Noticia noticiaExemplo(String slug) {
+  final bruta = noticiasExemplo.firstWhere((n) => n['slug'] == slug, orElse: () => noticiasExemplo.first);
+  // O "veja também" do exemplo são as outras notícias, para se ver o desenho.
+  return Noticia.fromJson({
+    ...bruta,
+    'relacionadas': [
+      for (final n in noticiasExemplo.where((n) => n['slug'] != bruta['slug']).take(3)) n,
+    ],
+  });
+}

@@ -52,6 +52,10 @@ class AuthInterceptor extends Interceptor {
       }
     }
 
+    // `403 conta_sem_socio` **não** é fim de sessão: é uma conta sem ficha de
+    // sócio a bater na zona privada. Os tokens continuam bons para tudo o
+    // resto — quem chamou é que decide esconder a zona e oferecer "associar a
+    // minha ficha".
     final sessaoInvalida =
         (status == 401 && (erro == 'token_invalido' || erro == 'token_ausente' || erro == 'conta_eliminada')) ||
         (status == 403 && erro == 'socio_inexistente');

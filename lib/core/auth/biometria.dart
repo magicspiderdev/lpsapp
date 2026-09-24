@@ -116,8 +116,9 @@ class BiometriaController extends Notifier<EstadoBiometria> {
         // Sem sessão não há nada a proteger; a próxima pessoa escolhe de novo.
         if (store.activa) store.definir(false);
         state = const EstadoBiometria(activa: false, bloqueada: false);
-      } else if (antes is SessaoAnonima && depois is SessaoSocio) {
-        // Entrou agora com palavra-passe ou código: já está autenticado.
+      } else if (depois is SessaoSocio && antes is! SessaoSocio) {
+        // Acabou de provar quem é — a entrar, ou a associar a ficha de sócio
+        // a uma conta que já tinha. Nos dois casos está autenticado agora.
         state = EstadoBiometria(activa: store.activa, bloqueada: false, oferecer: !store.activa);
       }
     });

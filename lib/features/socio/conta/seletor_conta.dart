@@ -20,21 +20,12 @@ Future<void> mostrarSeletorConta(BuildContext context) {
   );
 }
 
-class _SeletorConta extends ConsumerWidget {
+class _SeletorConta extends StatelessWidget {
   const _SeletorConta();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final tema = Theme.of(context);
-    final sessao = ref.watch(sessaoProvider);
-    final activa = ref.watch(contaActivaProvider);
-    final dependentes = ref.watch(dependentesProvider).valueOrNull?.valor ?? const <Dependente>[];
-    if (sessao is! SessaoSocio) return const SizedBox.shrink();
-
-    void escolher(int? nr) {
-      ref.read(contaActivaProvider.notifier).escolher(nr);
-      Navigator.pop(context);
-    }
 
     return SafeArea(
       child: ConstrainedBox(
@@ -54,29 +45,62 @@ class _SeletorConta extends ConsumerWidget {
                 style: tema.textTheme.bodyMedium?.copyWith(color: tema.colorScheme.onSurfaceVariant),
               ),
             ),
-            _LinhaConta(
-              nome: sessao.socio.nomeCompleto,
-              fotoUrl: sessao.socio.fotoUrl,
-              detalhe: 'A sua conta · N.º ${sessao.socio.nrSocio}',
-              activa: activa == null,
-              onTap: () => escolher(null),
-            ),
-            for (final d in dependentes)
-              _LinhaConta(
-                nome: d.nomeCompleto,
-                fotoUrl: d.fotoUrl,
-                detalhe: [
-                  'N.º ${d.nrSocio}',
-                  if (d.idade != null) '${d.idade} anos',
-                  if (!d.podePagar) 'só consulta',
-                ].join(' · '),
-                valor: d.dividaTotal > 0 ? _euros.format(d.dividaTotal) : null,
-                activa: activa == d.nrSocio,
-                onTap: () => escolher(d.nrSocio),
-              ),
+            ContasDaFamilia(depoisDeEscolher: () => Navigator.pop(context)),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// A conta do próprio e as dos sócios a seu cargo, com a que se está a ver
+/// marcada. Tocar numa passa a vê-la. Serve a folha e o Início.
+class ContasDaFamilia extends ConsumerWidget {
+  const ContasDaFamilia({super.key, this.depoisDeEscolher, this.comPropria = true});
+
+  final VoidCallback? depoisDeEscolher;
+
+  /// No Início a conta própria só aparece quando se está a ver outra — é o
+  /// caminho de volta.
+  final bool comPropria;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sessao = ref.watch(sessaoProvider);
+    final activa = ref.watch(contaActivaProvider);
+    final dependentes = ref.watch(dependentesProvider).valueOrNull?.valor ?? const <Dependente>[];
+    if (sessao is! SessaoSocio) return const SizedBox.shrink();
+
+    void escolher(int? nr) {
+      ref.read(contaActivaProvider.notifier).escolher(nr);
+      depoisDeEscolher?.call();
+    }
+
+    return Column(
+      children: [
+        if (comPropria || activa != null)
+          _LinhaConta(
+            nome: sessao.socio.nomeCompleto,
+            fotoUrl: sessao.socio.fotoUrl,
+            detalhe: 'A sua conta · N.º ${sessao.socio.nrSocio}',
+            activa: activa == null,
+            onTap: () => escolher(null),
+          ),
+        for (final d in dependentes)
+          _LinhaConta(
+            nome: d.nomeCompleto,
+            fotoUrl: d.fotoUrl,
+            detalhe: [
+              'N.º ${d.nrSocio}',
+              if (d.idade != null) '${d.idade} anos',
+              if (d.estado != 1) d.estadoLabel,
+              if (!d.podePagar) 'só consulta',
+            ].join(' · '),
+            valor: d.dividaTotal > 0 ? _euros.format(d.dividaTotal) : null,
+            activa: activa == d.nrSocio,
+            onTap: () => escolher(d.nrSocio),
+          ),
+      ],
     );
   }
 }

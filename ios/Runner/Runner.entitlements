@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Universal Links: os links partilhados de notícias e bilhetes abrem a
+	     app (lib/core/links.dart). O servidor tem de servir
+	     /.well-known/apple-app-site-association com o Team ID; ver o pedido
+	     2026-09-19-links-partilha-deeplinks no CISOC. A capacidade "Associated
+	     Domains" tem de estar activa no App ID (Apple Developer). -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:mylps.leoesdeportosalvo.pt</string>
+	</array>
+</dict>
+</plist>

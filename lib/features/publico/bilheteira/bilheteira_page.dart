@@ -2,14 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/auth/sessao.dart' as auth;
 import '../../../core/formatos.dart';
+import '../../../core/links.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
-import '../../../core/widgets/em_breve.dart';
 import '../../../core/widgets/erro_view.dart';
+import '../../../core/widgets/estado_dados.dart';
 import '../../../core/widgets/imagem_rede.dart';
 import 'bilheteira.dart';
+import 'compra.dart';
+import 'comprar_sheet.dart';
 
 /// Sessões com bilhetes à venda.
 class BilheteiraPage extends ConsumerWidget {
@@ -46,18 +51,21 @@ class BilheteiraPage extends ConsumerWidget {
             ),
             Expanded(
               child: estado.when(
+                skipLoadingOnReload: true,
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => e is EmPreparacao
-                    ? const PainelEmPreparacao(
-                        icone: Icons.confirmation_number_outlined,
-                        titulo: 'Bilhetes a caminho',
-                        texto:
-                            'Comprar bilhetes para jogos e eventos,\ncom desconto de sócio e entrada pelo telemóvel.',
-                      )
-                    : ErroView(erro: e, tentarDeNovo: () => ref.invalidate(sessoesProvider)),
-                data: (sessoes) => ListView(
-                  padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
-                  children: [for (final s in sessoes) _CartaoSessao(s), const SizedBox(height: 16), _MeusBilhetes()],
+                error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(sessoesProvider)),
+                data: (d) => RefreshIndicator(
+                  onRefresh: () => ref.refresh(sessoesProvider.future),
+                  child: ListView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
+                    children: [
+                      AvisoDesactualizado(d),
+                      if (d.valor.isEmpty) const _SemSessoes() else for (final s in d.valor) _CartaoSessao(s),
+                      const SizedBox(height: 16),
+                      _MeusBilhetes(),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -127,8 +135,11 @@ class _CartaoSessao extends StatelessWidget {
                   Row(
                     children: [
                       Expanded(
-                        child: s.esgotado
-                            ? Text('Esgotado', style: t.textTheme.titleSmall?.copyWith(color: t.colorScheme.error))
+                        child: !s.aVenda
+                            ? Text(
+                                s.motivoFechada!,
+                                style: t.textTheme.titleSmall?.copyWith(color: t.colorScheme.error),
+                              )
                             : Text.rich(
                                 TextSpan(
                                   children: [
@@ -144,8 +155,8 @@ class _CartaoSessao extends StatelessWidget {
                       FilledButton.tonal(
                         // Tamanho próprio: o tema dá largura total aos botões, o que não cabe numa linha.
                         style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-                        onPressed: s.esgotado ? null : () => context.push('/bilhetes/${s.id}'),
-                        child: Text(s.esgotado ? 'Sem bilhetes' : 'Ver bilhetes'),
+                        onPressed: s.aVenda ? () => context.push('/bilhetes/${s.id}') : null,
+                        child: Text(s.aVenda ? 'Ver bilhetes' : 'Sem bilhetes'),
                       ),
                     ],
                   ),
@@ -154,6 +165,31 @@ class _CartaoSessao extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SemSessoes extends StatelessWidget {
+  const _SemSessoes();
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+      child: Column(
+        children: [
+          const IconePastilha(Icons.confirmation_number_outlined),
+          const SizedBox(height: 16),
+          Text('Sem bilhetes à venda', style: t.textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text(
+            'Quando o clube abrir a venda para um jogo ou evento, aparece aqui.',
+            textAlign: TextAlign.center,
+            style: t.textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }
@@ -187,78 +223,181 @@ class _MeusBilhetes extends StatelessWidget {
   }
 }
 
-/// Escolha de zona e quantidade para uma sessão.
+/// Escolha de bilhetes de uma sessão: **uma zona de cada vez**.
+///
+/// Não é uma limitação do ecrã: uma encomenda é de uma zona
+/// (`POST /me/bilhetes/encomendas` leva `{sessao, zona, quantidade}`, §4.18).
+/// Somar tipos de bilhete diferentes num só total prometia uma compra que a
+/// API não faz — e dava dois pagamentos onde o ecrã mostrava um.
 class SessaoPage extends ConsumerStatefulWidget {
-  const SessaoPage({super.key, required this.id});
+  const SessaoPage({super.key, required this.id, this.quantidadesIniciais = const {}});
 
   final String id;
+
+  /// A escolha feita antes de ir entrar na conta (vem no link de volta).
+  final Map<String, int> quantidadesIniciais;
 
   @override
   ConsumerState<SessaoPage> createState() => _SessaoPageState();
 }
 
 class _SessaoPageState extends ConsumerState<SessaoPage> {
-  final _quantidades = <String, int>{};
+  String? _zona;
+  int _quantidade = 1;
+
+  @override
+  void initState() {
+    super.initState();
+    // Voltou de entrar na conta: retoma a escolha que tinha feito.
+    if (widget.quantidadesIniciais.entries.firstOrNull case final escolha?) {
+      _zona = escolha.key;
+      _quantidade = escolha.value;
+    }
+  }
+
+  /// O caminho de volta a este ecrã, com a escolha, para quem tem de sair
+  /// daqui (entrar na conta, associar a ficha) e voltar ao mesmo sítio.
+  String get _aqui => Uri(
+    path: '/bilhetes/${widget.id}',
+    queryParameters: _zona == null ? null : {'z': quantidadesParaLink({_zona!: _quantidade})},
+  ).toString();
+
+  void _continuar(Sessao s, Zona z, QuemPode quem) {
+    switch (quem) {
+      case QuemPode.precisaDeConta:
+        context.go(Uri(path: '/entrar', queryParameters: {'voltar': _aqui, 'motivo': 'bilhetes'}).toString());
+      case QuemPode.precisaDeSocio:
+        context.push(Uri(path: '/associar-socio', queryParameters: {'voltar': _aqui}).toString());
+      case QuemPode.foraDaApp:
+        if (z.urlCompra case final url?) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+      case QuemPode.indisponivel:
+        break;
+      case QuemPode.podeComprar:
+        mostrarComprar(context, sessao: s, zona: z, quantidade: _quantidade);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(sessaoProvider(widget.id));
+    final quemSou = ref.watch(auth.sessaoProvider);
     final t = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bilhetes')),
-      body: estado.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => e is EmPreparacao
-            ? const PainelEmPreparacao(
-                icone: Icons.confirmation_number_outlined,
-                titulo: 'Bilhetes a caminho',
-                texto: 'Ainda não é possível comprar bilhetes na app.',
-              )
-            : ErroView(erro: e, tentarDeNovo: () => ref.invalidate(sessaoProvider(widget.id))),
-        data: (s) => ListView(
-          padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
-          children: [
-            Text(s.titulo, style: t.textTheme.headlineSmall),
-            if (s.subtitulo != null) Text(s.subtitulo!, style: t.textTheme.bodyMedium),
-            const SizedBox(height: 12),
-            Bloco(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _Linha(Icons.event_outlined, DateFormat("EEEE, d 'de' MMMM 'às' HH:mm", 'pt_PT').format(s.inicio)),
-                  if (s.local != null) ...[const SizedBox(height: 10), _Linha(Icons.place_outlined, s.local!)],
-                ],
+      appBar: AppBar(
+        title: const Text('Bilhetes'),
+        actions: [
+          if (estado.valueOrNull?.valor case final s?)
+            Builder(
+              builder: (botao) => IconButton(
+                tooltip: 'Partilhar',
+                icon: Icon(Icons.adaptive.share),
+                onPressed: () => Links.partilhar(botao, titulo: s.titulo, link: Links.sessao(s.id)),
               ),
             ),
-            const TituloSeccao('Escolha os bilhetes'),
-            Bloco(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Column(
-                children: [
-                  for (final (i, z) in s.zonas.indexed) ...[
-                    if (i > 0) const Divider(indent: 16, endIndent: 16),
-                    _LinhaZona(
-                      z,
-                      quantidade: _quantidades[z.id] ?? 0,
-                      onMudar: (q) => setState(() => _quantidades[z.id] = q),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
-      bottomNavigationBar: estado.valueOrNull == null
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),
-                child: _Comprar(sessao: estado.value!, quantidades: _quantidades),
-              ),
+      body: estado.when(
+        skipLoadingOnReload: true,
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(sessaoProvider(widget.id))),
+        data: (d) {
+          final s = d.valor;
+          // A zona escolhida pode ter deixado de existir entre o link e agora.
+          final zona = s.zonas.where((z) => z.id == _zona).firstOrNull;
+
+          return RefreshIndicator(
+            onRefresh: () => ref.refresh(sessaoProvider(widget.id).future),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
+              children: [
+                AvisoDesactualizado(d),
+                Text(s.titulo, style: t.textTheme.headlineSmall),
+                if (s.subtitulo != null) Text(s.subtitulo!, style: t.textTheme.bodyMedium),
+                const SizedBox(height: 12),
+                Bloco(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    children: [
+                      _Linha(
+                        Icons.event_outlined,
+                        DateFormat("EEEE, d 'de' MMMM 'às' HH:mm", 'pt_PT').format(s.inicio),
+                      ),
+                      if (s.local != null) ...[const SizedBox(height: 10), _Linha(Icons.place_outlined, s.local!)],
+                    ],
+                  ),
+                ),
+                const TituloSeccao('Tipos de bilhete'),
+                Bloco(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Column(
+                    children: [
+                      for (final (i, z) in s.zonas.indexed) ...[
+                        if (i > 0) const Divider(indent: 16, endIndent: 16, height: 1),
+                        _LinhaZona(
+                          z,
+                          quem: quemPodeComprar(quemSou, z, sessaoAVenda: s.aVenda),
+                          seleccionada: z.id == _zona,
+                          quantidade: z.id == _zona ? _quantidade : 0,
+                          onSeleccionar: () => setState(() {
+                            _zona = z.id;
+                            // Trocar de zona recomeça em um: o número da
+                            // anterior não diz nada sobre esta.
+                            _quantidade = 1;
+                          }),
+                          onQuantidade: (q) => setState(() => _quantidade = q),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (s.zonas.length > 1) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    'Cada compra é de um tipo de bilhete. Para levar de tipos diferentes, '
+                    'faça uma compra de cada vez.',
+                    style: t.textTheme.bodySmall,
+                  ),
+                ],
+                if (_explicacao(zona, quemSou, s) case final aviso?) ...[
+                  const SizedBox(height: 10),
+                  Text(aviso, style: t.textTheme.bodySmall),
+                ],
+              ],
             ),
+          );
+        },
+      ),
+      bottomNavigationBar: switch (estado.valueOrNull?.valor) {
+        final s? => SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),
+            child: _BarraDeCompra(
+              sessao: s,
+              zona: s.zonas.where((z) => z.id == _zona).firstOrNull,
+              quantidade: _quantidade,
+              quem: quemSou,
+              onContinuar: _continuar,
+            ),
+          ),
+        ),
+        _ => null,
+      },
     );
+  }
+
+  /// A frase que explica a zona escolhida, quando ela precisa de explicação.
+  String? _explicacao(Zona? z, auth.Sessao quemSou, Sessao s) {
+    if (z == null) return null;
+    return switch (quemPodeComprar(quemSou, z, sessaoAVenda: s.aVenda)) {
+      QuemPode.precisaDeSocio =>
+        'Esta zona é reservada a sócios. Associe a sua ficha de sócio à conta para a poder comprar.',
+      QuemPode.foraDaApp => 'Os bilhetes desta zona compram-se no site da bilheteira.',
+      QuemPode.podeComprar when z.maxPorConta != null =>
+        'Máximo de ${z.maxPorConta} ${z.maxPorConta == 1 ? 'bilhete' : 'bilhetes'} por conta nesta zona.',
+      _ => null,
+    };
   }
 }
 
@@ -281,91 +420,161 @@ class _Linha extends StatelessWidget {
   }
 }
 
+/// Uma zona: escolhe-se tocando na linha; o contador só aparece na escolhida.
+///
+/// O contador em baixo, e não ao lado do nome: num ecrã estreito com a letra
+/// do sistema no máximo, nome e três botões na mesma linha não cabem.
 class _LinhaZona extends StatelessWidget {
-  const _LinhaZona(this.z, {required this.quantidade, required this.onMudar});
+  const _LinhaZona(
+    this.z, {
+    required this.quem,
+    required this.seleccionada,
+    required this.quantidade,
+    required this.onSeleccionar,
+    required this.onQuantidade,
+  });
 
   final Zona z;
+  final QuemPode quem;
+  final bool seleccionada;
   final int quantidade;
-  final ValueChanged<int> onMudar;
+  final VoidCallback onSeleccionar;
+  final ValueChanged<int> onQuantidade;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(z.nome, style: t.textTheme.titleSmall),
-                Text(
-                  [
-                    z.preco == 0 ? 'Grátis' : euros(z.preco),
-                    if (z.nota != null) z.nota!,
-                    if (!z.disponivel) 'esgotado',
-                  ].join(' · '),
-                  style: t.textTheme.bodySmall,
+    final c = t.colorScheme;
+    final indisponivel = quem == QuemPode.indisponivel;
+    // Uma zona de sócios continua a escolher-se: é no fundo do ecrã que se
+    // explica o que falta. Escondê-la só deixava a pergunta por responder.
+    final legenda = [
+      z.gratuita ? 'Grátis' : euros(z.preco),
+      if (z.exigeSocio) 'só sócios',
+      if (!z.naApp) 'compra-se no site',
+      ?z.nota,
+      if (!z.disponivel) 'esgotado',
+    ].join(' · ');
+
+    return Material(
+      color: seleccionada ? c.primaryContainer.withValues(alpha: 0.5) : Colors.transparent,
+      child: InkWell(
+        onTap: indisponivel ? null : onSeleccionar,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    seleccionada ? Icons.radio_button_checked_rounded : Icons.radio_button_unchecked_rounded,
+                    size: 22,
+                    color: indisponivel ? c.onSurfaceVariant : (seleccionada ? c.primary : c.outline),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          z.nome,
+                          style: t.textTheme.titleSmall?.copyWith(
+                            color: indisponivel ? c.onSurfaceVariant : null,
+                          ),
+                        ),
+                        Text(legenda, style: t.textTheme.bodySmall),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              if (seleccionada && quem == QuemPode.podeComprar) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        '$quantidade ${quantidade == 1 ? 'bilhete' : 'bilhetes'}',
+                        style: t.textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton.filledTonal(
+                      tooltip: 'Menos um bilhete',
+                      onPressed: quantidade <= 1 ? null : () => onQuantidade(quantidade - 1),
+                      icon: const Icon(Icons.remove_rounded),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: 'Mais um bilhete',
+                      // O máximo é o da zona (`max_por_conta`), não um número
+                      // inventado cá; o servidor tem a palavra final.
+                      onPressed: quantidade >= z.maximo ? null : () => onQuantidade(quantidade + 1),
+                      icon: const Icon(Icons.add_rounded),
+                    ),
+                  ],
                 ),
               ],
-            ),
+            ],
           ),
-          IconButton.filledTonal(
-            onPressed: !z.disponivel || quantidade == 0 ? null : () => onMudar(quantidade - 1),
-            icon: const Icon(Icons.remove_rounded),
-          ),
-          SizedBox(
-            width: 32,
-            child: Text('$quantidade', textAlign: TextAlign.center, style: t.textTheme.titleMedium),
-          ),
-          IconButton.filledTonal(
-            onPressed: !z.disponivel || quantidade >= 6 ? null : () => onMudar(quantidade + 1),
-            icon: const Icon(Icons.add_rounded),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _Comprar extends StatelessWidget {
-  const _Comprar({required this.sessao, required this.quantidades});
+/// O botão do fundo: diz o que falta fazer, e não "Continuar" para tudo.
+class _BarraDeCompra extends StatelessWidget {
+  const _BarraDeCompra({
+    required this.sessao,
+    required this.zona,
+    required this.quantidade,
+    required this.quem,
+    required this.onContinuar,
+  });
 
   final Sessao sessao;
-  final Map<String, int> quantidades;
+  final Zona? zona;
+  final int quantidade;
+  final auth.Sessao quem;
+  final void Function(Sessao, Zona, QuemPode) onContinuar;
 
   @override
   Widget build(BuildContext context) {
-    var total = 0.0;
-    var bilhetes = 0;
-    for (final z in sessao.zonas) {
-      final q = quantidades[z.id] ?? 0;
-      total += z.preco * q;
-      bilhetes += q;
-    }
+    final t = Theme.of(context);
+
+    if (!sessao.aVenda) return FilledButton(onPressed: null, child: Text(sessao.motivoFechada!));
+
+    final z = zona;
+    if (z == null) return const FilledButton(onPressed: null, child: Text('Escolha o bilhete'));
+
+    final estado = quemPodeComprar(quem, z, sessaoAVenda: sessao.aVenda);
+    final total = z.preco * quantidade;
+    final (texto, activo) = switch (estado) {
+      QuemPode.podeComprar when z.gratuita => ('Levantar bilhetes', true),
+      QuemPode.podeComprar => ('Continuar', true),
+      QuemPode.precisaDeConta => ('Entrar para continuar', true),
+      QuemPode.precisaDeSocio => ('Associar a minha ficha de sócio', true),
+      QuemPode.foraDaApp => ('Comprar no site da bilheteira', z.urlCompra != null),
+      QuemPode.indisponivel => (z.disponivel ? 'Sem bilhetes' : 'Esgotado', false),
+    };
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (bilhetes > 0)
+        if (estado == QuemPode.podeComprar)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Row(
               children: [
-                Expanded(child: Text('$bilhetes ${bilhetes == 1 ? 'bilhete' : 'bilhetes'}')),
-                Text(euros(total), style: Theme.of(context).textTheme.titleMedium),
+                Expanded(child: Text('$quantidade ${quantidade == 1 ? 'bilhete' : 'bilhetes'} · ${z.nome}')),
+                Text(total == 0 ? 'Grátis' : euros(total), style: t.textTheme.titleMedium),
               ],
             ),
           ),
         FilledButton(
-          // A compra depende da bilheteira no CISOC e de conta para quem não é sócio.
-          onPressed: bilhetes == 0
-              ? null
-              : () => ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text('A compra de bilhetes ainda não está disponível.'))),
-          child: Text(bilhetes == 0 ? 'Escolha os bilhetes' : 'Continuar'),
+          onPressed: activo ? () => onContinuar(sessao, z, estado) : null,
+          child: Text(texto),
         ),
       ],
     );

@@ -40,6 +40,16 @@ Map<String, dynamic> _socio([Map<String, dynamic> extra = const {}]) => {
   ...extra,
 };
 
+/// O bloco `conta` da sessão v2 (§2.9), com a ficha de sócio associada.
+Map<String, dynamic> _conta([Map<String, dynamic> extra = const {}]) => {
+  'email': 'joao@exemplo.pt',
+  'email_verificado': true,
+  'nome': 'João',
+  'comunicacoes': false,
+  'socio': _socio(),
+  ...extra,
+};
+
 void main() {
   test('guardar só envia campos editáveis', () async {
     final s = _Servidor()
@@ -73,24 +83,28 @@ void main() {
       FlutterSecureStorage.setMockInitialValues({
         'lps.access_token': 'antigo',
         'lps.refresh_token': 'refresh-antigo',
-        'lps.socio': jsonEncode(_socio()),
+        'lps.conta': jsonEncode(_conta()),
       });
       servidor = _Servidor();
       final dio = Dio()..httpClientAdapter = servidor;
       tokens = TokenStore(const FlutterSecureStorage(), dio);
       await tokens.carregar();
       c = ProviderContainer(
-        overrides: [tokenStoreProvider.overrideWithValue(tokens), dioSocioProvider.overrideWithValue(dio)],
+        overrides: [
+          tokenStoreProvider.overrideWithValue(tokens),
+          dioContaProvider.overrideWithValue(dio),
+          dioSocioProvider.overrideWithValue(dio),
+        ],
       );
       addTearDown(c.dispose);
     });
 
     test('alterar a palavra-passe guarda os tokens novos', () async {
-      servidor.respostas['POST /auth/password'] = (
+      servidor.respostas['POST /auth/password/alterar'] = (
         200,
         {
           'status': 'success',
-          'data': {'access_token': 'novo', 'refresh_token': 'refresh-novo', 'socio': _socio()},
+          'data': {'access_token': 'novo', 'refresh_token': 'refresh-novo', 'conta': _conta()},
         },
       );
       await c.read(sessaoProvider.notifier).alterarPassword(actual: 'a', nova: 'bbbbbbbb');
@@ -101,7 +115,7 @@ void main() {
     });
 
     test('password errada ao alterar: sessão e tokens ficam como estavam', () async {
-      servidor.respostas['POST /auth/password'] = (
+      servidor.respostas['POST /auth/password/alterar'] = (
         403,
         {'status': 'error', 'erro': 'password_incorreta', 'message': 'Palavra-passe incorrecta.'},
       );

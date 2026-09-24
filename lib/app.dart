@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/push/push.dart';
 import 'core/router.dart';
-import 'core/tema/tema.dart';
+import 'core/theme/app_theme.dart';
 import 'features/socio/notificacoes/notificacoes.dart';
 
 /// Mensagens que têm de sobreviver a uma mudança de ecrã (ex.: conta eliminada).
@@ -73,8 +73,8 @@ class _LpsAppState extends ConsumerState<LpsApp> {
       locale: const Locale('pt', 'PT'),
       supportedLocales: const [Locale('pt', 'PT')],
       localizationsDelegates: GlobalMaterialLocalizations.delegates,
-      theme: Tema.claro(),
-      darkTheme: Tema.escuro(),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
     );
   }
 }

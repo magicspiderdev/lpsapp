@@ -24,10 +24,47 @@ Pedidos abertos:
 
 | Pedido | Bloqueia |
 |--------|----------|
-| `C:\home\cisoc\docs\pedidos-app\2026-09-16-contas-nao-socios.md` | Conta com email para não-sócios; associar conta a sócio; push para não-sócios |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-17-arquivar-conversas.md` | Arquivo de conversas no servidor (hoje só local, por aparelho) |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-17-anexos-chat-servidor-antigo.md` | Anexos antigos do chat ainda com `anexo_url` em `api.leoesdeportosalvo.pt` (a app não muda) |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-17-zona-publica-agenda-bilhetes-clube.md` | Agenda de jogos e eventos, bilheteira e informação do clube |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-19-links-partilha-deeplinks.md` | `assetlinks.json`, `apple-app-site-association` e páginas web dos links partilhados (a app já partilha e já abre os links) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-22-transferir-bilhete.md` | Transferência a sério de um bilhete (a app envia o código, com aviso) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-22-detalhe-de-evento.md` | Abrir um evento por link ou fora da janela da agenda (a ficha já funciona com o item da lista) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-23-menores-limites-de-idade.md` | Limites de idade: menores de 16 sem conta própria (hoje entram pelo login por número) e, dos 16 aos 17, tudo menos pagar, comprar e contratar. A app só lê `conta.permissoes` e trata `403 menor_de_idade` — **não calcula idades** |
+
+Feitos no CISOC e ainda por alinhar na app: arquivo de conversas no servidor e
+`anexo_url: null` (`2026-09-17-…`), inscrição de sócio pela app (§4.21) e
+inscrição em modalidade (§4.22).
+
+**Comunidade** (§4.23, `lib/features/comunidade/`): 5.º separador (Clube,
+Agenda, Comunidade, Bilhetes, Sócio) com Jogos, Classificação e Passatempos, e
+o `BlocoComunidade` na ficha do jogo (palpitar antes, relatar depois). Com
+jogos de hoje ou de ontem já acabados, aparece primeiro a tab **Últimos**
+(`ultimosJogos`): um jogo dá-se por acabado hora e meia depois do início, mesmo
+com o estado por mudar — é a única conta com datas, e só decide o destaque. Qual
+botão aparece decide-se por `aberto`/`motivo` do servidor, nunca pelas datas;
+depois de cada escrita substitui-se o jogo pelo que vem. **Sem caixas de texto
+livre** (ADR-13) — o único texto é a alcunha, que nunca se preenche com o nome
+da pessoa. Os resultados entram por contadores, não por teclado. A barra de
+baixo é só de ícones: com cinco separadores os nomes partiam-se em duas linhas.
+
+**A app entra pela v2** (Contas v2, §2.9), desde 2026-09-22. O que isso implica:
+
+- A identidade é a **conta**, não o sócio. Três estados de sessão, não dois:
+  `SessaoAnonima`, `SessaoConta` (sem ficha) e `SessaoSocio` (com ficha).
+- O mesmo token serve a v1. **Sem ficha, a v1 responde `403 conta_sem_socio` —
+  que não é fim de sessão**: esconde-se a zona privada e oferece-se
+  `/associar-socio`, em vez de deitar os tokens fora.
+- **O refresh roda.** Cada `/auth/refresh` devolve um par novo e o anterior
+  deixa de valer: guardar só o access deixava o refresh gasto no disco, e o
+  servidor lê um refresh já trocado como roubo (revoga a sessão do aparelho).
+  Um refresh de cada vez — o `AuthInterceptor` já serializa.
+- Sessões independentes por aparelho: entrar noutro telemóvel já não fecha
+  esta. Mudar ou repor a password é que fecha as outras.
+- Tokens da versão anterior (`lps.socio` no armazenamento seguro) descartam-se
+  no arranque: não servem na v2.
+
+Links partilhados: `lib/core/links.dart` (raiz em `Config.linksRaiz`). O caminho
+do link é o da rota; o router tira o prefixo `/lps` e guarda o destino em
+`?para=`/`?voltar=` durante o arranque e o login. Comprar bilhetes exige sessão.
 
 ## Referências para construir a app
 
@@ -100,9 +137,11 @@ A app **não é só para sócios**. Tem duas zonas:
 
 - **Zona pública** — para todos, sem ser preciso ser sócio. Consome
   `/api/v2/publico/*` (sem autenticação, cacheável, sem dados pessoais — ADR-10 e
-  §7.2 da arquitectura). Hoje só existem `noticias`, `noticias/{slug}`,
-  `categorias` e `media/{uid}`; jogos, classificações, modalidades, agenda,
-  galerias, bilhetes e loja estão desenhados mas não implementados.
+  §7.2 da arquitectura). Estão implementados `noticias`, `noticias/{slug}`,
+  `categorias`, `media/{uid}`, `clube`, `agenda`, `bilhetes/sessoes[/{uid}]` e
+  `competicao/provas[/{slug}]` e `competicao/jogos` — todos ligados na app. Não
+  existem classificações, plantéis, galerias nem loja; o guia de quem integra
+  está em `C:\home\cisoc\docs\api-publica.md`.
 - **Zona privada** — só para sócios. Consome `/api/v1` (guia `api-socio-flutter.md`).
 
 Os utilizadores da app **podem não ser sócios**. Decisão (2026-09-16): **conta
@@ -130,15 +169,51 @@ Consequências para a app:
 - `lib/core/` — `config.dart` (endereços), `cache/` (cache local e `comCache`), `rede/` (estado da ligação), `api/` (clientes Dio, envelope →
   `ApiException`), `auth/` (`TokenStore`, `AuthInterceptor`, `sessaoProvider`),
   `arranque/` (`/ping` e versão mínima).
+- `lib/core/theme/` — design system (`docs/ui-audit.md` §6): `app_colors.dart`
+  (paleta, esquemas claro/escuro e `AppColors` com os estados), `app_typography.dart`,
+  `app_spacing.dart` (espaço, raios, sombras, movimento) e `app_theme.dart`. Código
+  novo usa estes tokens; `lib/core/tema/tema.dart` (`Tema`) só existe para os ecrãs
+  antigos e já lê daqui. Contrastes fixados em `test/design_system_test.dart`.
 - `lib/features/<zona ou área>/` — ecrãs e o respectivo acesso à API
   (`publico/noticias`, `auth`, `socio`, `shell`).
 - Dois clientes Dio: `dioPublicoProvider` (`/api/v2/publico`, nunca leva token) e
   `dioSocioProvider` (`/api/v1`, com o interceptor).
 - Correr contra o CISOC local: `flutter run --dart-define=LPS_API_RAIZ=http://10.0.2.2:8080`
   (emulador Android) ou `http://localhost:8080` (simulador iOS). Sem o define, produção.
-- Agenda, bilheteira e informação do clube já têm ecrã mas ainda não têm API:
-  sem nada mostram "brevemente"; com `--dart-define=LPS_DEMO=1` mostram os
-  exemplos de `lib/features/publico/*/…dart`, que são a referência do contrato pedido.
+- `--dart-define=LPS_DEMO=1` troca a zona pública pelos exemplos de
+  `lib/features/publico/*/…dart` — servem para ver o desenho com dados cheios
+  (uma época a começar tem dois jogos) e são o que os testes de ecrã usam. O que
+  ainda não tem API (a carteira de bilhetes) mostra "brevemente" sem este modo.
+- Um jogo é sempre um `ItemAgenda`: a agenda e a competição devolvem-no na
+  mesma forma, e o cartão é o mesmo (`agenda/agenda_widgets.dart`). `do_clube`
+  diz qual é a nossa equipa — nunca comparar nomes.
+- "Próximos" e "Anteriores" cortam-se **pela data**, nunca por haver resultado:
+  um jogo de ontem por registar é um jogo anterior sem resultado, e é assim que
+  se mostra (§4.19). O passado carrega-se aos poucos (`maisAnterioresProvider`):
+  a agenda não é paginada, por isso recua-se por janelas de datas encadeadas, e
+  o pedido é decidido pela posição da lista depois de cada desenho — uma lista
+  curta de mais para se arrastar nunca geraria um evento de scroll.
+- A janela da agenda vai de −7 a **+365 dias**: o que o clube marca com muita
+  antecedência (jantar de Natal, assembleia) é publicado meses antes e tem de
+  aparecer no dia em que é publicado. A API aceita até 400 dias de intervalo e
+  `limite` 100; a agenda do clube tem dezenas de itens por época.
+- Tocar num cartão abre a **ficha**: um jogo tem endpoint
+  (`/competicao/jogos/{id}` — placard, árbitro, assistência e a ficha com golos,
+  cartões, substituições e relato, `jogo_page.dart`); um evento não tem, e
+  desenha-se com o item que a agenda já trouxe (`evento_page.dart`, pedido
+  `2026-09-22-detalhe-de-evento`). O item vai no `extra` da rota, para o ecrã
+  não abrir a girar. **O marcador oficial é `jogo.resultado`**, não o da ficha,
+  que pode estar a meio de ser escrita; o `marcador` de cada linha vem contado
+  do servidor (a regra do autogolo é de lá) e os tipos de linha são lista
+  aberta — o que não se conhece ignora-se.
+- O corpo de uma notícia e o da página de uma modalidade são a mesma lista de
+  blocos, compostos por `CorpoBlocos` (`publico/noticias/corpo_blocos.dart`):
+  `texto`, `imagem`, `video`, `tabela` (desliza para o lado, não encolhe),
+  `mapa` (abre o `url`, sem mapa embebido) e as secções por `estilo`. O `texto`
+  e a `historia_html` do clube levam HTML de uma lista branca garantida no
+  servidor: compõem-se com `flutter_widget_from_html_core`, sem `WebView` e sem
+  voltar a sanitizar. Tipos de bloco desconhecidos ignoram-se. Uma modalidade
+  só se abre com `tem_pagina`.
 
 ## Endereços da API
 
@@ -150,9 +225,36 @@ Não chamar o backend antigo `api.leoesdeportosalvo.pt`.
 ## Regras que não se deduzem do código
 
 - Se faltar um endpoint, pedi-lo no backend — não o inventar nem usar outro servidor.
-- Tokens só em `flutter_secure_storage`; refresh automático apenas em `401 token_expirado`.
+- Tokens só em `flutter_secure_storage`; refresh automático apenas em `401
+  token_expirado`, e **o par novo substitui sempre o antigo** (o refresh roda).
+- Dois clientes com o mesmo token: `dioContaProvider` (`/api/v2`, a conta) e
+  `dioSocioProvider` (`/api/v1`, a zona privada). O público é o terceiro
+  (`dioPublicoProvider`) e nunca leva token.
 - Biometria só desbloqueia a sessão guardada no aparelho (`lib/core/auth/biometria.dart`); nunca guardar a palavra-passe. Desliga-se quando a sessão acaba.
 - Dinheiro: não somar quotas e modalidades (usar `divida.total`); `estimado: true` não é pagável; `201` num pagamento não significa pago.
 - Pagamentos (`lib/features/socio/pagamentos/`): nunca enviar valores, mostrar o `total` e o `metodo` da resposta, nunca pagar com dados da cache, acompanhar a confirmação por polling. Contra o CISOC local o IfthenPay é real — um MB WAY de teste chega a um telemóvel verdadeiro.
+- Comprar bilhetes (`lib/features/publico/bilheteira/compra.dart`, §4.18) segue
+  as mesmas regras e mais duas próprias. **Uma encomenda é de uma zona**
+  (`{sessao, zona, quantidade}`): o ecrã escolhe um tipo de bilhete de cada vez,
+  porque somar tipos prometia uma compra que a API não faz. E **quem pode
+  comprar não se deduz do preço**: só `exige_socio` se explica antes
+  (`quemPodeComprar`, para não mandar ninguém preencher um formulário e ouvir um
+  `403`); o resto decide-se no servidor e trata-se pela resposta —
+  `conta_sem_socio` oferece associar a ficha, `venda_externa` abre o
+  `url_compra`, `esgotado`/`limite_bilhetes` trazem os números e recarregam a
+  sessão. Uma zona gratuita nasce `paga` e já traz os bilhetes: não há folha de
+  pagamento nenhuma pelo meio.
+- A carteira agrupa **por evento**, não por compra (`agruparPorEvento`): dois
+  bilhetes para o mesmo jogo são um cartão, e como cada compra é de uma zona,
+  duas compras para o mesmo jogo continuam a ser um jogo só. Dentro do cartão
+  passa-se de código em código arrastando, que é como a portaria os lê — por
+  isso nada a meio do bilhete pode apanhar o arrastar horizontal (foi o que
+  aconteceu com um `SelectableText` no código, agora um toque que copia).
+- Partilhar um bilhete envia a **imagem** dele (`imagem_bilhete.dart`, composta
+  no `Canvas` e não a partir de um widget: partilha-se de qualquer sítio e o
+  resultado não depende do ecrã) **e** o texto com o mesmo código. A imagem é o
+  que serve à porta; o texto é o que se pesquisa e se lê em voz alta. Não expõe
+  mais nada — o QR é o código que já ia no texto. Continua a ser um bilhete de
+  cada vez, com o aviso lá dentro.
 - Tratar listas de estados/tipos vindas da API como abertas (`default` nos `switch`).
 - Ecrãs com dados da API usam cache (`comCache` em `lib/core/cache/`): mostram logo a última informação guardada, actualizam quando há rede e, sem ligação, avisam com `AvisoDesactualizado`. Dados do sócio em `Ambito.sessao`, credenciais em `Ambito.seguro` — apagam-se com a sessão. Imagens com `ImagemRede`, nunca `Image.network`.

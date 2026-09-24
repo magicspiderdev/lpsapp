@@ -18,7 +18,7 @@ Future<void> main() async {
 
   const storage = FlutterSecureStorage();
   final cache = CacheEmDisco(storage);
-  final tokens = TokenStore(storage, novoDio(Config.socioBase), limparCaches: cache.limparSessao);
+  final tokens = TokenStore(storage, novoDio(Config.contaBase), limparCaches: cache.limparSessao);
   final biometria = BiometriaStore(storage);
   await Future.wait([tokens.carregar(), biometria.carregar()]);
 

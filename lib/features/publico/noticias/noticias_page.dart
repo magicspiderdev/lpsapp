@@ -10,7 +10,7 @@ import '../../../core/widgets/estado_dados.dart';
 import '../../../core/widgets/imagem_rede.dart';
 import 'noticias.dart';
 
-String _quando(DateTime? d) => d == null ? '' : DateFormat('d MMM', 'pt_PT').format(d);
+String quandoNoticia(DateTime? d) => d == null ? '' : DateFormat('d MMM', 'pt_PT').format(d);
 
 class NoticiasPage extends ConsumerWidget {
   const NoticiasPage({super.key});
@@ -101,7 +101,7 @@ class NoticiasPage extends ConsumerWidget {
                                 children: [
                                   for (final (i, n) in noticias.skip(1).indexed) ...[
                                     if (i > 0) const Divider(indent: 16, endIndent: 16),
-                                    _Linha(n),
+                                    LinhaNoticia(n),
                                   ],
                                 ],
                               ),
@@ -188,7 +188,7 @@ class _Destaque extends StatelessWidget {
                     if (n.publicadoEm != null) ...[
                       const SizedBox(height: 6),
                       Text(
-                        _quando(n.publicadoEm),
+                        quandoNoticia(n.publicadoEm),
                         style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 13),
                       ),
                     ],
@@ -203,8 +203,12 @@ class _Destaque extends StatelessWidget {
   }
 }
 
-class _Linha extends StatelessWidget {
-  const _Linha(this.n);
+/// Uma notícia em linha: fotografia pequena, título e contexto.
+///
+/// Pública porque o artigo a reaproveita no "veja também" e a lista de uma
+/// etiqueta é a mesma coisa noutro sítio.
+class LinhaNoticia extends StatelessWidget {
+  const LinhaNoticia(this.n, {super.key});
 
   final NoticiaResumo n;
 
@@ -236,7 +240,7 @@ class _Linha extends StatelessWidget {
                   Text(
                     [
                       if (n.categoria != null) n.categoria!.nome,
-                      _quando(n.publicadoEm),
+                      quandoNoticia(n.publicadoEm),
                     ].where((s) => s.isNotEmpty).join(' · '),
                     style: tema.textTheme.bodySmall,
                   ),

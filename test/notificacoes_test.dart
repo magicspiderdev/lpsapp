@@ -16,7 +16,7 @@ class _LigacaoFake extends LigacaoController {
 
 class _SessaoFake extends SessaoController {
   @override
-  Sessao build() => const SessaoSocio(SocioSessao(nrSocio: 16, nomeCompleto: 'TITULAR', estado: 1));
+  Sessao build() => sessaoDeSocio(const SocioSessao(nrSocio: 16, nomeCompleto: 'TITULAR', estado: 1));
 }
 
 /// Devolve páginas de notificações por ordem decrescente de id, como o servidor.

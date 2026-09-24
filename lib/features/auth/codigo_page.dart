@@ -52,7 +52,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
   }
 
   Future<void> _pedirCodigo() => _executar(() async {
-    final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(int.parse(_nr.text));
+    final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(nrSocio: int.parse(_nr.text));
     setState(() => _mensagemEnvio = mensagem);
   });
 

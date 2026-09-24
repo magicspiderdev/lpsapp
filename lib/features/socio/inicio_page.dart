@@ -109,7 +109,11 @@ class InicioPage extends ConsumerWidget {
           ),
           data: (d) => RefreshIndicator(
             edgeOffset: MediaQuery.paddingOf(context).top,
-            onRefresh: () => ref.refresh(resumoProvider.future),
+            // A lista dos sócios a cargo também: é a secretaria que a muda, sem aviso.
+            onRefresh: () {
+              ref.invalidate(dependentesProvider);
+              return ref.refresh(resumoProvider.future);
+            },
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
               slivers: [
@@ -132,6 +136,12 @@ class InicioPage extends ConsumerWidget {
                         ref.watch(contaActivaProvider) == null ? 'A sua conta' : 'Conta de ${d.valor.primeiroNome}',
                       ),
                       _Conta(d.valor),
+                      // À vista, e não só no seletor do cabeçalho: quem tem
+                      // filhos a cargo tem de dar com eles sem saber o truque.
+                      if ((ref.watch(dependentesProvider).valueOrNull?.valor ?? const []).isNotEmpty) ...[
+                        const TituloSeccao('Sócios a seu cargo'),
+                        const ContasDaFamilia(comPropria: false),
+                      ],
                     ],
                   ),
                 ),

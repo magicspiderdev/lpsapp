@@ -6,13 +6,28 @@
 abstract final class Config {
   static const apiRaiz = String.fromEnvironment('LPS_API_RAIZ', defaultValue: 'https://mylps.leoesdeportosalvo.pt/lps');
 
-  /// Zona privada: API do Sócio (guia `api-socio-flutter.md`).
+  /// Contas v2: é por aqui que a app entra (guia §2.9). Uma conta pode existir
+  /// sem sócio; quem tem sócio associado usa **o mesmo token** na v1.
+  static const contaBase = '$apiRaiz/api/v2';
+
+  /// Zona privada: API do Sócio (guia `api-socio-flutter.md`). Continua na v1,
+  /// com o token da conta v2 — sem sócio associado responde `403
+  /// conta_sem_socio`, que não é fim de sessão.
   static const socioBase = '$apiRaiz/api/v1';
 
   /// Zona pública: sem autenticação, sem dados pessoais (ADR-10).
   static const publicoBase = '$apiRaiz/api/v2/publico';
 
   static String mediaUrl(String uid) => '$apiRaiz/media/$uid';
+
+  /// Raiz dos links que se partilham (notícias, sessões de bilhetes). Abrem a
+  /// app se estiver instalada; senão, a página web do CISOC (pedido
+  /// `2026-09-19-links-partilha-deeplinks`). Muda para o domínio do site
+  /// oficial quando existir, sem mexer no resto.
+  static const linksRaiz = String.fromEnvironment(
+    'LPS_LINKS_RAIZ',
+    defaultValue: 'https://mylps.leoesdeportosalvo.pt/lps',
+  );
 }
 
 /// Modo de demonstração: `flutter run --dart-define=LPS_DEMO=1`.
