@@ -45,8 +45,7 @@ class TokenStore {
   Map<String, dynamic>? get conta => _conta;
 
   /// O `socio` da conta, ou `null` se a conta não tem ficha associada.
-  Map<String, dynamic>? get socio =>
-      _conta?['socio'] is Map ? (_conta!['socio'] as Map).cast<String, dynamic>() : null;
+  Map<String, dynamic>? get socio => _conta?['socio'] is Map ? (_conta!['socio'] as Map).cast<String, dynamic>() : null;
 
   /// Emite quando a sessão acaba sem ser pelo utilizador (refresh recusado,
   /// token inválido, conta eliminada).
@@ -101,7 +100,14 @@ class TokenStore {
   /// guardar só o access deixaria o refresh gasto no disco, e o próximo
   /// arranque da app usava-o — que é precisamente o que o servidor lê como
   /// roubo.
-  Future<void> renovar() async {
+  ///
+  /// Um de cada vez, venha de onde vier (o interceptor, ou um ecrã que quer a
+  /// `conta` fresca): dois refreshes com o mesmo token gastavam-no duas vezes.
+  Future<void> renovar() => _renovacao ??= _renovar().whenComplete(() => _renovacao = null);
+
+  Future<void>? _renovacao;
+
+  Future<void> _renovar() async {
     final refresh = _refresh;
     if (refresh == null) throw StateError('Sem refresh token');
     final data = await dadosDe(_dioSemAuth.post('/auth/refresh', data: {'refresh_token': refresh}));

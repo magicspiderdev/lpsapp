@@ -259,7 +259,11 @@ class _SessaoPageState extends ConsumerState<SessaoPage> {
   /// daqui (entrar na conta, associar a ficha) e voltar ao mesmo sítio.
   String get _aqui => Uri(
     path: '/bilhetes/${widget.id}',
-    queryParameters: _zona == null ? null : {'z': quantidadesParaLink({_zona!: _quantidade})},
+    queryParameters: _zona == null
+        ? null
+        : {
+            'z': quantidadesParaLink({_zona!: _quantidade}),
+          },
   ).toString();
 
   void _continuar(Sessao s, Zona z, QuemPode quem) {
@@ -479,9 +483,7 @@ class _LinhaZona extends StatelessWidget {
                       children: [
                         Text(
                           z.nome,
-                          style: t.textTheme.titleSmall?.copyWith(
-                            color: indisponivel ? c.onSurfaceVariant : null,
-                          ),
+                          style: t.textTheme.titleSmall?.copyWith(color: indisponivel ? c.onSurfaceVariant : null),
                         ),
                         Text(legenda, style: t.textTheme.bodySmall),
                       ],
@@ -576,10 +578,7 @@ class _BarraDeCompra extends StatelessWidget {
               ],
             ),
           ),
-        FilledButton(
-          onPressed: activo ? () => onContinuar(sessao, z, estado) : null,
-          child: Text(texto),
-        ),
+        FilledButton(onPressed: activo ? () => onContinuar(sessao, z, estado) : null, child: Text(texto)),
       ],
     );
   }

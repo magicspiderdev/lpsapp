@@ -46,7 +46,7 @@ typedef CartaoOuNada = Cartao?;
 
 final cartaoProvider = StreamProvider.autoDispose<Dados<CartaoOuNada>>((ref) {
   final sessao = ref.watch(sessaoProvider);
-  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  if (!temZonaPrivada(sessao)) throw StateError('Sem zona privada');
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
   final conta = PedidosNaConta(ref);
 
@@ -54,7 +54,7 @@ final cartaoProvider = StreamProvider.autoDispose<Dados<CartaoOuNada>>((ref) {
     cache: ref.read(cacheProvider),
     ambito: Ambito.seguro,
     // Por conta vista: o cartão de um dependente é o que o encarregado mostra à entrada.
-    chave: 'cartao.${sessao.socio.nrSocio}.${conta.chave}',
+    chave: 'cartao.${chaveDaSessao(sessao)}.${conta.chave}',
     pedido: () async {
       try {
         return await conta.get('/me/cartao');

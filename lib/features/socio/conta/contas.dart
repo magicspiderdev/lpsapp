@@ -62,7 +62,7 @@ class Dependente {
 /// `GET /me/dependentes` — sempre da conta da sessão, nunca com `X-Socio`.
 final dependentesProvider = StreamProvider.autoDispose<Dados<List<Dependente>>>((ref) {
   final sessao = ref.watch(sessaoProvider);
-  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  if (!temZonaPrivada(sessao)) throw StateError('Sem zona privada');
   ref.watch(ligacaoProvider);
   // Lido já: o pedido corre depois de um await, quando o provider pode ter sido descartado.
   final dio = ref.read(dioSocioProvider);
@@ -70,7 +70,7 @@ final dependentesProvider = StreamProvider.autoDispose<Dados<List<Dependente>>>(
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: 'dependentes.${sessao.socio.nrSocio}',
+    chave: 'dependentes.${chaveDaSessao(sessao)}',
     pedido: () => dadosDe(dio.get('/me/dependentes')),
     ler: (j) => [for (final d in j['dependentes'] as List) Dependente.fromJson((d as Map).cast<String, dynamic>())],
   );
@@ -78,27 +78,39 @@ final dependentesProvider = StreamProvider.autoDispose<Dados<List<Dependente>>>(
 
 /// De quem é a conta que se está a ver: `null` = a do próprio sócio.
 ///
+/// Um encarregado sem ficha não tem conta própria para ver: está sempre na de
+/// um dependente, e começa no primeiro.
+///
 /// Só em memória (guia §2.3.4): a ligação pode ser removida pela secretaria a
 /// qualquer momento, por isso não se guarda como credencial nem entre arranques.
 final contaActivaProvider = NotifierProvider<ContaActivaController, int?>(ContaActivaController.new);
 
 class ContaActivaController extends Notifier<int?> {
   @override
-  int? build() {
-    ref.watch(sessaoProvider); // outra sessão, ou saída: volta à conta própria
-    return null;
-  }
+  int? build() => _inicial(ref.watch(sessaoProvider)); // outra sessão, ou saída: volta ao início
+
+  static int? _inicial(Sessao s) => s is SessaoConta ? s.conta.dependentes.firstOrNull?.nrSocio : null;
 
   void escolher(int? nrSocio) {
     final sessao = ref.read(sessaoProvider);
-    state = sessao is SessaoSocio && nrSocio == sessao.socio.nrSocio ? null : nrSocio;
+    state = switch (sessao) {
+      SessaoSocio(:final socio) when nrSocio == socio.nrSocio => null,
+      // Sem ficha, "a própria" não existe: fica no primeiro dependente.
+      SessaoConta() when nrSocio == null => _inicial(sessao),
+      _ => nrSocio,
+    };
   }
 
   /// `403 socio_nao_associado`: a secretaria removeu a ligação. Volta à conta
   /// própria e recarrega a lista, como pede o guia.
   void ligacaoRemovida() {
-    state = null;
+    state = _inicial(ref.read(sessaoProvider));
     ref.invalidate(dependentesProvider);
+    // A sessão traz `conta.dependentes` sem a ligação que acabou. Sem rede
+    // (ou sem armazenamento, nos testes) fica para o próximo refresh.
+    try {
+      ref.read(tokenStoreProvider).renovar().ignore();
+    } catch (_) {}
   }
 }
 

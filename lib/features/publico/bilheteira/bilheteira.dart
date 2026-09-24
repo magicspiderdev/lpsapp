@@ -260,7 +260,15 @@ class BilheteComprado {
     this.sessaoEstado,
     this.convite = false,
     this.conviteMensagem,
+    this.paraNome,
+    this.compradoPorOutro = false,
   });
+
+  /// Comprado para um dependente (§4.18): o nome dele. `null` = de quem comprou.
+  final String? paraNome;
+
+  /// Na carteira do dependente: foi o encarregado que o comprou.
+  final bool compradoPorOutro;
 
   /// Um convite (§4.18): posto na carteira pelo clube, sem compra — um prémio
   /// de passatempo, um convidado. O código e a porta são iguais.
@@ -291,6 +299,11 @@ class BilheteComprado {
     sessao: j['sessao']?.toString(),
     encomenda: j['encomenda']?.toString(),
     sessaoEstado: (j['sessao_estado'] as String?)?.toLowerCase(),
+    paraNome: switch (j['para']) {
+      {'nome': final String n} when n.trim().isNotEmpty => n.trim(),
+      _ => null,
+    },
+    compradoPorOutro: j['comprado_por_outro'] == true,
     convite: j['convite'] is Map,
     conviteMensagem: switch (j['convite']) {
       {'mensagem': final String m} when m.trim().isNotEmpty => m.trim(),

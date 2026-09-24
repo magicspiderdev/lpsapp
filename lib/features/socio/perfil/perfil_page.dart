@@ -173,122 +173,152 @@ class _FormularioState extends ConsumerState<_Formulario> {
   Widget build(BuildContext context) {
     final t = Theme.of(context);
     final mudou = _alteracoes.isNotEmpty;
+    // Dos 13 aos 17 a ficha e a fotografia são da secretaria (§2.12): o
+    // servidor responderia `403 sem_capacidade`.
+    final sessao = ref.watch(sessaoProvider);
+    final podeEditar = sessaoTem(sessao, Capacidade.editarFicha);
+    final podeFoto = sessaoTem(sessao, Capacidade.enviarFoto);
 
     return Form(
       key: _form,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 40),
-        children: [
-          widget.aviso,
-          const SizedBox(height: 8),
-          Center(
-            child: GestureDetector(
-              onTap: widget.actual && !_aEnviarFoto ? _mudarFoto : null,
-              child: Stack(
-                children: [
-                  Avatar(nome: p.nomeCompleto, url: p.fotoUrl, tamanho: 96),
-                  Positioned(
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(
-                        color: t.colorScheme.primary,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: t.colorScheme.surface, width: 2),
+      child: _PodeEditar(
+        podeEditar,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 40),
+          children: [
+            widget.aviso,
+            const SizedBox(height: 8),
+            Center(
+              child: GestureDetector(
+                onTap: podeFoto && widget.actual && !_aEnviarFoto ? _mudarFoto : null,
+                child: Stack(
+                  children: [
+                    Avatar(nome: p.nomeCompleto, url: p.fotoUrl, tamanho: 96),
+                    if (podeFoto)
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            color: t.colorScheme.primary,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: t.colorScheme.surface, width: 2),
+                          ),
+                          child: _aEnviarFoto
+                              ? SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: t.colorScheme.onPrimary),
+                                )
+                              : Icon(Icons.photo_camera_rounded, size: 16, color: t.colorScheme.onPrimary),
+                        ),
                       ),
-                      child: _aEnviarFoto
-                          ? SizedBox.square(
-                              dimension: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: t.colorScheme.onPrimary),
-                            )
-                          : Icon(Icons.photo_camera_rounded, size: 16, color: t.colorScheme.onPrimary),
-                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(p.nomeCompleto, textAlign: TextAlign.center, style: t.textTheme.titleLarge),
+            Text(
+              'Sócio n.º ${p.nrSocio} · ${p.estadoLabel}',
+              textAlign: TextAlign.center,
+              style: t.textTheme.bodySmall,
+            ),
+
+            const TituloSeccao('Contactos'),
+            _Campo(
+              _campos['email']!,
+              'Email',
+              teclado: TextInputType.emailAddress,
+              validar: (v) => v.isEmpty || RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v) ? null : 'Email inválido',
+            ),
+            _Campo(_campos['telefone_1']!, 'Telemóvel', teclado: TextInputType.phone),
+            _Campo(_campos['telefone_2']!, 'Outro telefone', teclado: TextInputType.phone),
+
+            const TituloSeccao('Morada'),
+            _Campo(_campos['endereco']!, 'Morada'),
+            Row(
+              children: [
+                Expanded(flex: 2, child: _Campo(_campos['cp_1']!, 'Código postal', teclado: TextInputType.number)),
+                const SizedBox(width: 10),
+                Expanded(flex: 3, child: _Campo(_campos['localidade']!, 'Localidade')),
+              ],
+            ),
+            Bloco(
+              child: SwitchListTile(
+                title: const Text('Receber a newsletter do clube'),
+                value: _newsletter,
+                // A newsletter grava-se com a ficha (`PUT /me`).
+                onChanged: podeEditar ? (v) => setState(() => _newsletter = v) : null,
+              ),
+            ),
+            if (_erro != null) ...[const SizedBox(height: 12), AvisoErro(_erro!)],
+            const SizedBox(height: 16),
+            if (podeEditar)
+              FilledButton(
+                onPressed: mudou && widget.actual && !_aGravar ? _gravar : null,
+                child: _aGravar
+                    ? const ProgressoBotao()
+                    : Text(widget.actual ? 'Guardar alterações' : 'Sem ligação para guardar'),
+              )
+            else
+              NotaPermissao(explicacaoPermissao('editar'), padding: EdgeInsets.zero),
+
+            const TituloSeccao('Dados do clube'),
+            Bloco(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  _Leitura('NIF', p.nif),
+                  _Leitura('Data de nascimento', p.dataNascimento == null ? null : dataCurta(p.dataNascimento!)),
+                  _Leitura('Sócio desde', p.dataSocio == null ? null : dataCurta(p.dataSocio!)),
+                  if (p.modalidade != null) _Leitura('Modalidade', p.modalidade),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+              child: Text('Nome, NIF e datas são alterados pela secretaria.', style: t.textTheme.bodySmall),
+            ),
+
+            const TituloSeccao('Segurança'),
+            Bloco(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Column(
+                children: [
+                  ListTile(
+                    leading: const IconePastilha(Icons.password_rounded),
+                    title: const Text('Alterar palavra-passe'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => context.push('/socio/perfil/password'),
+                  ),
+                  const Divider(indent: 72),
+                  ListTile(
+                    leading: IconePastilha(Icons.delete_outline_rounded, cor: t.colorScheme.error),
+                    title: Text('Eliminar conta da app', style: TextStyle(color: t.colorScheme.error)),
+                    onTap: () => confirmarEliminarConta(context, ref),
                   ),
                 ],
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          Text(p.nomeCompleto, textAlign: TextAlign.center, style: t.textTheme.titleLarge),
-          Text('Sócio n.º ${p.nrSocio} · ${p.estadoLabel}', textAlign: TextAlign.center, style: t.textTheme.bodySmall),
-
-          const TituloSeccao('Contactos'),
-          _Campo(
-            _campos['email']!,
-            'Email',
-            teclado: TextInputType.emailAddress,
-            validar: (v) => v.isEmpty || RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(v) ? null : 'Email inválido',
-          ),
-          _Campo(_campos['telefone_1']!, 'Telemóvel', teclado: TextInputType.phone),
-          _Campo(_campos['telefone_2']!, 'Outro telefone', teclado: TextInputType.phone),
-
-          const TituloSeccao('Morada'),
-          _Campo(_campos['endereco']!, 'Morada'),
-          Row(
-            children: [
-              Expanded(flex: 2, child: _Campo(_campos['cp_1']!, 'Código postal', teclado: TextInputType.number)),
-              const SizedBox(width: 10),
-              Expanded(flex: 3, child: _Campo(_campos['localidade']!, 'Localidade')),
-            ],
-          ),
-          Bloco(
-            child: SwitchListTile(
-              title: const Text('Receber a newsletter do clube'),
-              value: _newsletter,
-              onChanged: (v) => setState(() => _newsletter = v),
-            ),
-          ),
-          if (_erro != null) ...[const SizedBox(height: 12), AvisoErro(_erro!)],
-          const SizedBox(height: 16),
-          FilledButton(
-            onPressed: mudou && widget.actual && !_aGravar ? _gravar : null,
-            child: _aGravar
-                ? const ProgressoBotao()
-                : Text(widget.actual ? 'Guardar alterações' : 'Sem ligação para guardar'),
-          ),
-
-          const TituloSeccao('Dados do clube'),
-          Bloco(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              children: [
-                _Leitura('NIF', p.nif),
-                _Leitura('Data de nascimento', p.dataNascimento == null ? null : dataCurta(p.dataNascimento!)),
-                _Leitura('Sócio desde', p.dataSocio == null ? null : dataCurta(p.dataSocio!)),
-                if (p.modalidade != null) _Leitura('Modalidade', p.modalidade),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
-            child: Text('Nome, NIF e datas são alterados pela secretaria.', style: t.textTheme.bodySmall),
-          ),
-
-          const TituloSeccao('Segurança'),
-          Bloco(
-            padding: const EdgeInsets.symmetric(vertical: 4),
-            child: Column(
-              children: [
-                ListTile(
-                  leading: const IconePastilha(Icons.password_rounded),
-                  title: const Text('Alterar palavra-passe'),
-                  trailing: const Icon(Icons.chevron_right_rounded),
-                  onTap: () => context.push('/socio/perfil/password'),
-                ),
-                const Divider(indent: 72),
-                ListTile(
-                  leading: IconePastilha(Icons.delete_outline_rounded, cor: t.colorScheme.error),
-                  title: Text('Eliminar conta da app', style: TextStyle(color: t.colorScheme.error)),
-                  onTap: () => confirmarEliminarConta(context, ref),
-                ),
-              ],
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
+}
+
+/// Se os campos da ficha se podem editar. Os campos lêem-no daqui em vez de
+/// o receberem um a um.
+class _PodeEditar extends InheritedWidget {
+  const _PodeEditar(this.pode, {required super.child});
+
+  final bool pode;
+
+  static bool of(BuildContext context) => context.dependOnInheritedWidgetOfExactType<_PodeEditar>()?.pode ?? true;
+
+  @override
+  bool updateShouldNotify(_PodeEditar old) => pode != old.pode;
 }
 
 class _Campo extends StatelessWidget {
@@ -305,6 +335,7 @@ class _Campo extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: controlador,
+        readOnly: !_PodeEditar.of(context),
         keyboardType: teclado,
         decoration: InputDecoration(labelText: rotulo),
         validator: validar == null ? null : (v) => validar!((v ?? '').trim()),

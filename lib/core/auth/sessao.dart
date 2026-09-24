@@ -32,6 +32,64 @@ class SocioSessao {
   );
 }
 
+/// Um dependente da conta, tal como vem em `conta.dependentes[]` (§2.12):
+/// só as ligações **activas**, cada uma com o que a conta pode fazer por ele.
+class DependenteConta {
+  final int nrSocio;
+  final String nome;
+
+  /// `pai`, `mae`, `encarregado`, `irmao`, `outro` — lista aberta.
+  final String? relacao;
+
+  /// `child`, `teen`, `adult` ou `null` — lista aberta.
+  final String? faixaEtaria;
+  final Set<String> capacidades;
+
+  const DependenteConta({
+    required this.nrSocio,
+    required this.nome,
+    this.relacao,
+    this.faixaEtaria,
+    this.capacidades = const {},
+  });
+
+  factory DependenteConta.fromJson(Map<String, dynamic> j) => DependenteConta(
+    nrSocio: (j['nr_socio'] as num).toInt(),
+    nome: (j['nome'] ?? '') as String,
+    relacao: j['relacao'] as String?,
+    faixaEtaria: j['faixa_etaria'] as String?,
+    capacidades: _capacidades(j['capacidades']) ?? const {},
+  );
+
+  bool tem(String capacidade) => capacidades.contains(capacidade);
+}
+
+Set<String>? _capacidades(Object? v) => v is List
+    ? {
+        for (final c in v)
+          if (c is String) c,
+      }
+    : null;
+
+/// As capacidades (§2.12) que já existiam como permissões (§2.10). Servem
+/// quando a sessão guardada é anterior às capacidades e ainda não as traz.
+const _permissaoDaCapacidade = {'pay_membership': 'pagar', 'buy_tickets': 'comprar', 'sign_contracts': 'contratar'};
+
+/// Capacidades (§2.12) com que a app desenha botões. O servidor recusa o resto.
+abstract final class Capacidade {
+  static const verCartao = 'view_member_card';
+  static const mostrarQr = 'show_member_qr';
+  static const verBilhetes = 'view_own_tickets';
+  static const preferenciasAvisos = 'edit_notification_preferences';
+  static const consentimentos = 'manage_consents';
+  static const comprarBilhetes = 'buy_tickets';
+  static const pagar = 'pay_membership';
+  static const contratar = 'sign_contracts';
+  static const editarFicha = 'edit_profile';
+  static const enviarFoto = 'upload_photo';
+  static const gerirDependentes = 'manage_dependents';
+}
+
 /// A conta da app (v2). Existe com ou sem ficha de sócio associada.
 class ContaSessao {
   /// `null` nas contas que entraram pelo número de sócio e nunca puseram email.
@@ -51,6 +109,21 @@ class ContaSessao {
   /// encarregado de educação.
   final bool menor;
 
+  /// `child`, `teen`, `adult`, ou `null` sem data de nascimento (§2.10).
+  /// Lista aberta; serve só para escolher textos — **nunca** para decidir.
+  final String? faixaEtaria;
+
+  /// Se a idade foi confirmada por outra pessoa (ficha de sócio, documento na
+  /// secretaria). Os passatempos só para maiores exigem-na.
+  final bool idadeVerificada;
+
+  /// `conta.capacidades` (§2.12). `null` numa sessão guardada antes de elas
+  /// existirem: aí valem as [permissoes].
+  final Set<String>? capacidades;
+
+  /// As ligações activas a dependentes, com as capacidades por cada um.
+  final List<DependenteConta> dependentes;
+
   const ContaSessao({
     required this.nome,
     this.email,
@@ -59,7 +132,21 @@ class ContaSessao {
     this.socio,
     this.permissoes = const {},
     this.menor = false,
+    this.faixaEtaria,
+    this.idadeVerificada = false,
+    this.capacidades,
+    this.dependentes = const [],
   });
+
+  /// Se a conta pode, **por si**, o que a [capacidade] abre. Com a lista
+  /// presente, só o que lá está; sem ela, as permissões antigas.
+  bool tem(String capacidade) {
+    if (capacidades case final c?) return c.contains(capacidade);
+    final p = _permissaoDaCapacidade[capacidade];
+    return p == null || pode(p);
+  }
+
+  DependenteConta? dependente(int nrSocio) => dependentes.where((d) => d.nrSocio == nrSocio).firstOrNull;
 
   bool pode(String permissao) => permissoes[permissao] != false;
 
@@ -81,6 +168,13 @@ class ContaSessao {
           if (key is String && value is bool) key: value,
     },
     menor: j['menor'] == true,
+    faixaEtaria: j['faixa_etaria'] as String?,
+    idadeVerificada: j['idade_verificada'] == true,
+    capacidades: _capacidades(j['capacidades']),
+    dependentes: [
+      for (final d in (j['dependentes'] as List?) ?? const [])
+        if (d is Map && d['nr_socio'] is num) DependenteConta.fromJson(d.cast<String, dynamic>()),
+    ],
   );
 }
 
@@ -131,6 +225,27 @@ ContaSessao? contaDe(Sessao s) => switch (s) {
 /// falta aí é entrar, e isso decide-se noutro lado.
 bool sessaoPode(Sessao s, String permissao) => contaDe(s)?.pode(permissao) ?? true;
 
+/// Um encarregado sem ficha própria: conta só com email e dependentes activos
+/// (§2.3.4, desde 2026-09-24). Usa a v1 sempre com `X-Socio` de um deles —
+/// sem o cabeçalho, a v1 responde `403 conta_sem_socio`.
+bool eEncarregadoSemFicha(Sessao s) => s is SessaoConta && s.conta.dependentes.isNotEmpty;
+
+/// Quem entra na zona privada (`/api/v1`): um sócio, ou um encarregado sem
+/// ficha a ver a conta de um dependente.
+bool temZonaPrivada(Sessao s) => s is SessaoSocio || eEncarregadoSemFicha(s);
+
+/// Quem tem a sessão, para as chaves das caches da zona privada: a ficha de
+/// sócio, ou a conta de um encarregado sem ficha.
+String chaveDaSessao(Sessao s) => switch (s) {
+  SessaoSocio(:final socio) => '${socio.nrSocio}',
+  SessaoConta(:final conta) => 'conta.${conta.email ?? conta.nome}',
+  SessaoAnonima() => 'anonimo',
+};
+
+/// Se quem tem sessão tem a [capacidade] (§2.12). Sem sessão, sim — o que
+/// falta aí é entrar.
+bool sessaoTem(Sessao s, String capacidade) => contaDe(s)?.tem(capacidade) ?? true;
+
 /// A frase que fica no lugar de um botão escondido por uma permissão a
 /// `false`. O servidor não a manda antes de se tentar; a do `403
 /// menor_de_idade` vem na resposta.
@@ -138,6 +253,7 @@ String explicacaoPermissao(String permissao) => switch (permissao) {
   'pagar' => 'Os pagamentos são feitos pelo encarregado de educação.',
   'comprar' => 'Os bilhetes são comprados pelo encarregado de educação.',
   'contratar' => 'As inscrições são feitas pelo encarregado de educação.',
+  'editar' => 'A ficha e a fotografia são alteradas pela secretaria, a pedido do encarregado de educação.',
   _ => 'Isto é feito pelo encarregado de educação.',
 };
 
@@ -148,7 +264,6 @@ Sessao sessaoDaConta(Map<String, dynamic> json) {
 }
 
 final sessaoProvider = NotifierProvider<SessaoController, Sessao>(SessaoController.new);
-
 
 class SessaoController extends Notifier<Sessao> {
   StreamSubscription<void>? _sub;
@@ -183,11 +298,9 @@ class SessaoController extends Notifier<Sessao> {
   Future<void> entrar({String? email, int? nrSocio, required String password}) async {
     assert((email == null) != (nrSocio == null), 'email ou nr_socio, um deles');
     final data = await dadosDe(
-      ref.read(dioContaProvider).post('/auth/login', data: {
-        'email': ?email,
-        'nr_socio': ?nrSocio,
-        'password': password,
-      }),
+      ref
+          .read(dioContaProvider)
+          .post('/auth/login', data: {'email': ?email, 'nr_socio': ?nrSocio, 'password': password}),
     );
     await _abrir(data);
   }
@@ -204,16 +317,23 @@ class SessaoController extends Notifier<Sessao> {
     bool comunicacoes = false,
   }) async {
     final data = await dadosDe(
-      ref.read(dioContaProvider).post('/auth/registo', data: {
-        'email': email,
-        'password': password,
-        'nome': nome,
-        'data_nascimento': _dia(dataNascimento),
-        'aceita_termos': true,
-        'termos_versao': versaoTermos,
-        'privacidade_versao': versaoPrivacidade,
-        'comunicacoes': comunicacoes,
-      }),
+      ref
+          .read(dioContaProvider)
+          .post(
+            '/auth/registo',
+            data: {
+              'email': email,
+              'password': password,
+              'nome': nome,
+              'data_nascimento': _dia(dataNascimento),
+              // Só se chega aqui com a caixa marcada: sem ela, `422 declaracao_idade`.
+              'declara_idade': true,
+              'aceita_termos': true,
+              'termos_versao': versaoTermos,
+              'privacidade_versao': versaoPrivacidade,
+              'comunicacoes': comunicacoes,
+            },
+          ),
     );
     return (data['mensagem'] as String?) ?? 'Enviámos um código para o seu email.';
   }
@@ -233,29 +353,21 @@ class SessaoController extends Notifier<Sessao> {
   /// primeiro acesso e de "esqueci-me"; a resposta é sempre a mesma.
   Future<String> pedirCodigo({String? email, int? nrSocio}) async {
     final data = await dadosDe(
-      ref.read(dioContaProvider).post('/auth/password/pedir', data: {
-        'email': ?email,
-        'nr_socio': ?nrSocio,
-      }),
+      ref.read(dioContaProvider).post('/auth/password/pedir', data: {'email': ?email, 'nr_socio': ?nrSocio}),
     );
     return (data['mensagem'] as String?) ?? 'Se a conta existir, segue um código.';
   }
 
   /// `POST /auth/password/repor`: define a password e abre a sessão. As outras
   /// sessões desta conta terminam.
-  Future<void> confirmarCodigo({
-    String? email,
-    int? nrSocio,
-    required String codigo,
-    required String password,
-  }) async {
+  Future<void> confirmarCodigo({String? email, int? nrSocio, required String codigo, required String password}) async {
     final data = await dadosDe(
-      ref.read(dioContaProvider).post('/auth/password/repor', data: {
-        'email': ?email,
-        'nr_socio': ?nrSocio,
-        'codigo': codigo,
-        'password': password,
-      }),
+      ref
+          .read(dioContaProvider)
+          .post(
+            '/auth/password/repor',
+            data: {'email': ?email, 'nr_socio': ?nrSocio, 'codigo': codigo, 'password': password},
+          ),
     );
     await _abrir(data);
   }
@@ -264,10 +376,9 @@ class SessaoController extends Notifier<Sessao> {
   /// terminam.
   Future<void> alterarPassword({required String actual, required String nova}) async {
     final data = await dadosDe(
-      ref.read(dioContaProvider).post('/auth/password/alterar', data: {
-        'password_atual': actual,
-        'password_nova': nova,
-      }),
+      ref
+          .read(dioContaProvider)
+          .post('/auth/password/alterar', data: {'password_atual': actual, 'password_nova': nova}),
     );
     await _abrir(data);
   }
@@ -292,9 +403,7 @@ class SessaoController extends Notifier<Sessao> {
 
   /// `DELETE /me/conta/socio`: a conta fica sem ficha, mas continua a existir.
   Future<void> desassociarSocio(String password) async {
-    final data = await dadosDe(
-      ref.read(dioContaProvider).delete('/me/conta/socio', data: {'password': password}),
-    );
+    final data = await dadosDe(ref.read(dioContaProvider).delete('/me/conta/socio', data: {'password': password}));
     await _abrir(data);
   }
 

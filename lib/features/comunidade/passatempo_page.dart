@@ -89,7 +89,7 @@ class _PassatempoPageState extends ConsumerState<PassatempoPage> {
           ref.read(passatempoProvider(widget.uid).notifier).recarregar();
         // `menor_de_idade`: passatempo `so_maiores` (§2.10). Recarregado, vem
         // com `motivo: so_maiores` e o botão desaparece.
-        case 'passatempo_fechado' || 'ja_participou' || 'nao_encontrado' || 'menor_de_idade':
+        case 'passatempo_fechado' || 'ja_participou' || 'nao_encontrado' || 'menor_de_idade' || 'idade_por_verificar':
           ref.read(passatempoProvider(widget.uid).notifier).recarregar();
         default:
           break;
@@ -189,10 +189,7 @@ class _Factos extends StatelessWidget {
         children: [
           if (p.premio != null) linha(Icons.card_giftcard_outlined, p.premio!),
           linha(Icons.emoji_events_outlined, p.vencedores == 1 ? '1 vencedor' : '${p.vencedores} vencedores'),
-          linha(
-            Icons.groups_outlined,
-            p.participantes == 1 ? '1 participante' : '${p.participantes} participantes',
-          ),
+          linha(Icons.groups_outlined, p.participantes == 1 ? '1 participante' : '${p.participantes} participantes'),
           if (p.soSocios) linha(Icons.verified_outlined, 'Só para sócios'),
           if (p.soMaiores) linha(Icons.eighteen_up_rating_outlined, 'Só para maiores de 18 anos'),
         ],
@@ -232,14 +229,11 @@ class _Participacao extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              switch (minha.vencedor) {
-                true => 'Parabéns, ganhou!',
-                false => 'Desta vez não ganhou',
-                null => 'Está a participar',
-              },
-              style: t.textTheme.titleMedium?.copyWith(color: ganhou ? t.colorScheme.primary : null),
-            ),
+            Text(switch (minha.vencedor) {
+              true => 'Parabéns, ganhou!',
+              false => 'Desta vez não ganhou',
+              null => 'Está a participar',
+            }, style: t.textTheme.titleMedium?.copyWith(color: ganhou ? t.colorScheme.primary : null)),
             const SizedBox(height: 6),
             if (minha.opcao case final i? when i >= 0 && i < p.opcoes.length)
               Text('Respondeu: ${p.opcoes[i]}', style: t.textTheme.bodyMedium),
@@ -247,14 +241,11 @@ class _Participacao extends StatelessWidget {
             if (p.respostaCerta case final i? when i >= 0 && i < p.opcoes.length)
               Text('A resposta certa era: ${p.opcoes[i]}', style: t.textTheme.bodyMedium),
             const SizedBox(height: 6),
-            Text(
-              switch (minha.vencedor) {
-                true => 'O clube vai contactá-lo pelo email da sua conta para combinar a entrega do prémio.',
-                false => 'Obrigado por participar. Fique atento aos próximos passatempos.',
-                null => 'Os vencedores são anunciados aqui quando o clube os escolher.',
-              },
-              style: t.textTheme.bodySmall,
-            ),
+            Text(switch (minha.vencedor) {
+              true => 'O clube vai contactá-lo pelo email da sua conta para combinar a entrega do prémio.',
+              false => 'Obrigado por participar. Fique atento aos próximos passatempos.',
+              null => 'Os vencedores são anunciados aqui quando o clube os escolher.',
+            }, style: t.textTheme.bodySmall),
           ],
         ),
       );
@@ -266,6 +257,11 @@ class _Participacao extends StatelessWidget {
         'terminado' => 'Já terminou.',
         'so_socios' => 'Este passatempo é só para sócios.',
         'so_maiores' => 'Este passatempo é só para maiores de 18 anos.',
+        // §2.10: a data do registo é só uma declaração. Não há endpoint para
+        // a pessoa se verificar a si própria — a app só explica como.
+        'idade_por_verificar' =>
+          'Este passatempo é só para maiores de 18 anos, com a idade confirmada. '
+              'Associe a conta à sua ficha de sócio, ou mostre um documento na secretaria.',
         'bloqueado' => 'O clube suspendeu a sua participação na comunidade.',
         _ => 'Não é possível participar neste passatempo.',
       };
@@ -318,7 +314,8 @@ class _Participacao extends StatelessWidget {
         ListenableBuilder(
           listenable: resposta,
           builder: (_, _) {
-            final podeEnviar = !aEnviar &&
+            final podeEnviar =
+                !aEnviar &&
                 switch (p.tipo) {
                   'texto' => resposta.text.trim().isNotEmpty,
                   _ => pronto,

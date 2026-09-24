@@ -20,14 +20,14 @@ Stream<Dados<T>> _consulta<T>(
   Map<String, dynamic>? query,
 }) {
   final sessao = ref.watch(sessaoProvider);
-  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  if (!temZonaPrivada(sessao)) throw StateError('Sem zona privada');
   ref.watch(ligacaoProvider); // quando a ligação volta, actualiza
   final conta = PedidosNaConta(ref);
 
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: '$nome.${sessao.socio.nrSocio}.${conta.chave}',
+    chave: '$nome.${chaveDaSessao(sessao)}.${conta.chave}',
     pedido: () => conta.get(caminho, query: query),
     ler: ler,
   );

@@ -166,20 +166,26 @@ class Bilheteira {
     required int quantidade,
     String? metodo,
     String? telefone,
+    int? para,
   }) async => Compra.fromJson(
     await dadosDe(
-      _dio.post('/me/bilhetes/encomendas', data: {
-        'sessao': sessao,
-        'zona': int.tryParse(zona) ?? zona,
-        'quantidade': quantidade,
-        'metodo': ?metodo,
-        if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
-      }),
+      _dio.post(
+        '/me/bilhetes/encomendas',
+        data: {
+          'sessao': sessao,
+          'zona': int.tryParse(zona) ?? zona,
+          'quantidade': quantidade,
+          'metodo': ?metodo,
+          if (telefone != null && telefone.isNotEmpty) 'telefone': telefone,
+          // Para um dependente (§4.18): quem compra paga, os bilhetes ficam em
+          // nome dele e aparecem também na carteira dele.
+          'para': ?para,
+        },
+      ),
     ),
   );
 
-  Future<Compra> estado(String id) async =>
-      Compra.fromJson(await dadosDe(_dio.get('/me/bilhetes/encomendas/$id')));
+  Future<Compra> estado(String id) async => Compra.fromJson(await dadosDe(_dio.get('/me/bilhetes/encomendas/$id')));
 
   /// Desistir de uma compra por pagar: os lugares voltam à venda.
   Future<void> desistir(String id) => dadosDe(_dio.delete('/me/bilhetes/encomendas/$id'));
@@ -217,10 +223,26 @@ QuemPode quemPodeComprar(auth.Sessao quem, Zona zona, {required bool sessaoAVend
   if (!sessaoAVenda || !zona.disponivel) return QuemPode.indisponivel;
   if (!zona.naApp) return QuemPode.foraDaApp;
   // Antes da ficha de sócio: associá-la não mudava nada.
-  if (!auth.sessaoPode(quem, 'comprar')) return QuemPode.soEncarregado;
+  if (!auth.sessaoTem(quem, auth.Capacidade.comprarBilhetes)) return QuemPode.soEncarregado;
   return switch (quem) {
     auth.SessaoAnonima() => QuemPode.precisaDeConta,
-    auth.SessaoConta() when zona.exigeSocio => QuemPode.precisaDeSocio,
+    // Numa zona de sócios quem tem de ser sócio é para quem é o bilhete: um
+    // encarregado sem ficha compra para o filho sócio.
+    auth.SessaoConta() when zona.exigeSocio && paraQuem(quem, zona).dependentes.isEmpty => QuemPode.precisaDeSocio,
     _ => QuemPode.podeComprar,
   };
+}
+
+/// Para quem esta conta pode levar bilhetes desta zona: para si (salvo numa
+/// zona de sócios sem ficha) e para cada dependente por quem pode comprar
+/// (`buy_tickets` em `conta.dependentes[]`, §2.12).
+({bool propria, List<auth.DependenteConta> dependentes}) paraQuem(auth.Sessao quem, Zona zona) {
+  final conta = auth.contaDe(quem);
+  return (
+    propria: !(zona.exigeSocio && quem is auth.SessaoConta),
+    dependentes: [
+      for (final d in conta?.dependentes ?? const <auth.DependenteConta>[])
+        if (d.tem(auth.Capacidade.comprarBilhetes)) d,
+    ],
+  );
 }

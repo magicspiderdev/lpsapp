@@ -36,7 +36,7 @@ class _QuotasPageState extends ConsumerState<QuotasPage> {
     final podePagarConta = ref.watch(dependenteActivoProvider)?.podePagar ?? true;
     // Dos 16 aos 17 não se paga (§2.10) — conta a idade de quem tem a sessão,
     // não a do dependente.
-    final podePagarIdade = sessaoPode(ref.watch(sessaoProvider), 'pagar');
+    final podePagarIdade = sessaoTem(ref.watch(sessaoProvider), Capacidade.pagar);
 
     // Abrir a folha uma vez, com dados actuais (não com a cache, que pode estar velha).
     final d = estado.valueOrNull;

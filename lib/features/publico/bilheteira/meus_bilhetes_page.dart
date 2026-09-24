@@ -154,8 +154,7 @@ class _CartaoEvento extends StatelessWidget {
                       switch (g) {
                         // Meio usados: o que falta é a informação útil à porta.
                         GrupoBilhetes(todosUsados: true) => 'Usados',
-                        GrupoBilhetes(:final porUsar, :final quantos) when porUsar < quantos =>
-                          '$porUsar por usar',
+                        GrupoBilhetes(:final porUsar, :final quantos) when porUsar < quantos => '$porUsar por usar',
                         GrupoBilhetes(total: 0) => 'Grátis',
                         _ => euros(g.total),
                       },
@@ -498,10 +497,7 @@ class _Pontos extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 6),
-            Text(
-              'Arraste para o bilhete seguinte',
-              style: TextStyle(fontSize: 12, color: c.onSurfaceVariant),
-            ),
+            Text('Arraste para o bilhete seguinte', style: TextStyle(fontSize: 12, color: c.onSurfaceVariant)),
           ],
         ),
       ),
@@ -525,10 +521,7 @@ class _Bilhete extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           child: Column(
             children: [
-              if (b.convite) ...[
-                const _SeloOferta(),
-                const SizedBox(height: 12),
-              ],
+              if (b.convite) ...[const _SeloOferta(), const SizedBox(height: 12)],
               Text(b.titulo, textAlign: TextAlign.center, style: t.textTheme.titleLarge),
               if (b.subtitulo != null) ...[
                 const SizedBox(height: 4),
@@ -580,6 +573,8 @@ class _Bilhete extends StatelessWidget {
               if (b.local != null) _Detalhe('Onde', b.local!),
               _Detalhe('Bilhete', [b.zona, if (b.lugar != null) b.lugar!].join(' · ')),
               if (b.titular != null) _Detalhe('Titular', b.titular!),
+              if (b.paraNome != null && b.paraNome != b.titular) _Detalhe('Para', b.paraNome!),
+              if (b.compradoPorOutro) const _Detalhe('Comprado por', 'O seu encarregado de educação'),
               if (b.convite)
                 _Detalhe('Oferta', b.conviteMensagem ?? 'Convite do clube')
               else

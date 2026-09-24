@@ -32,16 +32,16 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
   DateTime? _nascimento;
   bool _comunicacoes = false;
   bool _aceitaTermos = false;
+
+  /// `declara_idade` (§2.10): a data é uma declaração, e sem ela o servidor
+  /// recusa (`422 declaracao_idade`). Desmarcada por omissão.
+  bool _declaraIdade = false;
   bool _verPassword = false;
 
   /// A `mensagem` do servidor depois de pedir o registo; `null` = passo 1.
   String? _mensagemEnvio;
   bool _aEnviar = false;
   String? _erro;
-
-  /// Idade mínima para ter conta própria (§2.9). Um menor é inscrito pelo
-  /// encarregado de educação, a partir da conta dele.
-  static const _idadeMinima = 16;
 
   @override
   void dispose() {
@@ -70,6 +70,10 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
   Future<void> _registar() {
     if (_nascimento == null) {
       setState(() => _erro = 'Indique a data de nascimento.');
+      return Future.value();
+    }
+    if (!_declaraIdade) {
+      setState(() => _erro = 'Confirme que a data de nascimento é verdadeira.');
       return Future.value();
     }
     if (!_aceitaTermos) {
@@ -101,7 +105,9 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
       context: context,
       initialDate: _nascimento ?? DateTime(hoje.year - 30),
       firstDate: DateTime(hoje.year - 110),
-      lastDate: DateTime(hoje.year - _idadeMinima, hoje.month, hoje.day),
+      // Sem limite de idade aqui: a app nunca calcula idades. Abaixo da mínima
+      // o servidor responde `403 encarregado_necessario`, com a mensagem.
+      lastDate: hoje,
       helpText: 'Data de nascimento',
     );
     if (escolhida != null) setState(() => _nascimento = escolhida);
@@ -142,9 +148,7 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
                 const SizedBox(height: 24),
                 FilledButton(
                   onPressed: _aEnviar ? null : (passo2 ? _confirmar : _registar),
-                  child: _aEnviar
-                      ? const ProgressoBotao()
-                      : Text(passo2 ? 'Confirmar e entrar' : 'Criar conta'),
+                  child: _aEnviar ? const ProgressoBotao() : Text(passo2 ? 'Confirmar e entrar' : 'Criar conta'),
                 ),
                 if (passo2) ...[
                   const SizedBox(height: 8),
@@ -202,13 +206,17 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
       contentPadding: EdgeInsets.zero,
       leading: const Icon(Icons.cake_outlined),
       title: Text(
-        _nascimento == null
-            ? 'Data de nascimento'
-            : DateFormat("d 'de' MMMM 'de' y", 'pt_PT').format(_nascimento!),
+        _nascimento == null ? 'Data de nascimento' : DateFormat("d 'de' MMMM 'de' y", 'pt_PT').format(_nascimento!),
       ),
-      subtitle: const Text('Confirma a idade mínima e não fica guardada'),
+      subtitle: const Text('Decide o que a conta pode fazer'),
       trailing: const Icon(Icons.edit_calendar_outlined),
       onTap: _aEnviar ? null : _escolherData,
+    ),
+    CheckboxListTile(
+      contentPadding: EdgeInsets.zero,
+      value: _declaraIdade,
+      onChanged: _aEnviar ? null : (v) => setState(() => _declaraIdade = v ?? false),
+      title: const Text('Declaro que a data de nascimento que indiquei é verdadeira'),
     ),
     CheckboxListTile(
       contentPadding: EdgeInsets.zero,

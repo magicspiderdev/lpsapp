@@ -69,7 +69,7 @@ class ContasDaFamilia extends ConsumerWidget {
     final sessao = ref.watch(sessaoProvider);
     final activa = ref.watch(contaActivaProvider);
     final dependentes = ref.watch(dependentesProvider).valueOrNull?.valor ?? const <Dependente>[];
-    if (sessao is! SessaoSocio) return const SizedBox.shrink();
+    if (!temZonaPrivada(sessao)) return const SizedBox.shrink();
 
     void escolher(int? nr) {
       ref.read(contaActivaProvider.notifier).escolher(nr);
@@ -78,7 +78,8 @@ class ContasDaFamilia extends ConsumerWidget {
 
     return Column(
       children: [
-        if (comPropria || activa != null)
+        // Um encarregado sem ficha não tem conta própria para mostrar.
+        if (sessao is SessaoSocio && (comPropria || activa != null))
           _LinhaConta(
             nome: sessao.socio.nomeCompleto,
             fotoUrl: sessao.socio.fotoUrl,

@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/api/clientes.dart' show tokenStoreProvider;
+import '../../../core/auth/sessao.dart' as auth;
 import '../../../core/formatos.dart';
 import '../../../core/tema/tema.dart';
 import '../../auth/auth_widgets.dart';
@@ -58,6 +60,17 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
   /// `403 conta_sem_socio`: a compra precisa de ficha de sócio.
   bool _precisaDeSocio = false;
 
+  /// Para quem são os bilhetes: `null` = para quem compra.
+  int? _para;
+
+  @override
+  void initState() {
+    super.initState();
+    // Numa zona de sócios sem ficha só se compra para um dependente.
+    final quem = paraQuem(ref.read(auth.sessaoProvider), widget.zona);
+    if (!quem.propria && quem.dependentes.isNotEmpty) _para = quem.dependentes.first.nrSocio;
+  }
+
   Zona get z => widget.zona;
   double get _total => z.preco * widget.quantidade;
 
@@ -80,14 +93,17 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
     });
 
     try {
-      final compra = await ref.read(bilheteiraProvider).comprar(
-        sessao: widget.sessao.id,
-        zona: z.id,
-        quantidade: widget.quantidade,
-        // Numa gratuita o método é ignorado: não se manda nenhum.
-        metodo: z.gratuita ? null : _metodo,
-        telefone: z.gratuita || _metodo != 'mbway' ? null : _telefone.text,
-      );
+      final compra = await ref
+          .read(bilheteiraProvider)
+          .comprar(
+            sessao: widget.sessao.id,
+            zona: z.id,
+            quantidade: widget.quantidade,
+            // Numa gratuita o método é ignorado: não se manda nenhum.
+            metodo: z.gratuita ? null : _metodo,
+            telefone: z.gratuita || _metodo != 'mbway' ? null : _telefone.text,
+            para: _para,
+          );
       if (!mounted) return;
       // A carteira ganhou bilhetes (ou vai ganhar): volta a pedi-la.
       ref.invalidate(meusBilhetesProvider);
@@ -103,6 +119,8 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
         _restantes = (e.dados['restantes'] as num?)?.toInt();
         _precisaDeSocio = e.erro == 'conta_sem_socio';
       });
+      // A ligação ao dependente acabou (ex.: fez 18 anos): a sessão traz a lista nova.
+      if (e.erro == 'socio_nao_associado') ref.read(tokenStoreProvider).renovar().ignore();
       // A sessão mudou debaixo dos pés: o ecrã de trás tem de saber.
       if (e.erro == 'venda_fechada' || e.erro == 'esgotado') {
         ref.invalidate(sessaoProvider(widget.sessao.id));
@@ -111,6 +129,42 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
     } finally {
       if (mounted) setState(() => _aEnviar = false);
     }
+  }
+
+  /// "Para quem?", quando a conta pode comprar para dependentes.
+  List<Widget> _paraQuem(ThemeData t) {
+    final quem = paraQuem(ref.watch(auth.sessaoProvider), z);
+    if (quem.dependentes.isEmpty) return const [];
+    return [
+      const SizedBox(height: 16),
+      Text('Para quem?', style: t.textTheme.titleSmall),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: [
+          if (quem.propria)
+            ChoiceChip(
+              label: const Text('Para mim'),
+              selected: _para == null,
+              onSelected: _aEnviar ? null : (_) => setState(() => _para = null),
+            ),
+          for (final d in quem.dependentes)
+            ChoiceChip(
+              label: Text(primeiroNome(d.nome)),
+              selected: _para == d.nrSocio,
+              onSelected: _aEnviar ? null : (_) => setState(() => _para = d.nrSocio),
+            ),
+        ],
+      ),
+      if (_para != null) ...[
+        const SizedBox(height: 6),
+        Text(
+          'Os bilhetes ficam em nome dele e aparecem também na carteira dele, se tiver a app.',
+          style: t.textTheme.bodySmall,
+        ),
+      ],
+    ];
   }
 
   @override
@@ -129,11 +183,9 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
               Text(z.gratuita ? 'Levantar bilhetes' : 'Comprar bilhetes', style: t.textTheme.headlineSmall),
               const SizedBox(height: 4),
               Text('$n ${n == 1 ? 'bilhete' : 'bilhetes'} · ${z.nome}', style: t.textTheme.bodyMedium),
+              ..._paraQuem(t),
               const SizedBox(height: 16),
-              Text(
-                z.gratuita ? 'Grátis' : euros(_total),
-                style: t.textTheme.displaySmall?.copyWith(fontSize: 40),
-              ),
+              Text(z.gratuita ? 'Grátis' : euros(_total), style: t.textTheme.displaySmall?.copyWith(fontSize: 40)),
               if (!z.gratuita) ...[
                 const SizedBox(height: 20),
                 Text('Como quer pagar?', style: t.textTheme.titleSmall),
@@ -170,10 +222,7 @@ class _ComprarSheetState extends ConsumerState<_ComprarSheet> {
                   ),
               ] else ...[
                 const SizedBox(height: 8),
-                Text(
-                  'Não há nada a pagar: os bilhetes ficam já na sua carteira.',
-                  style: t.textTheme.bodySmall,
-                ),
+                Text('Não há nada a pagar: os bilhetes ficam já na sua carteira.', style: t.textTheme.bodySmall),
               ],
               if (_erro != null) ...[
                 const SizedBox(height: 16),

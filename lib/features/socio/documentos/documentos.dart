@@ -77,14 +77,14 @@ class Inscricao {
 
 final documentosProvider = StreamProvider.autoDispose<Dados<List<Inscricao>>>((ref) {
   final sessao = ref.watch(sessaoProvider);
-  if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
+  if (!temZonaPrivada(sessao)) throw StateError('Sem zona privada');
   ref.watch(ligacaoProvider);
   final conta = PedidosNaConta(ref);
 
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: 'documentos.${sessao.socio.nrSocio}.${conta.chave}',
+    chave: 'documentos.${chaveDaSessao(sessao)}.${conta.chave}',
     pedido: () => conta.get('/documentos'),
     ler: (j) => [for (final i in j['inscricoes'] as List) Inscricao.fromJson((i as Map).cast<String, dynamic>())],
   );

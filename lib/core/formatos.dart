@@ -13,3 +13,11 @@ String dataCurta(DateTime d) => DateFormat('dd/MM/yyyy').format(d);
 
 /// "20 ago. 2026".
 String dataMedia(DateTime d) => DateFormat('d MMM y', 'pt_PT').format(d);
+
+/// O primeiro nome, legível: a ficha de sócio vem em maiúsculas
+/// ("CARMINHO EXEMPLO" → "Carminho").
+String primeiroNome(String nome) {
+  final p = nome.trim().split(RegExp(r'\s+')).first;
+  if (p.isEmpty) return nome;
+  return p[0].toUpperCase() + p.substring(1).toLowerCase();
+}

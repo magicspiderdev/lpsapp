@@ -26,9 +26,8 @@ class Marcador {
 
   const Marcador(this.casa, this.fora);
 
-  static Marcador? deJson(Object? j) => j is Map && j['casa'] is int && j['fora'] is int
-      ? Marcador(j['casa'] as int, j['fora'] as int)
-      : null;
+  static Marcador? deJson(Object? j) =>
+      j is Map && j['casa'] is int && j['fora'] is int ? Marcador(j['casa'] as int, j['fora'] as int) : null;
 
   Map<String, dynamic> toJson() => {'casa': casa, 'fora': fora};
 
@@ -252,7 +251,7 @@ class Passatempo {
   final bool podeParticipar;
 
   /// `por_abrir`, `terminado`, `ja_participou`, `so_socios`, `so_maiores`,
-  /// `bloqueado`. Lista aberta.
+  /// `idade_por_verificar`, `bloqueado`. Lista aberta.
   final String? motivo;
 
   /// Índice em [opcoes]; só depois de acabar, e só se houver.
@@ -478,10 +477,7 @@ class PassatempoController extends AutoDisposeFamilyAsyncNotifier<Passatempo, St
     final d = await dadosDe(
       ref
           .read(dioContaProvider)
-          .post(
-            '/comunidade/passatempos/$arg/participar',
-            data: {'opcao': ?opcao, 'resposta': ?resposta},
-          ),
+          .post('/comunidade/passatempos/$arg/participar', data: {'opcao': ?opcao, 'resposta': ?resposta}),
     );
     state = AsyncData(Passatempo.fromJson(((d['passatempo'] as Map?) ?? d).cast<String, dynamic>()));
     ref.invalidate(passatemposProvider);
@@ -517,5 +513,8 @@ List<JogoComunidade> ultimosJogos(List<JogoComunidade> jogos, DateTime agora) {
     return !agora.isBefore(j.inicio.add(duracaoDeUmJogo));
   }
 
-  return [for (final c in jogos) if (acabou(c)) c]..sort((a, b) => b.jogo.inicio.compareTo(a.jogo.inicio));
+  return [
+    for (final c in jogos)
+      if (acabou(c)) c,
+  ]..sort((a, b) => b.jogo.inicio.compareTo(a.jogo.inicio));
 }

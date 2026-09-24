@@ -163,7 +163,11 @@ class Avatar extends StatelessWidget {
 /// O que fica no lugar de um botão que a conta não pode usar (§2.10): uma
 /// linha a dizer quem o faz, em vez de um botão cinzento sem explicação.
 class NotaPermissao extends StatelessWidget {
-  const NotaPermissao(this.texto, {super.key, this.padding = const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12)});
+  const NotaPermissao(
+    this.texto, {
+    super.key,
+    this.padding = const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),
+  });
 
   final String texto;
   final EdgeInsetsGeometry padding;
