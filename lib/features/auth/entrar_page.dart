@@ -69,6 +69,12 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
             ? e.message
             : '${e.message} ${restantes == 1 ? 'Resta 1 tentativa.' : 'Restam $restantes tentativas.'}',
       );
+    } catch (e, st) {
+      // Uma resposta que a app não consegue ler não pode deixar o botão
+      // calado: diz-se que falhou, e o rasto fica no registo.
+      debugPrint('[entrar] falhou: $e');
+      debugPrintStack(stackTrace: st);
+      if (mounted) setState(() => _erro = 'Não foi possível entrar. Tente novamente daqui a pouco.');
     } finally {
       if (mounted) setState(() => _aEnviar = false);
     }
@@ -82,6 +88,16 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
     final parametros = GoRouterState.of(context).uri.queryParameters;
     final paraBilhetes = parametros['motivo'] == 'bilhetes';
     final paraComunidade = parametros['motivo'] == 'comunidade';
+
+    // Normalmente é o redirect do router que tira daqui quem acabou de entrar.
+    // Mas quando se chega aqui por um `push` para uma rota protegida (ex.:
+    // "Pedir inscrição" sem sessão), a página empilhada não volta a passar
+    // pelo redirect — e o login ficava no ecrã com a sessão já aberta.
+    ref.listen(sessaoProvider, (antes, agora) {
+      if (antes is SessaoAnonima && agora is! SessaoAnonima && context.mounted) {
+        context.go(Links.voltarSeguro(parametros['voltar']) ?? (agora is SessaoSocio ? '/socio' : '/noticias'));
+      }
+    });
 
     return Scaffold(
       // O login não vive num separador da navegação (ver `router.dart`), por
@@ -178,8 +194,10 @@ class _EntrarPageState extends ConsumerState<EntrarPage> {
                   onPressed: _aEnviar
                       ? null
                       : () => context.go(
-                          Uri(path: '/entrar/registo', queryParameters: parametros.isEmpty ? null : parametros)
-                              .toString(),
+                          Uri(
+                            path: '/entrar/registo',
+                            queryParameters: parametros.isEmpty ? null : parametros,
+                          ).toString(),
                         ),
                   child: const Text('Criar conta com email'),
                 ),
