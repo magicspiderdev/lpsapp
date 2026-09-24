@@ -28,7 +28,16 @@ Pedidos abertos:
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-transferir-bilhete.md` | Transferência a sério de um bilhete (a app envia o código, com aviso) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-detalhe-de-evento.md` | Abrir um evento por link ou fora da janela da agenda (a ficha já funciona com o item da lista) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-23-menores-limites-de-idade.md` | Limites de idade: menores de 16 sem conta própria (hoje entram pelo login por número) e, dos 16 aos 17, tudo menos pagar, comprar e contratar. A app só lê `conta.permissoes` e trata `403 menor_de_idade` — **não calcula idades** |
+
+**Menores** (§2.10, pedido `2026-09-23-menores-limites-de-idade`): a app só
+lê `conta.permissoes` (lista aberta — o que falta é permitido) e **nunca
+calcula idades**. As permissões chegam também em cada `/auth/refresh`, e a
+sessão muda sem login (`TokenStore.contaRenovada`). Uma permissão a `false`
+esconde o botão e põe no lugar dele a `NotaPermissao` (quem o faz é o
+encarregado de educação); `comprar` fecha também as zonas gratuitas
+(`QuemPode.soEncarregado`). `401 socio_menor` é fim de sessão; `422
+socio_menor` e `403 menor_de_idade` mostram a `message`. Convites na carteira
+(`convite`, §4.18) levam o selo "Oferta do clube".
 
 Feitos no CISOC e ainda por alinhar na app: arquivo de conversas no servidor e
 `anexo_url: null` (`2026-09-17-…`), inscrição de sócio pela app (§4.21) e
