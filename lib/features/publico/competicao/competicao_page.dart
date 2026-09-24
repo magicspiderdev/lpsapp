@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/em_breve.dart';
@@ -13,8 +14,9 @@ import 'competicao.dart';
 
 /// As competições do clube, por época.
 ///
-/// Abre na época que o servidor diz ser a actual — a mais recente com provas.
-/// O selector só aparece quando há mais do que uma.
+/// Abre na época que o clube pôs em vigor (`epoca_actual`). O selector só
+/// aparece quando há mais do que uma: com uma só, é o clube a dizer que não
+/// quer histórico na app.
 class CompeticaoPage extends ConsumerStatefulWidget {
   const CompeticaoPage({super.key});
 
@@ -29,6 +31,14 @@ class _CompeticaoPageState extends ConsumerState<CompeticaoPage> {
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(provasProvider(_epoca));
+
+    // Uma época escolhida que deixou de se poder pedir dá `404`: volta-se à
+    // que está em vigor, em vez de mostrar um erro.
+    ref.listen(provasProvider(_epoca), (_, s) {
+      if (_epoca != null && s.error is ApiException && (s.error as ApiException).httpStatus == 404) {
+        setState(() => _epoca = null);
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('Competições')),

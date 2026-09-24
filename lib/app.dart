@@ -55,13 +55,8 @@ class _LpsAppState extends ConsumerState<LpsApp> {
     _abrir(m);
   }
 
-  /// Hoje o backoffice manda `route` a `null` e a notificação é só título e
-  /// texto — abre-se o histórico. Quando passar a mandar um destino, é aqui
-  /// que se acrescenta; destinos desconhecidos caem no histórico à mesma.
-  void _abrir(RemoteMessage m) {
-    final destino = m.data['route'];
-    ref.read(routerProvider).go(destino is String && destino.startsWith('/') ? destino : '/socio/notificacoes');
-  }
+  /// Sem `route`, a notificação é só título e texto — abre-se o histórico.
+  void _abrir(RemoteMessage m) => ref.read(routerProvider).go(destinoDoPush(m.data));
 
   @override
   Widget build(BuildContext context) {

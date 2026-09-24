@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io' show Platform;
 
 import 'package:firebase_core/firebase_core.dart';
@@ -31,12 +32,7 @@ class EstadoPush {
   /// O token já foi entregue ao servidor, para esta sessão.
   final bool registado;
 
-  const EstadoPush({
-    this.disponivel = false,
-    this.autorizado = false,
-    this.token,
-    this.registado = false,
-  });
+  const EstadoPush({this.disponivel = false, this.autorizado = false, this.token, this.registado = false});
 
   EstadoPush com({bool? disponivel, bool? autorizado, String? token, bool? registado}) => EstadoPush(
     disponivel: disponivel ?? this.disponivel,
@@ -129,7 +125,8 @@ class PushController extends Notifier<EstadoPush> {
   Future<void> _lerPermissao(FirebaseMessaging fm) async {
     final r = await fm.getNotificationSettings();
     state = state.com(
-      autorizado: r.authorizationStatus == AuthorizationStatus.authorized ||
+      autorizado:
+          r.authorizationStatus == AuthorizationStatus.authorized ||
           r.authorizationStatus == AuthorizationStatus.provisional,
     );
   }
@@ -140,7 +137,8 @@ class PushController extends Notifier<EstadoPush> {
     if (!state.disponivel) return false;
     try {
       final r = await FirebaseMessaging.instance.requestPermission();
-      final ok = r.authorizationStatus == AuthorizationStatus.authorized ||
+      final ok =
+          r.authorizationStatus == AuthorizationStatus.authorized ||
           r.authorizationStatus == AuthorizationStatus.provisional;
       state = state.com(autorizado: ok);
       if (ok) await registar();
@@ -150,16 +148,18 @@ class PushController extends Notifier<EstadoPush> {
     }
   }
 
-  /// `POST /dispositivos`. Sem sessão não há nada a registar: o aparelho recebe
-  /// pelos tópicos.
+  /// `POST /api/v2/dispositivos`, de **qualquer** conta: desde 2026-09-24 o
+  /// push chega também às contas só com email (um encarregado que não é
+  /// sócio, as decisões dos pedidos). Sem sessão não há nada a registar: o
+  /// aparelho recebe pelos tópicos.
   Future<void> registar() async {
     final token = state.token;
     if (token == null || state.registado) return;
-    if (ref.read(sessaoProvider) is! SessaoSocio) return;
+    if (ref.read(sessaoProvider) is SessaoAnonima) return;
 
     try {
       await dadosDe(
-        ref.read(dioSocioProvider).post('/dispositivos', data: {'token': token, 'plataforma': _plataforma}),
+        ref.read(dioContaProvider).post('/dispositivos', data: {'token': token, 'plataforma': _plataforma}),
       );
       state = state.com(registado: true);
     } catch (e) {
@@ -175,7 +175,7 @@ class PushController extends Notifier<EstadoPush> {
     state = state.com(registado: false);
     if (token == null) return;
     try {
-      await dadosDe(ref.read(dioSocioProvider).delete('/dispositivos', data: {'token': token}));
+      await dadosDe(ref.read(dioContaProvider).delete('/dispositivos', data: {'token': token}));
     } catch (_) {
       // Sem rede ou sessão já caída: não vale a pena insistir.
     }
@@ -189,4 +189,34 @@ class PushController extends Notifier<EstadoPush> {
     if (kIsWeb) return 'web';
     return Platform.isIOS ? 'ios' : 'android';
   }
+}
+
+/// Para onde leva uma notificação: `data.route`, com `data.params` como
+/// parâmetros. Desde 2026-09-24 os `params` vêm como **texto JSON** (no FCM
+/// os valores de `data` são sempre texto); aceita-se também um mapa, e o que
+/// não se perceber ignora-se. Sem destino, o histórico das notificações.
+String destinoDoPush(Map<String, dynamic> data) {
+  final rota = data['route'];
+  if (rota is! String || !rota.startsWith('/')) return '/socio/notificacoes';
+
+  Object? params = data['params'];
+  if (params is String && params.trim().isNotEmpty) {
+    try {
+      params = jsonDecode(params);
+    } on FormatException {
+      params = null;
+    }
+  }
+  if (params is! Map || params.isEmpty) return rota;
+
+  final uri = Uri.parse(rota);
+  return uri
+      .replace(
+        queryParameters: {
+          ...uri.queryParameters,
+          for (final MapEntry(:key, :value) in params.entries)
+            if (value != null && value is! Map && value is! List) '$key': '$value',
+        },
+      )
+      .toString();
 }

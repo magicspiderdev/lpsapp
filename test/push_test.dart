@@ -12,6 +12,11 @@ class _SessaoSocioFake extends SessaoController {
   Sessao build() => sessaoDeSocio(const SocioSessao(nrSocio: 16, nomeCompleto: 'TITULAR', estado: 1));
 }
 
+class _SessaoContaFake extends SessaoController {
+  @override
+  Sessao build() => const SessaoConta(ContaSessao(nome: 'Encarregado sem ficha'));
+}
+
 class _SessaoAnonimaFake extends SessaoController {
   @override
   Sessao build() => const SessaoAnonima();
@@ -52,12 +57,14 @@ class _Servidor implements HttpClientAdapter {
 void main() {
   late _Servidor servidor;
 
-  ProviderContainer comSessao({required bool socio}) {
+  ProviderContainer comSessao({required bool socio, bool soConta = false}) {
     servidor = _Servidor();
     final c = ProviderContainer(
       overrides: [
-        sessaoProvider.overrideWith(socio ? _SessaoSocioFake.new : _SessaoAnonimaFake.new),
-        dioSocioProvider.overrideWithValue(Dio()..httpClientAdapter = servidor),
+        sessaoProvider.overrideWith(
+          soConta ? _SessaoContaFake.new : (socio ? _SessaoSocioFake.new : _SessaoAnonimaFake.new),
+        ),
+        dioContaProvider.overrideWithValue(Dio()..httpClientAdapter = servidor),
       ],
     );
     addTearDown(c.dispose);
@@ -149,5 +156,41 @@ void main() {
     servidor.estado = 500;
 
     await expectLater(push.apagar(), completes);
+  });
+
+  test('uma conta só com email também regista — o push chega-lhe desde 2026-09-24', () async {
+    final c = comSessao(socio: false, soConta: true);
+    final push = c.read(pushProvider.notifier)..tokenDeTeste('fcm-123');
+
+    await push.registar();
+
+    expect(servidor.pedidos.single.path, '/dispositivos');
+    expect(c.read(pushProvider).registado, isTrue);
+  });
+
+  group('para onde leva uma notificação', () {
+    test('sem destino, o histórico', () {
+      expect(destinoDoPush({}), '/socio/notificacoes');
+      expect(destinoDoPush({'route': 'socio/x'}), '/socio/notificacoes');
+    });
+
+    test('os params chegam como texto JSON e viram parâmetros da rota', () {
+      expect(
+        destinoDoPush({'route': '/socio/dependentes', 'params': '{"nr_socio":5643}'}),
+        '/socio/dependentes?nr_socio=5643',
+      );
+    });
+
+    test('params ilegíveis, vazios ou num mapa', () {
+      expect(destinoDoPush({'route': '/socio/dependentes', 'params': '{partido'}), '/socio/dependentes');
+      expect(destinoDoPush({'route': '/socio/dependentes', 'params': ''}), '/socio/dependentes');
+      expect(
+        destinoDoPush({
+          'route': '/a',
+          'params': {'id': 7},
+        }),
+        '/a?id=7',
+      );
+    });
   });
 }
