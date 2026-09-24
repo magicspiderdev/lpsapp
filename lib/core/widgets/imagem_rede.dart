@@ -3,7 +3,15 @@ import 'package:flutter/material.dart';
 
 /// Imagem da rede guardada em disco: depois de vista uma vez, aparece sem ligação.
 class ImagemRede extends StatelessWidget {
-  const ImagemRede(this.url, {super.key, this.fit = BoxFit.cover, this.largura, this.altura, this.falha, this.larguraCache});
+  const ImagemRede(
+    this.url, {
+    super.key,
+    this.fit = BoxFit.cover,
+    this.largura,
+    this.altura,
+    this.falha,
+    this.larguraCache,
+  });
 
   final String url;
   final BoxFit fit;

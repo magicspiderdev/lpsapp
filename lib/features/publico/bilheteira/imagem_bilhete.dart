@@ -37,7 +37,13 @@ Future<Uint8List?> imagemDoBilhete(BilheteComprado b) async {
       ? null
       : _texto(b.subtitulo!, conteudo, 28, FontWeight.w500, Colors.white.withValues(alpha: 0.88), maxLinhas: 2);
 
-  final data = _texto('${quando[0].toUpperCase()}${quando.substring(1)} · $hora', conteudo, 30, FontWeight.w600, _tinta);
+  final data = _texto(
+    '${quando[0].toUpperCase()}${quando.substring(1)} · $hora',
+    conteudo,
+    30,
+    FontWeight.w600,
+    _tinta,
+  );
   final sitio = b.local == null ? null : _texto(b.local!, conteudo, 26, FontWeight.w400, _cinza, maxLinhas: 2);
   final lugar = _texto(
     [b.zona, ?b.lugar, b.preco == 0 ? 'Grátis' : euros(b.preco)].where((s) => s.isNotEmpty).join(' · '),
@@ -48,13 +54,7 @@ Future<Uint8List?> imagemDoBilhete(BilheteComprado b) async {
   );
   final codigo = _texto(b.codigo, conteudo, 38, FontWeight.w700, _tinta, espaco: 3);
   final titular = b.titular == null ? null : _texto(b.titular!, conteudo, 24, FontWeight.w400, _cinza, maxLinhas: 1);
-  final aviso = _texto(
-    'Este código entra uma vez só. Mostre-o à entrada.',
-    conteudo,
-    24,
-    FontWeight.w500,
-    _cinza,
-  );
+  final aviso = _texto('Este código entra uma vez só. Mostre-o à entrada.', conteudo, 24, FontWeight.w500, _cinza);
 
   // A altura sai das medidas reais do texto: um título de três linhas não
   // pode ficar por cima do QR.
@@ -77,10 +77,7 @@ Future<Uint8List?> imagemDoBilhete(BilheteComprado b) async {
 
   // Cabeçalho com o verde do clube.
   final cabecalho = Rect.fromLTWH(0, 0, largura, alturaCabecalho);
-  canvas.drawRect(
-    cabecalho,
-    Paint()..shader = AppColors.clubGradient.createShader(cabecalho),
-  );
+  canvas.drawRect(cabecalho, Paint()..shader = AppColors.clubGradient.createShader(cabecalho));
   canvas.drawParagraph(titulo, Offset(margem, margem));
   if (subtitulo != null) {
     canvas.drawParagraph(subtitulo, Offset(margem, margem + titulo.height + 10));

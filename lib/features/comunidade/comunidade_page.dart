@@ -26,7 +26,10 @@ class ComunidadePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(sessaoProvider) is SessaoAnonima) {
-      return Scaffold(appBar: AppBar(title: const Text('Comunidade')), body: const _Apresentacao());
+      return Scaffold(
+        appBar: AppBar(title: const Text('Comunidade')),
+        body: const _Apresentacao(),
+      );
     }
     // "Últimos": os jogos de hoje e de ontem que já acabaram, para quem lá
     // esteve dizer como acabou. Só existe quando há algum, e vem primeiro.
@@ -77,8 +80,14 @@ class _Ultimos extends ConsumerWidget {
     final t = Theme.of(context);
     final hoje = DateTime.now();
     bool eHoje(DateTime d) => d.year == hoje.year && d.month == hoje.month && d.day == hoje.day;
-    final deHoje = [for (final c in jogos) if (eHoje(c.jogo.inicio)) c];
-    final deOntem = [for (final c in jogos) if (!eHoje(c.jogo.inicio)) c];
+    final deHoje = [
+      for (final c in jogos)
+        if (eHoje(c.jogo.inicio)) c,
+    ];
+    final deOntem = [
+      for (final c in jogos)
+        if (!eHoje(c.jogo.inicio)) c,
+    ];
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -230,8 +239,10 @@ class _CartaoJogo extends StatelessWidget {
     final (estado, destaque) = switch (c) {
       _ when r.confirmado != null => ('Resultado confirmado: ${r.confirmado}', false),
       _ when r.aberto && r.meu != null => ('Disse ${r.meu}', false),
-      _ when r.aberto && r.propostas.isNotEmpty =>
-        ('${_pessoas(r.propostas.first.relatos)} ${r.propostas.first.marcador}. Confirma?', true),
+      _ when r.aberto && r.propostas.isNotEmpty => (
+        '${_pessoas(r.propostas.first.relatos)} ${r.propostas.first.marcador}. Confirma?',
+        true,
+      ),
       _ when r.aberto => ('Diga como acabou', true),
       _ when p.meu != null => ('O seu palpite: ${p.meu}', false),
       _ when p.aberto => ('Palpitar', true),
@@ -699,7 +710,10 @@ class EtiquetaFase extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(20)),
-      child: Text(texto, style: t.textTheme.labelMedium?.copyWith(color: frente, fontWeight: FontWeight.w600)),
+      child: Text(
+        texto,
+        style: t.textTheme.labelMedium?.copyWith(color: frente, fontWeight: FontWeight.w600),
+      ),
     );
   }
 }

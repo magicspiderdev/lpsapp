@@ -127,10 +127,7 @@ class _Palpite extends ConsumerWidget {
             Row(
               children: [
                 Expanded(
-                  child: FilledButton(
-                    onPressed: palpitar,
-                    child: Text(p.meu == null ? 'Palpitar' : 'Mudar palpite'),
-                  ),
+                  child: FilledButton(onPressed: palpitar, child: Text(p.meu == null ? 'Palpitar' : 'Mudar palpite')),
                 ),
                 if (p.meu != null) ...[
                   const SizedBox(width: 8),
@@ -182,7 +179,11 @@ class _Distribuicao extends StatelessWidget {
             child: Row(
               children: [
                 for (final (_, n, cor) in partes)
-                  if (n > 0) Expanded(flex: n, child: ColoredBox(color: cor)),
+                  if (n > 0)
+                    Expanded(
+                      flex: n,
+                      child: ColoredBox(color: cor),
+                    ),
               ],
             ),
           ),
@@ -193,7 +194,11 @@ class _Distribuicao extends StatelessWidget {
             padding: const EdgeInsets.only(top: 2),
             child: Row(
               children: [
-                Container(width: 8, height: 8, decoration: BoxDecoration(color: cor, shape: BoxShape.circle)),
+                Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+                ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(nome, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.textTheme.bodySmall),
@@ -243,7 +248,10 @@ class _Relato extends ConsumerWidget {
     }
 
     // Propostas que esta conta ainda não disse: são as que se podem confirmar.
-    final paraConfirmar = [for (final p in r.propostas) if (p.marcador != r.meu) p];
+    final paraConfirmar = [
+      for (final p in r.propostas)
+        if (p.marcador != r.meu) p,
+    ];
 
     return Bloco(
       padding: const EdgeInsets.all(16),
@@ -264,10 +272,7 @@ class _Relato extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           if (r.confirmado case final m?)
-            Text(
-              'Confirmado por quem estava lá: ${_comEquipas(jogo, m)}.',
-              style: t.textTheme.bodyMedium,
-            )
+            Text('Confirmado por quem estava lá: ${_comEquipas(jogo, m)}.', style: t.textTheme.bodyMedium)
           else ...[
             if (podeRelatar)
               Text(
@@ -344,10 +349,7 @@ class _Proposta extends StatelessWidget {
       ),
       // Com a letra do sistema grande o botão não cabe ao lado: vai para baixo.
       child: MediaQuery.textScalerOf(context).scale(1) > 1.3
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [texto, const SizedBox(height: 8), botao],
-            )
+          ? Column(crossAxisAlignment: CrossAxisAlignment.start, children: [texto, const SizedBox(height: 8), botao])
           : Row(
               children: [
                 Expanded(child: texto),
@@ -372,9 +374,8 @@ class _ConviteEntrar extends StatelessWidget {
         const TituloSeccao('Comunidade Leões'),
         Bloco(
           padding: const EdgeInsets.all(16),
-          onTap: () => context.go(
-            Uri(path: '/entrar', queryParameters: {'voltar': aqui, 'motivo': 'comunidade'}).toString(),
-          ),
+          onTap: () =>
+              context.go(Uri(path: '/entrar', queryParameters: {'voltar': aqui, 'motivo': 'comunidade'}).toString()),
           child: Row(
             children: [
               const IconePastilha(Icons.groups_outlined),

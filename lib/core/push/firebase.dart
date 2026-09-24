@@ -27,5 +27,4 @@ const _android = FirebaseOptions(
 /// O iOS nunca existiu na app antiga: falta criar a app no Firebase, o
 /// `GoogleService-Info.plist` e a chave APNs no Apple Developer. Até lá, a app
 /// corre em iOS sem push, em vez de rebentar no arranque.
-FirebaseOptions? get opcoesFirebase =>
-    defaultTargetPlatform == TargetPlatform.android ? _android : null;
+FirebaseOptions? get opcoesFirebase => defaultTargetPlatform == TargetPlatform.android ? _android : null;

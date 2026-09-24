@@ -108,10 +108,7 @@ class _AssociarSocioPageState extends ConsumerState<AssociarSocioPage> {
               TextFormField(
                 controller: _nr,
                 enabled: !passo2,
-                decoration: const InputDecoration(
-                  labelText: 'Número de sócio',
-                  prefixIcon: Icon(Icons.badge_outlined),
-                ),
+                decoration: const InputDecoration(labelText: 'Número de sócio', prefixIcon: Icon(Icons.badge_outlined)),
                 keyboardType: TextInputType.number,
                 inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 validator: (v) => (v == null || v.isEmpty) ? 'Indique o número de sócio' : null,
@@ -141,10 +138,7 @@ class _AssociarSocioPageState extends ConsumerState<AssociarSocioPage> {
                 ),
               ],
               const SizedBox(height: 8),
-              TextButton(
-                onPressed: _aEnviar ? null : _agoraNao,
-                child: const Text('Agora não'),
-              ),
+              TextButton(onPressed: _aEnviar ? null : _agoraNao, child: const Text('Agora não')),
             ],
           ),
         ),

@@ -192,8 +192,7 @@ class _EncomendaPageState extends ConsumerState<EncomendaPage> {
                 style: t.textTheme.bodySmall,
               ),
             ],
-            if (!_aguardar && e.bilhetes.isEmpty)
-              FilledButton(onPressed: _fechar, child: const Text('Concluir')),
+            if (!_aguardar && e.bilhetes.isEmpty) FilledButton(onPressed: _fechar, child: const Text('Concluir')),
           ],
         ),
       ),
@@ -255,10 +254,8 @@ class _Icone extends StatelessWidget {
     final cores = AppColors.of(context);
     final (icone, cor) = switch (e) {
       Encomenda(paga: true) => (Icons.confirmation_number_rounded, cores.success.foreground),
-      Encomenda(cancelada: true) || Encomenda(expirada: true) => (
-        Icons.close_rounded,
-        Theme.of(context).colorScheme.onSurfaceVariant,
-      ),
+      Encomenda(cancelada: true) ||
+      Encomenda(expirada: true) => (Icons.close_rounded, Theme.of(context).colorScheme.onSurfaceVariant),
       _ => (p?.mbway == true ? Icons.phone_iphone_rounded : Icons.receipt_long_rounded, cores.warning.foreground),
     };
     final aguardar = e.pendente;
