@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/api/clientes.dart';
 import '../../../core/api/envelope.dart';
 import '../../../core/auth/sessao.dart';
@@ -23,9 +24,14 @@ class Conversa {
   final bool ultimaDoClube;
   final int naoLidas;
 
+  /// Arquivada pelo sócio — só para ele: a secretaria vê-a igual. Vale em todos
+  /// os aparelhos, e uma mensagem nova tira-a do arquivo no servidor.
+  final bool arquivada;
+
   const Conversa({
     required this.id,
     required this.fechada,
+    this.arquivada = false,
     required this.ultimaMensagem,
     required this.ultimaDoClube,
     required this.naoLidas,
@@ -36,6 +42,7 @@ class Conversa {
   factory Conversa.fromJson(Map<String, dynamic> j) => Conversa(
     id: j['id'] as int,
     fechada: j['fechada'] == true,
+    arquivada: j['arquivada'] == true,
     ultimaMensagem: (j['ultima_mensagem'] ?? '') as String,
     ultimaDoClube: j['ultima_do_clube'] == true,
     naoLidas: (j['nao_lidas'] as int?) ?? 0,
@@ -55,7 +62,8 @@ class Mensagem {
   /// `true` = secretaria; `false` = o sócio.
   final bool doClube;
 
-  /// Não precisa do token.
+  /// Não precisa do token. `null` com [anexoTipo] preenchido é um anexo antigo
+  /// que não foi trazido do servidor anterior ([anexoIndisponivel]).
   final String? anexoUrl;
   final TipoAnexo? anexoTipo;
   final DateTime? enviadaEm;
@@ -82,24 +90,46 @@ class Mensagem {
     },
     enviadaEm: dataApi(j['enviada_em']),
   );
+
+  bool get temAnexo => anexoUrl != null || anexoTipo != null;
+
+  /// Havia um ficheiro, mas ficou no servidor da app anterior: mostra-se que
+  /// existiu, sem se poder abrir.
+  bool get anexoIndisponivel => anexoUrl == null && anexoTipo != null;
 }
 
 const tamanhoMaximoMensagem = 4000;
 
-final conversasProvider = StreamProvider.autoDispose<Dados<List<Conversa>>>((ref) {
+/// Conversas por arquivar (`GET /suporte` não traz as arquivadas).
+final conversasProvider = StreamProvider.autoDispose<Dados<List<Conversa>>>(
+  (ref) => _listaConversas(ref, arquivadas: false),
+);
+
+/// Só as arquivadas (`GET /suporte?arquivadas=1`).
+final conversasArquivadasProvider = StreamProvider.autoDispose<Dados<List<Conversa>>>(
+  (ref) => _listaConversas(ref, arquivadas: true),
+);
+
+Stream<Dados<List<Conversa>>> _listaConversas(Ref ref, {required bool arquivadas}) {
   final sessao = ref.watch(sessaoProvider);
   if (sessao is! SessaoSocio) throw StateError('Sem sessão de sócio');
   ref.watch(ligacaoProvider);
   final dio = ref.read(dioSocioProvider);
+  final migracao = ref.read(migracaoArquivoProvider);
+  final nr = sessao.socio.nrSocio;
 
   return comCache(
     cache: ref.read(cacheProvider),
     ambito: Ambito.sessao,
-    chave: 'suporte.${sessao.socio.nrSocio}',
-    pedido: () => dadosDe(dio.get('/suporte')),
+    chave: arquivadas ? 'suporte.$nr.arquivadas' : 'suporte.$nr',
+    pedido: () async {
+      // O arquivo antigo, deste aparelho, passa primeiro para o servidor.
+      await migracao?.garantir();
+      return dadosDe(dio.get('/suporte', queryParameters: {if (arquivadas) 'arquivadas': 1}));
+    },
     ler: (j) => [for (final c in j['conversas'] as List) Conversa.fromJson((c as Map).cast<String, dynamic>())],
   );
-});
+}
 
 /// Abrir marca como lidas as mensagens da secretaria (é o que baixa o contador
 /// de `/me/resumo`).
@@ -126,6 +156,11 @@ extension AccoesSuporte on Dio {
 
   Future<void> responder(int conversa, String texto) => dadosDe(post('/suporte/$conversa', data: {'mensagem': texto}));
 
+  /// Só para o sócio: não fecha nem marca como lida.
+  Future<void> arquivarConversa(int conversa) => dadosDe(post('/suporte/$conversa/arquivar'));
+
+  Future<void> desarquivarConversa(int conversa) => dadosDe(post('/suporte/$conversa/desarquivar'));
+
   /// JPEG, PNG ou PDF até 10 MB, com texto opcional.
   Future<void> enviarAnexo(int conversa, String caminho, {String? nome, String? texto}) async {
     await dadosDe(
@@ -140,53 +175,167 @@ extension AccoesSuporte on Dio {
   }
 }
 
-/// Conversas arquivadas **neste aparelho**: id → `ultima_em` quando se arquivou.
+/// Arquivar ou desarquivar à espera do servidor ([confirmadoEm] `null`), ou já
+/// feito mas talvez ainda não visto numa lista acabada de pedir.
 ///
-/// A API ainda não tem arquivo (pedido `2026-09-17-arquivar-conversas` no
-/// CISOC). Não se apaga nada no servidor: a conversa é a mesma que a secretaria
-/// vê. Guardado na cache da sessão, por isso desaparece ao terminar sessão.
-final arquivoConversasProvider = NotifierProvider<ArquivoConversas, Map<int, DateTime?>>(ArquivoConversas.new);
+/// Classe e não record: distinguem-se pela identidade (qual acção é a última).
+class ArquivoPendente {
+  const ArquivoPendente(this.conversa, {required this.arquivada, this.confirmadoEm});
 
-class ArquivoConversas extends Notifier<Map<int, DateTime?>> {
-  String? _chave;
+  final Conversa conversa;
+  final bool arquivada;
+  final DateTime? confirmadoEm;
+}
 
+/// O arquivo é do servidor (`POST /suporte/{id}/arquivar` e `/desarquivar`).
+/// Isto guarda só a mudança optimista: a conversa muda de lista logo ao
+/// deslizar e volta se o servidor recusar (a acção relança o erro, para o ecrã
+/// avisar).
+final arquivoConversasProvider = NotifierProvider<ArquivoConversas, Map<int, ArquivoPendente>>(ArquivoConversas.new);
+
+class ArquivoConversas extends Notifier<Map<int, ArquivoPendente>> {
   @override
-  Map<int, DateTime?> build() {
-    final sessao = ref.watch(sessaoProvider);
-    if (sessao is! SessaoSocio) return const {};
-    _chave = 'suporte.arquivo.${sessao.socio.nrSocio}';
-    _carregar();
+  Map<int, ArquivoPendente> build() {
+    ref.watch(sessaoProvider);
     return const {};
   }
 
-  Future<void> _carregar() async {
-    final e = await ref.read(cacheProvider).ler(Ambito.sessao, _chave!);
-    if (e == null) return;
-    // O que se arquivou entretanto (antes de acabar de ler) prevalece.
-    state = {
-      for (final MapEntry(:key, :value) in e.dados.entries)
-        ?int.tryParse(key): value is String ? DateTime.tryParse(value) : null,
-      ...state,
-    };
-  }
+  Future<void> arquivar(Conversa c) => _mudar(c, arquivada: true);
 
-  Future<void> _guardar() => ref.read(cacheProvider).guardar(Ambito.sessao, _chave!, {
-    for (final MapEntry(:key, :value) in state.entries) '$key': value?.toIso8601String(),
-  });
+  Future<void> desarquivar(Conversa c) => _mudar(c, arquivada: false);
 
-  Future<void> arquivar(Conversa c) async {
-    state = {...state, c.id: c.ultimaEm};
-    await _guardar();
-  }
-
-  Future<void> desarquivar(int id) async {
-    state = {...state}..remove(id);
-    await _guardar();
+  Future<void> _mudar(Conversa c, {required bool arquivada}) async {
+    // Sem const: cada acção tem de ser um objecto novo.
+    final pendente = ArquivoPendente(c, arquivada: arquivada);
+    state = {...state, c.id: pendente};
+    final dio = ref.read(dioSocioProvider);
+    try {
+      await (arquivada ? dio.arquivarConversa(c.id) : dio.desarquivarConversa(c.id));
+    } on ApiException {
+      // Só se desfaz o que ainda é nosso: um "Desfazer" entretanto prevalece.
+      if (identical(state[c.id], pendente)) state = {...state}..remove(c.id);
+      rethrow;
+    }
+    if (identical(state[c.id], pendente)) {
+      state = {...state, c.id: ArquivoPendente(c, arquivada: arquivada, confirmadoEm: DateTime.now())};
+    }
+    ref
+      ..invalidate(conversasProvider)
+      ..invalidate(conversasArquivadasProvider);
   }
 }
 
-/// Arquivada e sem nada de novo desde então. Uma mensagem nova (da secretaria ou
-/// do próprio, noutro aparelho ou no portal) tira-a do arquivo.
+/// As duas listas do servidor, com o que se arquivou ou desarquivou entretanto.
+///
+/// Uma mudança conta enquanto não estiver confirmada, ou enquanto a lista for
+/// anterior à confirmação (a da cache, por exemplo). Uma lista pedida depois já
+/// a traz — e manda ela, que o servidor pode ter desarquivado por mensagem nova.
+({List<Conversa> activas, List<Conversa> arquivadas}) listasDeConversas({
+  required Dados<List<Conversa>>? activas,
+  required Dados<List<Conversa>>? arquivadas,
+  required Map<int, ArquivoPendente> pendentes,
+}) => (
+  activas: _comPendentes(activas, pendentes, arquivadas: false),
+  arquivadas: _comPendentes(arquivadas, pendentes, arquivadas: true),
+);
+
+List<Conversa> _comPendentes(
+  Dados<List<Conversa>>? d,
+  Map<int, ArquivoPendente> pendentes, {
+  required bool arquivadas,
+}) {
+  final contam = [
+    for (final p in pendentes.values)
+      if (p.confirmadoEm == null || d == null || d.obtidoEm.isBefore(p.confirmadoEm!)) p,
+  ];
+  final fora = {
+    for (final p in contam)
+      if (p.arquivada != arquivadas) p.conversa.id,
+  };
+  final lista = [
+    for (final c in d?.valor ?? const <Conversa>[])
+      if (!fora.contains(c.id)) c,
+  ];
+  final ids = {for (final c in lista) c.id};
+  final entram = [
+    for (final p in contam)
+      if (p.arquivada == arquivadas && !ids.contains(p.conversa.id)) p.conversa,
+  ];
+  if (entram.isEmpty) return lista;
+  // Mais recente primeiro, como vêm da API.
+  final epoca = DateTime.fromMillisecondsSinceEpoch(0);
+  return [...lista, ...entram]..sort((a, b) => (b.ultimaEm ?? epoca).compareTo(a.ultimaEm ?? epoca));
+}
+
+/// Passa para o servidor o arquivo que a app guardava **neste aparelho** antes
+/// de a API o ter (na cache da sessão, em `suporte.arquivo.<nr>`: id →
+/// `ultima_em` quando se arquivou).
+///
+/// Na primeira vez que há rede arquiva no servidor as que ainda vêm em
+/// `GET /suporte` e não tiveram nada de novo desde então, e esvazia o arquivo
+/// local, para não se repetir. Sem rede fica para o pedido seguinte.
+final migracaoArquivoProvider = Provider<MigracaoArquivoLocal?>((ref) {
+  final sessao = ref.watch(sessaoProvider);
+  if (sessao is! SessaoSocio) return null;
+  return MigracaoArquivoLocal(
+    dio: ref.read(dioSocioProvider),
+    cache: ref.read(cacheProvider),
+    chave: 'suporte.arquivo.${sessao.socio.nrSocio}',
+  );
+});
+
+class MigracaoArquivoLocal {
+  MigracaoArquivoLocal({required this.dio, required this.cache, required this.chave});
+
+  final Dio dio;
+  final CacheLocal cache;
+  final String chave;
+
+  bool _feita = false;
+  Future<bool>? _emCurso;
+
+  /// Nunca falha: o que não se conseguir agora tenta-se no pedido seguinte.
+  Future<void> garantir() async {
+    if (_feita) return;
+    // As duas listas pedem ao mesmo tempo: esperam pela mesma migração.
+    final emCurso = _emCurso ??= _migrar();
+    try {
+      _feita = await emCurso;
+    } finally {
+      _emCurso = null;
+    }
+  }
+
+  Future<bool> _migrar() async {
+    final e = await cache.ler(Ambito.sessao, chave);
+    final arquivo = {
+      for (final MapEntry(:key, :value) in (e?.dados ?? const <String, dynamic>{}).entries)
+        ?int.tryParse(key): value is String ? DateTime.tryParse(value) : null,
+    };
+    if (arquivo.isEmpty) return true;
+
+    try {
+      final j = await dadosDe(dio.get('/suporte'));
+      final conversas = [for (final c in j['conversas'] as List) Conversa.fromJson((c as Map).cast<String, dynamic>())];
+      for (final c in conversas.where((c) => estaArquivada(c, arquivo))) {
+        try {
+          await dio.arquivarConversa(c.id);
+        } on ApiException catch (erro) {
+          if (falhaDeServico(erro)) rethrow;
+          // Recusada (404, por exemplo): não há nada a guardar dela.
+        }
+      }
+    } on ApiException {
+      return false;
+    }
+    // A cache não apaga chaves: vazio quer dizer "já migrado".
+    await cache.guardar(Ambito.sessao, chave, const {});
+    return true;
+  }
+}
+
+/// Regra do arquivo local antigo: arquivada e sem nada de novo desde então (uma
+/// mensagem nova tirava-a do arquivo). Só serve à migração.
 bool estaArquivada(Conversa c, Map<int, DateTime?> arquivo) {
   if (!arquivo.containsKey(c.id)) return false;
   final quando = arquivo[c.id];

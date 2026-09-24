@@ -19,6 +19,7 @@ import '../../../core/widgets/estado_dados.dart';
 import '../../../core/widgets/imagem_rede.dart';
 import '../inicio_page.dart';
 import 'suporte.dart';
+import 'suporte_page.dart' show mudarArquivo;
 
 /// Um ficheiro escolhido para enviar.
 typedef _Anexo = ({String caminho, String nome, bool pdf});
@@ -132,7 +133,10 @@ class _ConversaPageState extends ConsumerState<ConversaPage> {
       }
       _texto.clear();
       setState(() => _anexo = null);
-      ref.invalidate(conversasProvider);
+      // Uma mensagem nova tira a conversa do arquivo no servidor.
+      ref
+        ..invalidate(conversasProvider)
+        ..invalidate(conversasArquivadasProvider);
       if (!mounted) return;
       if (widget.id == null) {
         context.pushReplacement('/socio/suporte/$id');
@@ -196,9 +200,16 @@ class _ConversaPageState extends ConsumerState<ConversaPage> {
         ref.invalidate(conversasProvider);
       }
     });
-    final conversa = ref.watch(conversasProvider).valueOrNull?.valor.where((c) => c.id == id).firstOrNull;
+    // Pode vir de qualquer das listas: abre-se também a partir das arquivadas.
+    final listas = listasDeConversas(
+      activas: ref.watch(conversasProvider).valueOrNull,
+      arquivadas: ref.watch(conversasArquivadasProvider).valueOrNull,
+      pendentes: ref.watch(arquivoConversasProvider),
+    );
+    final arquivadaEm = listas.arquivadas.where((c) => c.id == id).firstOrNull;
+    final conversa = listas.activas.where((c) => c.id == id).firstOrNull ?? arquivadaEm;
     final fechada = conversa?.fechada ?? false;
-    final arquivada = conversa != null && estaArquivada(conversa, ref.watch(arquivoConversasProvider));
+    final arquivada = arquivadaEm != null;
 
     return Scaffold(
       appBar: AppBar(
@@ -215,21 +226,11 @@ class _ConversaPageState extends ConsumerState<ConversaPage> {
               tooltip: arquivada ? 'Desarquivar' : 'Arquivar',
               icon: Icon(arquivada ? Icons.unarchive_outlined : Icons.archive_outlined),
               onPressed: () {
+                final avisos = ScaffoldMessenger.of(context);
                 final arquivo = ref.read(arquivoConversasProvider.notifier);
-                if (arquivada) {
-                  arquivo.desarquivar(id);
-                  _mensagem('Conversa desarquivada.');
-                } else {
-                  arquivo.arquivar(conversa);
-                  context.pop();
-                  // Volta à lista, onde se vê o resultado e se pode desfazer.
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Conversa arquivada.'),
-                      action: SnackBarAction(label: 'Desfazer', onPressed: () => arquivo.desarquivar(id)),
-                    ),
-                  );
-                }
+                // Arquivar volta à lista, onde se vê o resultado e se pode desfazer.
+                if (!arquivada && context.canPop()) context.pop();
+                mudarArquivo(avisos, arquivo, conversa, arquivar: !arquivada);
               },
             ),
         ],
@@ -367,10 +368,10 @@ class _Bolha extends StatelessWidget {
                       ),
                     ),
                   ),
-                if (m.anexoUrl != null) _AnexoMensagem(m, frente: frente),
+                if (m.temAnexo) _AnexoMensagem(m, frente: frente),
                 if (m.texto.isNotEmpty)
                   Padding(
-                    padding: EdgeInsets.only(top: m.anexoUrl != null ? 8 : 0),
+                    padding: EdgeInsets.only(top: m.temAnexo ? 8 : 0),
                     // Texto simples: mostra-se tal como vem, e pode copiar-se.
                     child: SelectableText(
                       m.texto,
@@ -407,6 +408,18 @@ class _AnexoMensagem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Anexo da app anterior que não foi trazido: diz-se que existiu, sem o abrir.
+    if (m.anexoIndisponivel) {
+      return _Ficheiro(
+        icone: switch (m.anexoTipo) {
+          TipoAnexo.imagem => Icons.hide_image_outlined,
+          _ => Icons.link_off_rounded,
+        },
+        texto: 'Anexo indisponível',
+        frente: frente,
+        abre: false,
+      );
+    }
     if (m.anexoTipo == TipoAnexo.imagem) {
       return GestureDetector(
         onTap: _abrir,
@@ -435,11 +448,14 @@ class _AnexoMensagem extends StatelessWidget {
 }
 
 class _Ficheiro extends StatelessWidget {
-  const _Ficheiro({required this.icone, required this.texto, required this.frente});
+  const _Ficheiro({required this.icone, required this.texto, required this.frente, this.abre = true});
 
   final IconData icone;
   final String texto;
   final Color frente;
+
+  /// Mostra o sinal de que se abre fora da app.
+  final bool abre;
 
   @override
   Widget build(BuildContext context) {
@@ -455,8 +471,10 @@ class _Ficheiro extends StatelessWidget {
             texto,
             style: TextStyle(color: frente, fontWeight: FontWeight.w600),
           ),
-          const SizedBox(width: 6),
-          Icon(Icons.open_in_new_rounded, size: 16, color: frente.withValues(alpha: 0.7)),
+          if (abre) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.open_in_new_rounded, size: 16, color: frente.withValues(alpha: 0.7)),
+          ],
         ],
       ),
     );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
@@ -30,10 +31,14 @@ class SuportePage extends ConsumerStatefulWidget {
 class _SuportePageState extends ConsumerState<SuportePage> {
   bool _verArquivadas = false;
 
+  Future<void> _actualizar() {
+    ref.invalidate(conversasArquivadasProvider);
+    return ref.refresh(conversasProvider.future);
+  }
+
   @override
   Widget build(BuildContext context) {
     final estado = ref.watch(conversasProvider);
-    final arquivo = ref.watch(arquivoConversasProvider);
     final t = Theme.of(context);
 
     return Scaffold(
@@ -48,11 +53,15 @@ class _SuportePageState extends ConsumerState<SuportePage> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(conversasProvider)),
         data: (d) {
-          final activas = d.valor.where((c) => !estaArquivada(c, arquivo)).toList();
-          final arquivadas = d.valor.where((c) => estaArquivada(c, arquivo)).toList();
+          final (:activas, :arquivadas) = listasDeConversas(
+            activas: d,
+            // Se as arquivadas falharem, a secção simplesmente não aparece.
+            arquivadas: ref.watch(conversasArquivadasProvider).valueOrNull,
+            pendentes: ref.watch(arquivoConversasProvider),
+          );
 
           return RefreshIndicator(
-            onRefresh: () => ref.refresh(conversasProvider.future),
+            onRefresh: _actualizar,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 100),
@@ -87,22 +96,35 @@ class _SuportePageState extends ConsumerState<SuportePage> {
                 ],
                 if (arquivadas.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  InkWell(
-                    borderRadius: BorderRadius.circular(Tema.raioPequeno),
-                    onTap: () => setState(() => _verArquivadas = !_verArquivadas),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
-                      child: Row(
-                        children: [
-                          Icon(Icons.inventory_2_outlined, size: 20, color: t.colorScheme.onSurfaceVariant),
-                          const SizedBox(width: 10),
-                          Expanded(child: Text('Arquivadas (${arquivadas.length})', style: t.textTheme.titleSmall)),
-                          Icon(_verArquivadas ? Icons.expand_less_rounded : Icons.expand_more_rounded),
-                        ],
+                  Semantics(
+                    button: true,
+                    expanded: _verArquivadas,
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(Tema.raioPequeno),
+                      onTap: () => setState(() => _verArquivadas = !_verArquivadas),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+                        child: Row(
+                          children: [
+                            Icon(Icons.inventory_2_outlined, size: 20, color: t.colorScheme.onSurfaceVariant),
+                            const SizedBox(width: 10),
+                            Expanded(child: Text('Arquivadas (${arquivadas.length})', style: t.textTheme.titleSmall)),
+                            Icon(_verArquivadas ? Icons.expand_less_rounded : Icons.expand_more_rounded),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  if (_verArquivadas) _ListaConversas(arquivadas, arquivadas: true),
+                  if (_verArquivadas) ...[
+                    _ListaConversas(arquivadas, arquivadas: true),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(4, 8, 4, 0),
+                      child: Text(
+                        'Arquivadas em todos os seus aparelhos. Uma mensagem nova devolve-as à lista.',
+                        style: t.textTheme.bodySmall,
+                      ),
+                    ),
+                  ],
                 ],
               ],
             ),
@@ -110,6 +132,43 @@ class _SuportePageState extends ConsumerState<SuportePage> {
         },
       ),
     );
+  }
+}
+
+/// Arquiva ou desarquiva no servidor, com a mudança já feita no ecrã. Se o
+/// servidor recusar, a conversa volta ao sítio e avisa-se.
+///
+/// Recebe o [ScaffoldMessengerState] e o notifier já lidos: o ecrã da conversa
+/// fecha-se logo a seguir a arquivar, e o aviso tem de chegar à lista.
+Future<void> mudarArquivo(
+  ScaffoldMessengerState avisos,
+  ArquivoConversas arquivo,
+  Conversa c, {
+  required bool arquivar,
+}) async {
+  avisos
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(
+        content: Text(arquivar ? 'Conversa arquivada.' : 'Conversa devolvida à lista.'),
+        action: arquivar
+            ? SnackBarAction(label: 'Desfazer', onPressed: () => mudarArquivo(avisos, arquivo, c, arquivar: false))
+            : null,
+      ),
+    );
+  try {
+    await (arquivar ? arquivo.arquivar(c) : arquivo.desarquivar(c));
+  } on ApiException catch (e) {
+    avisos
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            '${arquivar ? 'Não foi possível arquivar a conversa.' : 'Não foi possível desarquivar a conversa.'} '
+            '${e.message}',
+          ),
+        ),
+      );
   }
 }
 
@@ -122,7 +181,6 @@ class _ListaConversas extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
-    final arquivo = ref.read(arquivoConversasProvider.notifier);
 
     return Bloco(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -146,22 +204,13 @@ class _ListaConversas extends ConsumerWidget {
                   ],
                 ),
               ),
-              onDismissed: (_) {
-                final mensagens = ScaffoldMessenger.of(context);
-                if (arquivadas) {
-                  arquivo.desarquivar(c.id);
-                } else {
-                  arquivo.arquivar(c);
-                  mensagens
-                    ..hideCurrentSnackBar()
-                    ..showSnackBar(
-                      SnackBar(
-                        content: const Text('Conversa arquivada.'),
-                        action: SnackBarAction(label: 'Desfazer', onPressed: () => arquivo.desarquivar(c.id)),
-                      ),
-                    );
-                }
-              },
+              // A mudança optimista tira-a desta lista no mesmo instante, como o Dismissible exige.
+              onDismissed: (_) => mudarArquivo(
+                ScaffoldMessenger.of(context),
+                ref.read(arquivoConversasProvider.notifier),
+                c,
+                arquivar: !arquivadas,
+              ),
               child: _LinhaConversa(c),
             ),
           ],

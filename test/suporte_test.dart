@@ -34,7 +34,7 @@ class _Servidor implements HttpClientAdapter {
   Future<ResponseBody> fetch(RequestOptions o, Stream<List<int>>? _, Future<void>? _) async {
     pedidos.add(o);
     final (status, corpo) =
-        respostas['${o.method} ${o.path}'] ?? (404, {'status': 'error', 'erro': 'nao_encontrado', 'message': 'x'});
+        respostas['${o.method} ${o.uri}'] ?? (404, {'status': 'error', 'erro': 'nao_encontrado', 'message': 'x'});
     return ResponseBody.fromString(
       jsonEncode(corpo),
       status,
@@ -72,6 +72,21 @@ void main() {
     expect(so.anexoTipo, TipoAnexo.pdf);
 
     expect(Mensagem.fromJson({'id': 3, 'anexo_url': 'https://x', 'anexo_tipo': 'video'}).anexoTipo, TipoAnexo.outro);
+  });
+
+  test('anexo antigo que ficou no servidor anterior: anexo_url null com tipo', () {
+    final m = Mensagem.fromJson({'id': 4, 'texto': '', 'anexo_url': null, 'anexo_tipo': 'imagem'});
+    expect(m.temAnexo, isTrue);
+    expect(m.anexoIndisponivel, isTrue);
+
+    final sem = Mensagem.fromJson({'id': 5, 'texto': 'olá', 'anexo_url': null, 'anexo_tipo': null});
+    expect(sem.temAnexo, isFalse);
+    expect(sem.anexoIndisponivel, isFalse);
+  });
+
+  test('conversa: arquivada vem do servidor, e falta quer dizer não', () {
+    expect(Conversa.fromJson({'id': 1, 'arquivada': true}).arquivada, isTrue);
+    expect(Conversa.fromJson({'id': 1}).arquivada, isFalse);
   });
 
   group('ecrã da conversa', () {
@@ -130,7 +145,31 @@ void main() {
             ],
           }),
         )
-        ..respostas['GET /suporte/98'] = (200, _ok({'id_conversa': 98, 'mensagens': []}));
+        ..respostas['GET /suporte?arquivadas=1'] = (
+          200,
+          _ok({
+            'conversas': [
+              {'id': 99, 'fechada': false, 'arquivada': true, 'ultima_mensagem': 'antiga', 'nao_lidas': 0},
+            ],
+          }),
+        )
+        ..respostas['GET /suporte/98'] = (200, _ok({'id_conversa': 98, 'mensagens': []}))
+        ..respostas['GET /suporte/99'] = (
+          200,
+          _ok({
+            'id_conversa': 99,
+            'mensagens': [
+              {
+                'id': 7,
+                'texto': 'Segue a fotografia',
+                'do_clube': false,
+                'anexo_url': null,
+                'anexo_tipo': 'imagem',
+                'enviada_em': '2024-03-01 10:00:00',
+              },
+            ],
+          }),
+        );
     });
 
     testWidgets('mostra as mensagens e responde com o texto tal como foi escrito', (t) async {
@@ -152,6 +191,34 @@ void main() {
       await montar(t, '/socio/suporte/98');
       expect(find.text('Abrir nova conversa'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
+    });
+
+    testWidgets('anexo que não foi trazido do servidor antigo: "Anexo indisponível", sem rebentar', (t) async {
+      await montar(t, '/socio/suporte/99');
+
+      expect(find.text('Anexo indisponível'), findsOneWidget);
+      expect(find.text('Segue a fotografia'), findsOneWidget);
+    });
+
+    testWidgets('conversa arquivada: o botão desarquiva no servidor', (t) async {
+      servidor.respostas['POST /suporte/99/desarquivar'] = (200, _ok({'id_conversa': 99, 'arquivada': false}));
+      await montar(t, '/socio/suporte/99');
+
+      await t.tap(find.byTooltip('Desarquivar'));
+      await t.pumpAndSettle();
+
+      expect(servidor.pedidos.where((p) => p.method == 'POST').map((p) => p.path), ['/suporte/99/desarquivar']);
+      expect(find.text('Conversa devolvida à lista.'), findsOneWidget);
+    });
+
+    testWidgets('conversa por arquivar: o botão arquiva no servidor', (t) async {
+      servidor.respostas['POST /suporte/97/arquivar'] = (200, _ok({'id_conversa': 97, 'arquivada': true}));
+      await montar(t, '/socio/suporte/97');
+
+      await t.tap(find.byTooltip('Arquivar'));
+      await t.pumpAndSettle();
+
+      expect(servidor.pedidos.where((p) => p.method == 'POST').map((p) => p.path), ['/suporte/97/arquivar']);
     });
 
     testWidgets('nova conversa: cria e passa para o ecrã dela', (t) async {
