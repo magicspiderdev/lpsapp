@@ -207,11 +207,17 @@ enum QuemPode {
 
   /// Esgotada ou a venda fechada.
   indisponivel,
+
+  /// A conta não pode comprar (`permissoes.comprar: false`, §2.10) — nem
+  /// bilhetes gratuitos. Quem compra é o encarregado de educação.
+  soEncarregado,
 }
 
 QuemPode quemPodeComprar(auth.Sessao quem, Zona zona, {required bool sessaoAVenda}) {
   if (!sessaoAVenda || !zona.disponivel) return QuemPode.indisponivel;
   if (!zona.naApp) return QuemPode.foraDaApp;
+  // Antes da ficha de sócio: associá-la não mudava nada.
+  if (!auth.sessaoPode(quem, 'comprar')) return QuemPode.soEncarregado;
   return switch (quem) {
     auth.SessaoAnonima() => QuemPode.precisaDeConta,
     auth.SessaoConta() when zona.exigeSocio => QuemPode.precisaDeSocio,

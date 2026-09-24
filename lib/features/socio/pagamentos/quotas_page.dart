@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/api/api_exception.dart';
+import '../../../core/auth/sessao.dart';
 import '../../../core/cache/com_cache.dart';
 import '../../../core/formatos.dart';
 import '../../../core/tema/tema.dart';
@@ -33,10 +34,13 @@ class _QuotasPageState extends ConsumerState<QuotasPage> {
   Widget build(BuildContext context) {
     final estado = ref.watch(quotasProvider);
     final podePagarConta = ref.watch(dependenteActivoProvider)?.podePagar ?? true;
+    // Dos 16 aos 17 não se paga (§2.10) — conta a idade de quem tem a sessão,
+    // não a do dependente.
+    final podePagarIdade = sessaoPode(ref.watch(sessaoProvider), 'pagar');
 
     // Abrir a folha uma vez, com dados actuais (não com a cache, que pode estar velha).
     final d = estado.valueOrNull;
-    if (widget.abrirPagamento && !_jaAbriu && d != null && d.actuais && d.valor.podePagar && podePagarConta) {
+    if (widget.abrirPagamento && !_jaAbriu && d != null && d.actuais && d.valor.podePagar && podePagarConta && podePagarIdade) {
       _jaAbriu = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) mostrarPagarQuotas(context, d.valor);
@@ -65,6 +69,8 @@ class _QuotasPageState extends ConsumerState<QuotasPage> {
         ),
       ),
       bottomNavigationBar: switch (d) {
+        final d? when d.valor.podePagar && podePagarConta && !podePagarIdade =>
+          SafeArea(child: NotaPermissao(explicacaoPermissao('pagar'))),
         final d? when d.valor.podePagar && podePagarConta => SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),

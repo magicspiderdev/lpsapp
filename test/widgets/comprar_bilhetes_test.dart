@@ -98,6 +98,21 @@ void main() {
     expect(find.text('Levantar bilhetes'), findsNothing);
   });
 
+  testWidgets('um menor (§2.10) não compra nem levanta: diz quem o faz, em vez do botão', (t) async {
+    final menor = auth.sessaoDaConta({
+      'nome': 'Rita',
+      'menor': true,
+      'permissoes': {'pagar': false, 'comprar': false, 'contratar': false},
+      'socio': {'nr_socio': 1924, 'nome_completo': 'RITA', 'estado': 1},
+    });
+    await _pump(t, largura: 320, escala: 2, quem: menor, sessao: sessao);
+    await _escolher(t, 'Sócios');
+
+    expect(find.text('Levantar bilhetes'), findsNothing);
+    expect(find.text('Os bilhetes são comprados pelo encarregado de educação.'), findsOneWidget);
+    expect(t.takeException(), isNull);
+  });
+
   testWidgets('conta sem ficha compra na zona aberta a toda a gente', (t) async {
     await _pump(t, quem: comConta, sessao: sessao);
     await _escolher(t, 'Não sócios');

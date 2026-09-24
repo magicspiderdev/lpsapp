@@ -525,6 +525,10 @@ class _Bilhete extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
           child: Column(
             children: [
+              if (b.convite) ...[
+                const _SeloOferta(),
+                const SizedBox(height: 12),
+              ],
               Text(b.titulo, textAlign: TextAlign.center, style: t.textTheme.titleLarge),
               if (b.subtitulo != null) ...[
                 const SizedBox(height: 4),
@@ -576,7 +580,10 @@ class _Bilhete extends StatelessWidget {
               if (b.local != null) _Detalhe('Onde', b.local!),
               _Detalhe('Bilhete', [b.zona, if (b.lugar != null) b.lugar!].join(' · ')),
               if (b.titular != null) _Detalhe('Titular', b.titular!),
-              _Detalhe('Preço', b.preco == 0 ? 'Grátis' : euros(b.preco)),
+              if (b.convite)
+                _Detalhe('Oferta', b.conviteMensagem ?? 'Convite do clube')
+              else
+                _Detalhe('Preço', b.preco == 0 ? 'Grátis' : euros(b.preco)),
             ],
           ),
         ),
@@ -587,6 +594,31 @@ class _Bilhete extends StatelessWidget {
           style: t.textTheme.bodySmall,
         ),
       ],
+    );
+  }
+}
+
+/// "Oferta do clube", por cima de um convite.
+class _SeloOferta extends StatelessWidget {
+  const _SeloOferta();
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(color: c.secondaryContainer, borderRadius: BorderRadius.circular(100)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.card_giftcard_rounded, size: 16, color: c.onSecondaryContainer),
+          const SizedBox(width: 6),
+          Text(
+            'Oferta do clube',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(color: c.onSecondaryContainer),
+          ),
+        ],
+      ),
     );
   }
 }

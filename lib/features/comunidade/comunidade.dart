@@ -242,13 +242,17 @@ class Passatempo {
   final String tipo;
   final List<String> opcoes;
   final bool soSocios;
+
+  /// Só para maiores de 18 (§2.10); uma conta menor recebe `motivo: so_maiores`.
+  final bool soMaiores;
   final int vencedores, participantes;
 
   /// `brevemente`, `a_decorrer`, `terminado`, `resultados`. Lista aberta.
   final String fase;
   final bool podeParticipar;
 
-  /// `por_abrir`, `terminado`, `ja_participou`, `so_socios`, `bloqueado`.
+  /// `por_abrir`, `terminado`, `ja_participou`, `so_socios`, `so_maiores`,
+  /// `bloqueado`. Lista aberta.
   final String? motivo;
 
   /// Índice em [opcoes]; só depois de acabar, e só se houver.
@@ -268,6 +272,7 @@ class Passatempo {
     this.pergunta,
     this.opcoes = const [],
     this.soSocios = false,
+    this.soMaiores = false,
     this.vencedores = 1,
     this.participantes = 0,
     this.podeParticipar = false,
@@ -289,6 +294,7 @@ class Passatempo {
     pergunta: _texto(j['pergunta']),
     opcoes: [for (final o in (j['opcoes'] as List?) ?? const []) o.toString()],
     soSocios: j['so_socios'] == true,
+    soMaiores: j['so_maiores'] == true,
     vencedores: (j['vencedores'] as num?)?.toInt() ?? 1,
     participantes: (j['participantes'] as num?)?.toInt() ?? 0,
     podeParticipar: j['pode_participar'] == true,

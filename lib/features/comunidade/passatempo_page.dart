@@ -87,7 +87,9 @@ class _PassatempoPageState extends ConsumerState<PassatempoPage> {
         case 'comunidade_bloqueada':
           ref.read(perfilComunidadeProvider.notifier).bloqueada();
           ref.read(passatempoProvider(widget.uid).notifier).recarregar();
-        case 'passatempo_fechado' || 'ja_participou' || 'nao_encontrado':
+        // `menor_de_idade`: passatempo `so_maiores` (§2.10). Recarregado, vem
+        // com `motivo: so_maiores` e o botão desaparece.
+        case 'passatempo_fechado' || 'ja_participou' || 'nao_encontrado' || 'menor_de_idade':
           ref.read(passatempoProvider(widget.uid).notifier).recarregar();
         default:
           break;
@@ -192,6 +194,7 @@ class _Factos extends StatelessWidget {
             p.participantes == 1 ? '1 participante' : '${p.participantes} participantes',
           ),
           if (p.soSocios) linha(Icons.verified_outlined, 'Só para sócios'),
+          if (p.soMaiores) linha(Icons.eighteen_up_rating_outlined, 'Só para maiores de 18 anos'),
         ],
       ),
     );
@@ -262,6 +265,7 @@ class _Participacao extends StatelessWidget {
         'por_abrir' => 'Ainda não abriu. Volte quando começar.',
         'terminado' => 'Já terminou.',
         'so_socios' => 'Este passatempo é só para sócios.',
+        'so_maiores' => 'Este passatempo é só para maiores de 18 anos.',
         'bloqueado' => 'O clube suspendeu a sua participação na comunidade.',
         _ => 'Não é possível participar neste passatempo.',
       };

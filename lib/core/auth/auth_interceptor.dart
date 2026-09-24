@@ -56,8 +56,15 @@ class AuthInterceptor extends Interceptor {
     // sócio a bater na zona privada. Os tokens continuam bons para tudo o
     // resto — quem chamou é que decide esconder a zona e oferecer "associar a
     // minha ficha".
+    //
+    // `401 socio_menor` é fim de sessão: um token ainda vivo de um sócio com
+    // menos de 16, que já não tem conta própria (§2.10).
     final sessaoInvalida =
-        (status == 401 && (erro == 'token_invalido' || erro == 'token_ausente' || erro == 'conta_eliminada')) ||
+        (status == 401 &&
+            (erro == 'token_invalido' ||
+                erro == 'token_ausente' ||
+                erro == 'conta_eliminada' ||
+                erro == 'socio_menor')) ||
         (status == 403 && erro == 'socio_inexistente');
     if (comToken && sessaoInvalida) {
       await _store.terminar();

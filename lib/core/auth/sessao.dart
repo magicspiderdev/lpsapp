@@ -42,13 +42,32 @@ class ContaSessao {
   /// A ficha de sócio, quando a conta tem uma. É o que abre a zona privada.
   final SocioSessao? socio;
 
+  /// `conta.permissoes` (§2.10): o que o servidor deixa esta conta fazer. É
+  /// lista aberta — o que não vem, ou não se conhece, conta como permitido e
+  /// fica para o servidor recusar. **A app nunca calcula idades.**
+  final Map<String, bool> permissoes;
+
+  /// Só para explicar porquê: com uma permissão a `false`, quem faz isso é o
+  /// encarregado de educação.
+  final bool menor;
+
   const ContaSessao({
     required this.nome,
     this.email,
     this.emailVerificado = false,
     this.comunicacoes = false,
     this.socio,
+    this.permissoes = const {},
+    this.menor = false,
   });
+
+  bool pode(String permissao) => permissoes[permissao] != false;
+
+  bool get podePagar => pode('pagar');
+  bool get podeComprar => pode('comprar');
+  bool get podeContratar => pode('contratar');
+  bool get podeComunidade => pode('comunidade');
+  bool get podePassatempos => pode('passatempos');
 
   factory ContaSessao.fromJson(Map<String, dynamic> j) => ContaSessao(
     email: j['email'] as String?,
@@ -56,6 +75,12 @@ class ContaSessao {
     emailVerificado: j['email_verificado'] == true,
     comunicacoes: j['comunicacoes'] == true,
     socio: j['socio'] is Map ? SocioSessao.fromJson((j['socio'] as Map).cast<String, dynamic>()) : null,
+    permissoes: {
+      if (j['permissoes'] case final Map p)
+        for (final MapEntry(:key, :value) in p.entries)
+          if (key is String && value is bool) key: value,
+    },
+    menor: j['menor'] == true,
   );
 }
 
@@ -102,6 +127,20 @@ ContaSessao? contaDe(Sessao s) => switch (s) {
   SessaoAnonima() => null,
 };
 
+/// Se quem tem sessão pode fazer [permissao] (§2.10). Sem sessão, sim: o que
+/// falta aí é entrar, e isso decide-se noutro lado.
+bool sessaoPode(Sessao s, String permissao) => contaDe(s)?.pode(permissao) ?? true;
+
+/// A frase que fica no lugar de um botão escondido por uma permissão a
+/// `false`. O servidor não a manda antes de se tentar; a do `403
+/// menor_de_idade` vem na resposta.
+String explicacaoPermissao(String permissao) => switch (permissao) {
+  'pagar' => 'Os pagamentos são feitos pelo encarregado de educação.',
+  'comprar' => 'Os bilhetes são comprados pelo encarregado de educação.',
+  'contratar' => 'As inscrições são feitas pelo encarregado de educação.',
+  _ => 'Isto é feito pelo encarregado de educação.',
+};
+
 /// Estado a partir do bloco `conta` da sessão.
 Sessao sessaoDaConta(Map<String, dynamic> json) {
   final conta = ContaSessao.fromJson(json);
@@ -113,13 +152,23 @@ final sessaoProvider = NotifierProvider<SessaoController, Sessao>(SessaoControll
 
 class SessaoController extends Notifier<Sessao> {
   StreamSubscription<void>? _sub;
+  StreamSubscription<Map<String, dynamic>>? _subConta;
 
   @override
   Sessao build() {
     final store = ref.watch(tokenStoreProvider);
     _sub?.cancel();
     _sub = store.sessaoTerminada.listen((_) => state = const SessaoAnonima());
-    ref.onDispose(() => _sub?.cancel());
+    // A idade muda sem ninguém entrar: cada refresh traz a `conta` com as
+    // permissões do dia (§2.10).
+    _subConta?.cancel();
+    _subConta = store.contaRenovada.listen((conta) {
+      if (state is! SessaoAnonima) state = sessaoDaConta(conta);
+    });
+    ref.onDispose(() {
+      _sub?.cancel();
+      _subConta?.cancel();
+    });
 
     final conta = store.conta;
     return store.temSessao && conta != null ? sessaoDaConta(conta) : const SessaoAnonima();

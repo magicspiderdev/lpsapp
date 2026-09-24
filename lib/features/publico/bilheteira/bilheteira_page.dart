@@ -270,7 +270,7 @@ class _SessaoPageState extends ConsumerState<SessaoPage> {
         context.push(Uri(path: '/associar-socio', queryParameters: {'voltar': _aqui}).toString());
       case QuemPode.foraDaApp:
         if (z.urlCompra case final url?) launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-      case QuemPode.indisponivel:
+      case QuemPode.indisponivel || QuemPode.soEncarregado:
         break;
       case QuemPode.podeComprar:
         mostrarComprar(context, sessao: s, zona: z, quantidade: _quantidade);
@@ -549,6 +549,9 @@ class _BarraDeCompra extends StatelessWidget {
     if (z == null) return const FilledButton(onPressed: null, child: Text('Escolha o bilhete'));
 
     final estado = quemPodeComprar(quem, z, sessaoAVenda: sessao.aVenda);
+    if (estado == QuemPode.soEncarregado) {
+      return NotaPermissao(auth.explicacaoPermissao('comprar'), padding: EdgeInsets.zero);
+    }
     final total = z.preco * quantidade;
     final (texto, activo) = switch (estado) {
       QuemPode.podeComprar when z.gratuita => ('Levantar bilhetes', true),
@@ -557,6 +560,7 @@ class _BarraDeCompra extends StatelessWidget {
       QuemPode.precisaDeSocio => ('Associar a minha ficha de sócio', true),
       QuemPode.foraDaApp => ('Comprar no site da bilheteira', z.urlCompra != null),
       QuemPode.indisponivel => (z.disponivel ? 'Sem bilhetes' : 'Esgotado', false),
+      QuemPode.soEncarregado => ('', false),
     };
 
     return Column(

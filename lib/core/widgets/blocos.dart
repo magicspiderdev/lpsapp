@@ -159,3 +159,29 @@ class Avatar extends StatelessWidget {
     style: TextStyle(fontWeight: FontWeight.w700, fontSize: tamanho * 0.36, color: c.onPrimaryContainer),
   );
 }
+
+/// O que fica no lugar de um botão que a conta não pode usar (§2.10): uma
+/// linha a dizer quem o faz, em vez de um botão cinzento sem explicação.
+class NotaPermissao extends StatelessWidget {
+  const NotaPermissao(this.texto, {super.key, this.padding = const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12)});
+
+  final String texto;
+  final EdgeInsetsGeometry padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Icon(Icons.family_restroom_rounded, size: 20, color: t.colorScheme.onSurfaceVariant),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(texto, style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant)),
+          ),
+        ],
+      ),
+    );
+  }
+}

@@ -36,6 +36,7 @@ class TokenStore {
   Map<String, dynamic>? _conta;
 
   final _terminada = StreamController<void>.broadcast();
+  final _contaRenovada = StreamController<Map<String, dynamic>>.broadcast();
 
   String? get accessToken => _access;
   bool get temSessao => _refresh != null;
@@ -50,6 +51,10 @@ class TokenStore {
   /// Emite quando a sessão acaba sem ser pelo utilizador (refresh recusado,
   /// token inválido, conta eliminada).
   Stream<void> get sessaoTerminada => _terminada.stream;
+
+  /// Emite a `conta` que um refresh trouxe — é aí que chegam as permissões
+  /// novas quando a pessoa faz anos (§2.10).
+  Stream<Map<String, dynamic>> get contaRenovada => _contaRenovada.stream;
 
   Future<void> carregar() async {
     try {
@@ -73,8 +78,8 @@ class TokenStore {
   /// Guarda uma sessão vinda do login, da confirmação do registo, de repor ou
   /// alterar a password, ou de associar/desassociar o sócio.
   ///
-  /// O bloco `conta` só vem quando muda; um refresh não o traz, e aí mantém-se
-  /// o que estava.
+  /// Um refresh também traz a `conta` (desde §2.10); se não vier, mantém-se o
+  /// que estava.
   Future<void> guardarSessao(Map<String, dynamic> data) async {
     _access = data['access_token'] as String;
     await _storage.write(key: _kAccess, value: _access);
@@ -100,7 +105,12 @@ class TokenStore {
     final refresh = _refresh;
     if (refresh == null) throw StateError('Sem refresh token');
     final data = await dadosDe(_dioSemAuth.post('/auth/refresh', data: {'refresh_token': refresh}));
+    final antes = jsonEncode(_conta);
     await guardarSessao(data);
+    // Só avisa quando mudou: a sessão nova refaz tudo o que a observa.
+    if (_conta case final conta? when data['conta'] is Map && jsonEncode(conta) != antes) {
+      _contaRenovada.add(conta);
+    }
   }
 
   /// Fim de sessão imposto pelo servidor: limpa e avisa quem estiver a ouvir.

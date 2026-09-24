@@ -168,7 +168,7 @@ class _Topo extends ConsumerWidget {
     final aVerDependente = ref.watch(contaActivaProvider) != null;
     final dependente = ref.watch(dependenteActivoProvider);
     // Dependente "só consulta": sem botão de pagar (guia §2.3.4).
-    final podePagar = dependente?.podePagar ?? true;
+    final podePagar = (dependente?.podePagar ?? true) && sessaoPode(ref.watch(sessaoProvider), 'pagar');
 
     return Container(
       decoration: const BoxDecoration(

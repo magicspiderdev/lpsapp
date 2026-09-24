@@ -258,7 +258,16 @@ class BilheteComprado {
     this.sessao,
     this.encomenda,
     this.sessaoEstado,
+    this.convite = false,
+    this.conviteMensagem,
   });
+
+  /// Um convite (§4.18): posto na carteira pelo clube, sem compra — um prémio
+  /// de passatempo, um convidado. O código e a porta são iguais.
+  final bool convite;
+
+  /// Porque o recebeu ("Prémio: passatempo do dérbi"). Pode faltar.
+  final String? conviteMensagem;
 
   /// A sessão e a encomenda de onde veio, para voltar lá.
   final String? sessao, encomenda;
@@ -282,6 +291,11 @@ class BilheteComprado {
     sessao: j['sessao']?.toString(),
     encomenda: j['encomenda']?.toString(),
     sessaoEstado: (j['sessao_estado'] as String?)?.toLowerCase(),
+    convite: j['convite'] is Map,
+    conviteMensagem: switch (j['convite']) {
+      {'mensagem': final String m} when m.trim().isNotEmpty => m.trim(),
+      _ => null,
+    },
   );
 
   bool get valido => estado == 'valido';

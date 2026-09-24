@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/auth/sessao.dart';
 import '../../../core/formatos.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
@@ -98,6 +99,7 @@ class FaturaPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final estado = ref.watch(faturaProvider(id));
     final podePagarConta = ref.watch(dependenteActivoProvider)?.podePagar ?? true;
+    final podePagarIdade = sessaoPode(ref.watch(sessaoProvider), 'pagar');
     final d = estado.valueOrNull;
 
     return Scaffold(
@@ -112,6 +114,8 @@ class FaturaPage extends ConsumerWidget {
         ),
       ),
       bottomNavigationBar: switch (d) {
+        final d? when !d.valor.fatura.paga && podePagarConta && !podePagarIdade =>
+          SafeArea(child: NotaPermissao(explicacaoPermissao('pagar'))),
         final d? when !d.valor.fatura.paga && podePagarConta => SafeArea(
           child: Padding(
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 12),
