@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/estado_dados.dart';
+import '../../../core/widgets/links_legais.dart';
 import 'clube.dart';
 import 'clube_paginas.dart';
 import 'clube_widgets.dart';
@@ -59,6 +60,9 @@ class ClubePage extends ConsumerWidget {
                         const EntradasMenu(titulo: TituloSeccao('Mais sobre o clube')),
                         if (c.redes.isNotEmpty) ...[const TituloSeccao('Siga o clube'), _Redes(c.redes)],
                         const SizedBox(height: AppSpacing.xl),
+                        // Para quem usa a app sem conta: a política tem de se
+                        // encontrar dentro da app, não só no registo.
+                        const LinksLegais(alinhamento: WrapAlignment.center),
                         const _Versao(),
                       ],
                     ),
