@@ -5,7 +5,10 @@ import 'package:lpsapp/core/cache/com_cache.dart';
 import 'package:lpsapp/core/theme/app_theme.dart';
 import 'package:lpsapp/features/publico/clube/clube.dart';
 import 'package:lpsapp/features/publico/clube/clube_page.dart';
+import 'package:lpsapp/features/publico/clube/clube_paginas.dart';
 import 'package:lpsapp/features/publico/clube/clube_subpaginas.dart';
+import 'package:lpsapp/features/publico/clube/clube_widgets.dart';
+import 'package:lpsapp/features/publico/clube/menu_clube.dart';
 
 /// O ecrã do clube e as sub-páginas cabem em ecrãs pequenos, com a letra do
 /// sistema aumentada, em claro e escuro — com tudo preenchido e com o pouco
@@ -27,6 +30,9 @@ void main() {
     'modalidades': const ModalidadesPage(),
     'modalidade': const ModalidadePage(slug: 'futsal'),
     'contactos': const ContactosClubePage(),
+    // Com uma foto (citação) a 1/3 e o texto a 2/3: a 320 px empilham-se.
+    'página': const PaginaClubePage(slug: 'quem-somos'),
+    'submenu': const GrupoMenuPage(indice: 1),
   };
 
   for (final (nomeClube, clube) in [('completo', clubeExemplo), ('quase vazio', quaseVazio)]) {
@@ -45,6 +51,12 @@ void main() {
                 overrides: [
                   clubeProvider.overrideWith((ref) => Stream.value(Dados(clube, DateTime.now()))),
                   // Com uma tabela de quatro colunas: a 320 px desliza, não transborda.
+                  menuAppProvider.overrideWith(
+                    (ref) => Stream.value(Dados(ItemMenu.listaDe(menuExemplo), DateTime.now())),
+                  ),
+                  paginaClubeProvider.overrideWith(
+                    (ref, slug) => Stream.value(Dados(PaginaClube.fromJson(paginaExemplo), DateTime.now())),
+                  ),
                   paginaModalidadeProvider.overrideWith(
                     (ref, slug) => Stream.value(
                       Dados(PaginaModalidade(Modalidade(nome: slug), corpoModalidadeExemplo), DateTime.now()),
@@ -86,6 +98,8 @@ void main() {
               ),
             ),
           ),
+          // O clube ainda não montou o menu da app.
+          menuAppProvider.overrideWith((ref) => Stream.value(Dados(const <ItemMenu>[], DateTime.now()))),
         ],
         child: MaterialApp(theme: AppTheme.light(), home: const ClubePage()),
       ),
@@ -93,6 +107,27 @@ void main() {
     await t.pumpAndSettle();
     expect(find.text('Futsal'), findsOneWidget);
     expect(find.text('Conhecer o clube'), findsNothing);
+    expect(find.text('Mais sobre o clube'), findsNothing, reason: 'Sem menu, a secção não aparece.');
     expect(find.text('Leões de Porto Salvo'), findsOneWidget);
+  });
+
+  testWidgets('as entradas do menu aparecem, com o resumo de cada uma', (t) async {
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          clubeProvider.overrideWith((ref) => Stream.value(Dados(clubeExemplo, DateTime.now()))),
+          menuAppProvider.overrideWith((ref) => Stream.value(Dados(ItemMenu.listaDe(menuExemplo), DateTime.now()))),
+        ],
+        child: MaterialApp(theme: AppTheme.light(), home: const ClubePage()),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    // A lista do ecrã, e não o carrossel das modalidades, que também desliza.
+    await t.scrollUntilVisible(find.text('Mais sobre o clube'), 300, scrollable: find.byType(Scrollable).first);
+    // "Formação" também é escalão de modalidades: procura-se nos cartões.
+    expect(find.widgetWithText(CartaoEntrada, 'Quem somos'), findsOneWidget);
+    expect(find.widgetWithText(CartaoEntrada, 'Formação'), findsOneWidget);
+    expect(find.text('Escola de futebol · Futsal'), findsOneWidget, reason: 'Um agrupador resume o que tem dentro.');
   });
 }

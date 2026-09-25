@@ -21,6 +21,7 @@ import '../features/publico/bilheteira/compra.dart' show Compra;
 import '../features/publico/bilheteira/encomenda_page.dart';
 import '../features/publico/bilheteira/meus_bilhetes_page.dart';
 import '../features/publico/clube/clube_page.dart';
+import '../features/publico/clube/clube_paginas.dart';
 import '../features/publico/competicao/competicao_page.dart';
 import '../features/publico/competicao/jogo_page.dart';
 import '../features/publico/clube/clube_subpaginas.dart';
@@ -111,6 +112,16 @@ final rotasDaApp = <RouteBase>[
                 routes: [
                   GoRoute(path: 'historia', builder: (_, _) => const HistoriaClubePage()),
                   GoRoute(path: 'contactos', builder: (_, _) => const ContactosClubePage()),
+                  // As páginas e os submenus que o clube monta no backoffice
+                  // (menu `app`, guia público §9).
+                  GoRoute(
+                    path: 'paginas/:slug',
+                    builder: (_, s) => PaginaClubePage(slug: s.pathParameters['slug']!),
+                  ),
+                  GoRoute(
+                    path: 'menu/:indice',
+                    builder: (_, s) => GrupoMenuPage(indice: int.tryParse(s.pathParameters['indice']!) ?? -1),
+                  ),
                   GoRoute(
                     path: 'modalidades',
                     builder: (_, _) => const ModalidadesPage(),

@@ -19,44 +19,116 @@ class CorpoBlocos extends StatelessWidget {
 
   final List<Map<String, dynamic>> blocos;
 
+  /// Abaixo disto os blocos com `ocupa` empilham-se: num telemóvel ao alto,
+  /// um terço da largura é uma coluna onde não cabe uma frase.
+  static const larguraParaColunas = 520.0;
+
   @override
   Widget build(BuildContext context) {
     // Blocos seguidos com o mesmo `estilo` são uma secção só, no mesmo fundo.
-    final seccoes = <(String?, List<Widget>)>[];
+    final seccoes = <(String?, List<(Widget, double?)>)>[];
     for (final b in blocos) {
       final w = _bloco(context, b);
       if (w == null) continue;
       final estilo = _estilos.contains(b['estilo']) ? b['estilo'] as String : null;
+      final entrada = (w, fracao(b['ocupa']));
       if (seccoes.isNotEmpty && seccoes.last.$1 == estilo && estilo != null) {
-        seccoes.last.$2.add(w);
+        seccoes.last.$2.add(entrada);
       } else {
-        seccoes.add((estilo, [w]));
+        seccoes.add((estilo, [entrada]));
       }
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (estilo, filhos) in seccoes)
-          if (estilo == null)
-            for (final f in filhos) Padding(padding: const EdgeInsets.only(top: 16), child: f)
-          else
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                decoration: BoxDecoration(
-                  color: _fundo(context, estilo),
-                  borderRadius: BorderRadius.circular(Tema.raioPequeno),
+    return LayoutBuilder(
+      builder: (context, limites) {
+        final colunas = limites.maxWidth >= larguraParaColunas;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final (estilo, filhos) in seccoes)
+              if (estilo == null)
+                for (final f in _linhas(filhos, colunas)) Padding(padding: const EdgeInsets.only(top: 16), child: f)
+              else
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    decoration: BoxDecoration(
+                      color: _fundo(context, estilo),
+                      borderRadius: BorderRadius.circular(Tema.raioPequeno),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (final f in _linhas(filhos, colunas))
+                          Padding(padding: const EdgeInsets.only(top: 16), child: f),
+                      ],
+                    ),
+                  ),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [for (final f in filhos) Padding(padding: const EdgeInsets.only(top: 16), child: f)],
-                ),
-              ),
-            ),
-      ],
+          ],
+        );
+      },
     );
+  }
+
+  /// A fracção da linha de um bloco (`ocupa`, guia público §6); `null` é a
+  /// linha inteira — também para um valor que a app não conheça.
+  static double? fracao(Object? ocupa) => switch (ocupa) {
+    '1/2' => 1 / 2,
+    '1/3' => 1 / 3,
+    '2/3' => 2 / 3,
+    '1/4' => 1 / 4,
+    '3/4' => 3 / 4,
+    _ => null,
+  };
+
+  /// Os blocos de uma secção em linhas: os seguidos com `ocupa` ficam lado a
+  /// lado enquanto a soma couber; o que não couber, ou um bloco sem `ocupa`,
+  /// começa linha nova. Sem [colunas] (ecrã estreito) empilham-se pela ordem.
+  static List<Widget> _linhas(List<(Widget, double?)> blocos, bool colunas) {
+    if (!colunas) return [for (final (w, _) in blocos) w];
+
+    final linhas = <List<(Widget, double)>>[];
+    final saida = <Widget>[];
+    var soma = 0.0;
+
+    void fechar() {
+      if (linhas.isEmpty) return;
+      final linha = linhas.removeLast();
+      final resto = 1 - linha.fold<double>(0, (s, e) => s + e.$2);
+      saida.add(
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (final (i, (w, f)) in linha.indexed) ...[
+              if (i > 0) const SizedBox(width: 16),
+              Expanded(flex: (f * 12).round(), child: w),
+            ],
+            // Uma linha que não enche fica encostada à esquerda.
+            if (resto > 0.01) Spacer(flex: (resto * 12).round()),
+          ],
+        ),
+      );
+    }
+
+    for (final (w, f) in blocos) {
+      if (f == null) {
+        fechar();
+        soma = 0;
+        saida.add(w);
+      } else if (linhas.isNotEmpty && soma + f <= 1.001) {
+        linhas.last.add((w, f));
+        soma += f;
+      } else {
+        fechar();
+        linhas.add([(w, f)]);
+        soma = f;
+      }
+    }
+    fechar();
+
+    return saida;
   }
 
   /// Os `estilo` que a app sabe desenhar. Lista aberta: o resto fica sem fundo.
@@ -166,10 +238,7 @@ class _Imagem extends StatelessWidget {
           borderRadius: BorderRadius.circular(Tema.raioPequeno),
           child: ImagemRede(url, fit: BoxFit.fitWidth),
         ),
-        if (legenda.isNotEmpty) ...[
-          const SizedBox(height: 6),
-          Text(legenda, style: tema.textTheme.bodySmall),
-        ],
+        if (legenda.isNotEmpty) ...[const SizedBox(height: 6), Text(legenda, style: tema.textTheme.bodySmall)],
       ],
     );
   }
@@ -219,10 +288,7 @@ class _Video extends StatelessWidget {
             ),
           ),
         ),
-        if (legenda != null) ...[
-          const SizedBox(height: 6),
-          Text(legenda, style: tema.textTheme.bodySmall),
-        ],
+        if (legenda != null) ...[const SizedBox(height: 6), Text(legenda, style: tema.textTheme.bodySmall)],
       ],
     );
   }
@@ -291,7 +357,8 @@ class _Tabela extends StatelessWidget {
                       TableRow(
                         decoration: i == 0 && comCabecalho ? BoxDecoration(color: c.surfaceContainerHigh) : null,
                         children: [
-                          for (final (j, t) in l.indexed) celula(t, cabecalho: i == 0 && comCabecalho, primeira: j == 0),
+                          for (final (j, t) in l.indexed)
+                            celula(t, cabecalho: i == 0 && comCabecalho, primeira: j == 0),
                         ],
                       ),
                   ],
@@ -345,10 +412,7 @@ class _Mapa extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      local == null || local.isEmpty ? 'Ver no mapa' : local,
-                      style: tema.textTheme.titleSmall,
-                    ),
+                    Text(local == null || local.isEmpty ? 'Ver no mapa' : local, style: tema.textTheme.titleSmall),
                     Text(
                       legenda == null || legenda.isEmpty ? 'Abrir no mapa' : legenda,
                       style: tema.textTheme.bodySmall,

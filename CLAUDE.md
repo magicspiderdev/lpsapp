@@ -93,6 +93,15 @@ baixo é só de ícones: com cinco separadores os nomes partiam-se em duas linha
 - Tokens da versão anterior (`lps.socio` no armazenamento seguro) descartam-se
   no arranque: não servem na v2.
 
+**Páginas e menu do Clube** (guia público §9, `lib/features/publico/clube/`
+`menu_clube.dart` e `clube_paginas.dart`): o clube monta no backoffice o menu
+`app` (`/publico/menu/app`), que aparece em "Mais sobre o clube". Cada item leva
+a uma página (`/noticias/clube/paginas/{slug}`), modalidade, secção
+(`rotasDasSeccoes`) ou link; um item sem destino abre o submenu
+(`/noticias/clube/menu/{indice}`). Destinos e secções desconhecidos não se
+mostram. O `CorpoBlocos` põe lado a lado os blocos com `ocupa` (1/2, 1/3…)
+a partir de 520 px de largura; abaixo empilha-os.
+
 Links partilhados: `lib/core/links.dart` (raiz em `Config.linksRaiz`). O caminho
 do link é o da rota; o router tira o prefixo `/lps` e guarda o destino em
 `?para=`/`?voltar=` durante o arranque e o login. Comprar bilhetes exige sessão.

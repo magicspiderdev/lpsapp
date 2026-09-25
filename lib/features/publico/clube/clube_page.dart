@@ -10,6 +10,7 @@ import '../../../core/theme/app_typography.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/estado_dados.dart';
 import 'clube.dart';
+import 'clube_paginas.dart';
 import 'clube_widgets.dart';
 
 /// O clube num ecrã: quem é, atalhos para falar com ele, e cartões para o
@@ -53,6 +54,9 @@ class ClubePage extends ConsumerWidget {
                           const TituloSeccao('Conhecer o clube'),
                           _Entradas(c),
                         ],
+                        // O que o clube pôs no menu da app (páginas, submenus,
+                        // links). Sem menu não aparece nada.
+                        const EntradasMenu(titulo: TituloSeccao('Mais sobre o clube')),
                         if (c.redes.isNotEmpty) ...[const TituloSeccao('Siga o clube'), _Redes(c.redes)],
                         const SizedBox(height: AppSpacing.xl),
                         const _Versao(),
