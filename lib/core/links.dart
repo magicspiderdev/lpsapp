@@ -8,15 +8,30 @@ import 'config.dart';
 /// Links partilháveis e a sua leitura quando chegam como deep link.
 ///
 /// O caminho do link é o da rota na app (`/noticias/{slug}`,
-/// `/bilhetes/{id}`), debaixo de [Config.linksRaiz]. Assim o router abre-os tal
-/// como vêm, tirando só o prefixo do servidor (`/lps`).
+/// `/bilhetes/{id}`), debaixo de [Config.linksRaiz] — o site oficial, que tem
+/// a mesma página no mesmo caminho. Leva a barra no fim, que é o canónico do
+/// site (sem ela, o site responde com um 301); o router tira-a.
 abstract final class Links {
   static final _raiz = Uri.parse(Config.linksRaiz);
 
-  /// Prefixo do caminho na raiz dos links (`/lps`), ou `''`.
+  /// Prefixo do caminho na raiz dos links, ou `''` (o site oficial não tem).
   static final prefixo = _raiz.path.endsWith('/') ? _raiz.path.substring(0, _raiz.path.length - 1) : _raiz.path;
 
-  static Uri noticia(String slug) => _link('/noticias/${Uri.encodeComponent(slug)}');
+  /// Os primeiros testes partilhavam `mylps…/lps/noticias/x`, no CISOC. Não há
+  /// página por trás, mas quem os abrir na app continua a chegar à notícia.
+  static const _prefixoAntigo = '/lps';
+
+  /// Domínios do clube: uma ligação para eles, num artigo, abre por dentro se
+  /// a app tiver o ecrã. O site novo está em `new.` até mudar de domínio.
+  static final _hostsDoClube = {
+    _raiz.host,
+    'leoesdeportosalvo.pt',
+    'www.leoesdeportosalvo.pt',
+    'new.leoesdeportosalvo.pt',
+    'mylps.leoesdeportosalvo.pt',
+  };
+
+  static Uri noticia(String slug) => _link('/noticias/${Uri.encodeComponent(slug)}/');
 
   /// Uma sessão da bilheteira (o catálogo). **Nunca um bilhete comprado**: um
   /// link para um bilhete seria um bilhete que se reencaminha sem limite.
@@ -25,19 +40,30 @@ abstract final class Links {
   /// só o texto com **um** código, com o aviso de que entra uma vez. Enquanto
   /// não houver `POST /me/bilhetes/{id}/transferir` (pedido
   /// `2026-09-22-transferir-bilhete`), é o mais longe que se vai.
-  static Uri sessao(String id) => _link('/bilhetes/${Uri.encodeComponent(id)}');
+  static Uri sessao(String id) => _link('/bilhetes/${Uri.encodeComponent(id)}/');
 
   static Uri _link(String caminho) => _raiz.replace(path: '$prefixo$caminho');
 
-  /// Caminho de rota a partir de um link recebido: tira o prefixo do servidor.
-  /// `null` se o caminho não tiver o prefixo (já é uma rota da app).
+  /// Caminho de rota a partir de um link recebido: tira o prefixo do servidor
+  /// e a barra do fim, que o site põe e as rotas da app não têm. `null` se não
+  /// houver nada a tirar (já é uma rota da app).
   static String? rotaDoLink(Uri uri) {
-    if (prefixo.isEmpty) return null;
-    final p = uri.path;
-    if (p != prefixo && !p.startsWith('$prefixo/')) return null;
-    final resto = p.substring(prefixo.length);
-    final rota = resto.isEmpty ? '/' : resto;
-    return uri.hasQuery ? '$rota?${uri.query}' : rota;
+    var p = uri.path;
+    var mudou = false;
+    for (final pre in {prefixo, _prefixoAntigo}) {
+      if (pre.isNotEmpty && (p == pre || p.startsWith('$pre/'))) {
+        p = p.substring(pre.length);
+        mudou = true;
+        break;
+      }
+    }
+    if (p.isEmpty) p = '/';
+    if (p.length > 1 && p.endsWith('/')) {
+      p = p.substring(0, p.length - 1);
+      mudou = true;
+    }
+    if (!mudou) return null;
+    return uri.hasQuery ? '$p?${uri.query}' : p;
   }
 
   /// Destino de "voltar" aceite só se for uma rota da app (`/…`), nunca um
@@ -61,7 +87,7 @@ abstract final class Links {
     if (uri.scheme == 'mailto' || uri.scheme == 'tel') return launchUrl(uri);
 
     final caminho = switch (uri.hasScheme) {
-      true when uri.host == _raiz.host => rotaDoLink(uri) ?? uri.path,
+      true when _hostsDoClube.contains(uri.host) => rotaDoLink(uri) ?? uri.path,
       false when href.startsWith('/') => rotaDoLink(uri) ?? href,
       _ => null,
     };

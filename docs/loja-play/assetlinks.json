@@ -1,0 +1,23 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "pt.magicspider.mslps",
+      "sha256_cert_fingerprints": [
+        "F8:F4:AE:06:FA:B5:87:B1:4A:74:C6:97:97:50:A4:00:D2:C5:1F:D4:A9:53:DF:58:CA:D6:CD:B8:41:3C:60:68",
+        "FE:FF:E0:DF:EE:4E:10:DF:95:EA:77:EF:97:5F:58:FC:74:D6:4C:0F:4D:F0:F2:36:AF:E9:38:16:77:B5:79:39"
+      ]
+    }
+  },
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "pt.magicspider.mslps.ensaio",
+      "sha256_cert_fingerprints": [
+        "FE:FF:E0:DF:EE:4E:10:DF:95:EA:77:EF:97:5F:58:FC:74:D6:4C:0F:4D:F0:F2:36:AF:E9:38:16:77:B5:79:39"
+      ]
+    }
+  }
+]

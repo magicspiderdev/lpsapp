@@ -16,18 +16,24 @@ String? ir(String rota, {bool socio = false, bool bloqueada = false, bool aArran
 
 void main() {
   group('links partilhados', () {
-    test('notícia e sessão ficam debaixo da raiz dos links, com o caminho da rota', () {
+    test('notícia e sessão apontam para a mesma página no site oficial, com a barra canónica', () {
       expect(
         Links.noticia('empate-na-liga').toString(),
-        'https://mylps.leoesdeportosalvo.pt/lps/noticias/empate-na-liga',
+        'https://leoesdeportosalvo.pt/noticias/empate-na-liga/',
       );
       expect(
         Links.sessao('01M2X7Y601VARR4JF5NPXYFGFS').toString(),
-        'https://mylps.leoesdeportosalvo.pt/lps/bilhetes/01M2X7Y601VARR4JF5NPXYFGFS',
+        'https://leoesdeportosalvo.pt/bilhetes/01M2X7Y601VARR4JF5NPXYFGFS/',
       );
     });
 
-    test('um link recebido perde o prefixo do servidor e vira rota', () {
+    test('um link do site perde a barra do fim e vira rota', () {
+      expect(ir('https://leoesdeportosalvo.pt/noticias/x/'), '/noticias/x');
+      expect(ir('https://new.leoesdeportosalvo.pt/noticias/x/'), '/noticias/x');
+      expect(ir('/bilhetes/ABC/?z=1-2'), '/bilhetes/ABC?z=1-2');
+    });
+
+    test('os links antigos, no CISOC, continuam a abrir', () {
       expect(ir('https://mylps.leoesdeportosalvo.pt/lps/noticias/x'), '/noticias/x');
       expect(ir('/lps/bilhetes/ABC?z=1-2'), '/bilhetes/ABC?z=1-2');
       expect(ir('/lps'), '/');

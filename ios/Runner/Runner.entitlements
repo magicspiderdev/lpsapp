@@ -3,13 +3,15 @@
 <plist version="1.0">
 <dict>
 	<!-- Universal Links: os links partilhados de notícias e bilhetes abrem a
-	     app (lib/core/links.dart). O servidor tem de servir
-	     /.well-known/apple-app-site-association com o Team ID; ver o pedido
-	     2026-09-19-links-partilha-deeplinks no CISOC. A capacidade "Associated
-	     Domains" tem de estar activa no App ID (Apple Developer). -->
+	     app (lib/core/links.dart). O site oficial tem de servir
+	     /.well-known/apple-app-site-association com o Team ID, que só existe
+	     depois de criada a conta Apple Developer. A capacidade "Associated
+	     Domains" tem de estar activa no App ID. -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:mylps.leoesdeportosalvo.pt</string>
+		<string>applinks:leoesdeportosalvo.pt</string>
+		<string>applinks:www.leoesdeportosalvo.pt</string>
+		<string>applinks:new.leoesdeportosalvo.pt</string>
 	</array>
 </dict>
 </plist>

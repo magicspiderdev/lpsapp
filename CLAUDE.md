@@ -24,7 +24,6 @@ Pedidos abertos:
 
 | Pedido | Bloqueia |
 |--------|----------|
-| `C:\home\cisoc\docs\pedidos-app\2026-09-19-links-partilha-deeplinks.md` | `assetlinks.json`, `apple-app-site-association` e páginas web dos links partilhados (a app já partilha e já abre os links) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-transferir-bilhete.md` | Transferência a sério de um bilhete (a app envia o código, com aviso) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-detalhe-de-evento.md` | Abrir um evento por link ou fora da janela da agenda (a ficha já funciona com o item da lista) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
@@ -103,9 +102,20 @@ a uma página (`/noticias/clube/paginas/{slug}`), modalidade, secção
 mostram. O `CorpoBlocos` põe lado a lado os blocos com `ocupa` (1/2, 1/3…)
 a partir de 520 px de largura; abaixo empilha-os.
 
-Links partilhados: `lib/core/links.dart` (raiz em `Config.linksRaiz`). O caminho
-do link é o da rota; o router tira o prefixo `/lps` e guarda o destino em
-`?para=`/`?voltar=` durante o arranque e o login. Comprar bilhetes exige sessão.
+Links partilhados: `lib/core/links.dart`. **A app monta-os** (a API só dá o
+`slug`/`uid`) com a raiz `Config.linksRaiz` = o site oficial (LPS Web,
+`C:\home\lpsweb`), `https://leoesdeportosalvo.pt/noticias/{slug}/` e
+`/bilhetes/{uid}/` — as mesmas páginas nos mesmos caminhos, com a barra canónica
+do site. O site novo está em `new.` até passar para o domínio final, que ainda
+serve o WordPress (decisão de 2026-09-25: partilhar já com o domínio final). A
+app reclama `leoesdeportosalvo.pt`, `www.` e `new.` (AndroidManifest e
+`Runner.entitlements`); cada um tem de servir `/.well-known/assetlinks.json`
+(`lpsweb/public/.well-known/`, cópia em `docs/loja-play/assetlinks.json` para o
+alojamento do WordPress), com a SHA-256 da chave do Google Play e a da de
+carregamento — até ao Android 11, um host que falhe faz falhar todos. O router
+tira a barra do fim e o prefixo `/lps` dos primeiros links de teste, e guarda o
+destino em `?para=`/`?voltar=` durante o arranque e o login. Comprar bilhetes
+exige sessão.
 
 ## Referências para construir a app
 

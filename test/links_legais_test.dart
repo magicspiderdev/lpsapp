@@ -9,7 +9,7 @@ void main() {
     expect(Config.privacidadeUrl, '${Config.apiRaiz}/privacidade');
     expect(Config.termosUrl, '${Config.apiRaiz}/termos');
     expect(Config.eliminarContaUrl, '${Config.apiRaiz}/conta/eliminar');
-    // O AndroidManifest só reclama /lps/noticias/ e /lps/bilhetes/: se uma
+    // O AndroidManifest só reclama /noticias/ e /bilhetes/ (no site): se uma
     // destas caísse lá, a política abria dentro da app em vez do browser.
     for (final url in [Config.privacidadeUrl, Config.termosUrl, Config.eliminarContaUrl]) {
       expect(url, isNot(contains('/noticias/')));

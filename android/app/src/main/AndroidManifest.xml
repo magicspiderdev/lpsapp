@@ -44,19 +44,25 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
             <!-- Links partilhados (notícias e sessões de bilhetes) abrem a app,
-                 que os passa ao go_router (`lib/core/links.dart`). O host tem de
-                 ser o de `Config.linksRaiz`. `autoVerify`: o Android só os abre
-                 directamente depois de validar o `assetlinks.json` do servidor
-                 (pedido `2026-09-19-links-partilha-deeplinks` no CISOC); até lá
-                 pergunta com que app abrir. -->
+                 que os passa ao go_router (`lib/core/links.dart`). Os hosts do
+                 site oficial: o domínio de `Config.linksRaiz`, o www e o `new.`
+                 onde o site novo está até mudar. `autoVerify`: o Android só os
+                 abre directamente depois de validar o
+                 `/.well-known/assetlinks.json` de CADA host — até ao Android 11,
+                 se um falhar falham todos. Por isso o ficheiro tem de estar nos
+                 três, também no alojamento do WordPress enquanto ele lá estiver
+                 (docs/loja-play/deep-links.md). -->
             <meta-data android:name="flutter_deeplinking_enabled" android:value="true"/>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW"/>
                 <category android:name="android.intent.category.DEFAULT"/>
                 <category android:name="android.intent.category.BROWSABLE"/>
-                <data android:scheme="https" android:host="mylps.leoesdeportosalvo.pt"/>
-                <data android:pathPrefix="/lps/noticias/"/>
-                <data android:pathPrefix="/lps/bilhetes/"/>
+                <data android:scheme="https"/>
+                <data android:host="leoesdeportosalvo.pt"/>
+                <data android:host="www.leoesdeportosalvo.pt"/>
+                <data android:host="new.leoesdeportosalvo.pt"/>
+                <data android:pathPrefix="/noticias/"/>
+                <data android:pathPrefix="/bilhetes/"/>
             </intent-filter>
         </activity>
         <!-- Don't delete the meta-data below.
