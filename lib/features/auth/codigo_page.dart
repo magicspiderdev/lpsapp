@@ -6,9 +6,12 @@ import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
 import 'auth_widgets.dart';
+import 'entrar_page.dart' show identificador;
 
 /// Primeiro acesso e "esqueci-me da palavra-passe" (guia §2.3.1): o mesmo fluxo.
-/// 1) pedir o código com o número de sócio; 2) código + palavra-passe nova.
+/// 1) pedir o código com o email ou o número de sócio; 2) código + palavra-passe
+/// nova. Quem criou conta só com email não tem número de sócio: sem o email,
+/// não tinha como recuperar a palavra-passe.
 class CodigoPage extends ConsumerStatefulWidget {
   const CodigoPage({super.key});
 
@@ -18,7 +21,7 @@ class CodigoPage extends ConsumerStatefulWidget {
 
 class _CodigoPageState extends ConsumerState<CodigoPage> {
   final _form = GlobalKey<FormState>();
-  final _nr = TextEditingController();
+  final _id = TextEditingController();
   final _codigo = TextEditingController();
   final _password = TextEditingController();
   final _confirmacao = TextEditingController();
@@ -30,7 +33,7 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
 
   @override
   void dispose() {
-    for (final c in [_nr, _codigo, _password, _confirmacao]) {
+    for (final c in [_id, _codigo, _password, _confirmacao]) {
       c.dispose();
     }
     super.dispose();
@@ -52,16 +55,18 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
   }
 
   Future<void> _pedirCodigo() => _executar(() async {
-    final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(nrSocio: int.parse(_nr.text));
+    final quem = identificador(_id.text);
+    final mensagem = await ref.read(sessaoProvider.notifier).pedirCodigo(email: quem.email, nrSocio: quem.nrSocio);
     setState(() => _mensagemEnvio = mensagem);
   });
 
-  // Com sucesso a sessão abre e o router leva para /socio.
-  Future<void> _confirmar() => _executar(
-    () => ref
+  // Com sucesso a sessão abre e o router leva para onde se ia.
+  Future<void> _confirmar() => _executar(() {
+    final quem = identificador(_id.text);
+    return ref
         .read(sessaoProvider.notifier)
-        .confirmarCodigo(nrSocio: int.parse(_nr.text), codigo: _codigo.text, password: _password.text),
-  );
+        .confirmarCodigo(email: quem.email, nrSocio: quem.nrSocio, codigo: _codigo.text, password: _password.text);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -82,18 +87,19 @@ class _CodigoPageState extends ConsumerState<CodigoPage> {
               Text(
                 passo2
                     ? _mensagemEnvio!
-                    : 'Vamos enviar um código de 6 dígitos para o email da sua ficha de sócio. '
-                          'Serve para o primeiro acesso à app e para definir uma palavra-passe nova.',
+                    : 'Vamos enviar um código de 6 dígitos para o seu email — o da conta ou, '
+                          'se indicar o número de sócio, o da ficha de sócio. Serve para o primeiro '
+                          'acesso à app e para definir uma palavra-passe nova.',
                 style: tema.textTheme.bodyLarge?.copyWith(color: tema.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 32),
               TextFormField(
-                controller: _nr,
+                controller: _id,
                 enabled: !passo2,
-                decoration: campo.copyWith(labelText: 'Número de sócio'),
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                validator: (v) => (v == null || v.isEmpty) ? 'Indique o número de sócio' : null,
+                decoration: campo.copyWith(labelText: 'Email ou número de sócio'),
+                keyboardType: TextInputType.emailAddress,
+                autofillHints: const [AutofillHints.username],
+                validator: (v) => (v == null || v.trim().isEmpty) ? 'Indique o email ou o número de sócio' : null,
               ),
               if (passo2) ...[
                 const SizedBox(height: 12),
