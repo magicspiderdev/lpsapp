@@ -19,11 +19,11 @@ void main() {
     test('notícia e sessão apontam para a mesma página no site oficial, com a barra canónica', () {
       expect(
         Links.noticia('empate-na-liga').toString(),
-        'https://leoesdeportosalvo.pt/noticias/empate-na-liga/',
+        'https://www.leoesdeportosalvo.pt/noticias/empate-na-liga/',
       );
       expect(
         Links.sessao('01M2X7Y601VARR4JF5NPXYFGFS').toString(),
-        'https://leoesdeportosalvo.pt/bilhetes/01M2X7Y601VARR4JF5NPXYFGFS/',
+        'https://www.leoesdeportosalvo.pt/bilhetes/01M2X7Y601VARR4JF5NPXYFGFS/',
       );
     });
 

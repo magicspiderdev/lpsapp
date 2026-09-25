@@ -30,12 +30,13 @@ abstract final class Config {
   /// Raiz dos links que se partilham (notícias, sessões de bilhetes): o
   /// domínio do site oficial (LPS Web), que tem as mesmas páginas nos mesmos
   /// caminhos. Abrem a app se estiver instalada; senão, a página do site.
-  /// Aponta já para o domínio final (decisão de 2026-09-25): enquanto o site
+  /// Aponta já para o domínio final, com `www` — o canónico do site (decisão
+  /// de 2026-09-25; sem `www` o site redirecciona para aqui): enquanto o site
   /// novo está em `new.` e o domínio ainda serve o WordPress, quem não tem a
   /// app cai na página do site antigo.
   static const linksRaiz = String.fromEnvironment(
     'LPS_LINKS_RAIZ',
-    defaultValue: 'https://leoesdeportosalvo.pt',
+    defaultValue: 'https://www.leoesdeportosalvo.pt',
   );
 }
 

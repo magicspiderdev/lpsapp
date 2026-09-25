@@ -104,10 +104,11 @@ a partir de 520 px de largura; abaixo empilha-os.
 
 Links partilhados: `lib/core/links.dart`. **A app monta-os** (a API só dá o
 `slug`/`uid`) com a raiz `Config.linksRaiz` = o site oficial (LPS Web,
-`C:\home\lpsweb`), `https://leoesdeportosalvo.pt/noticias/{slug}/` e
+`C:\home\lpsweb`), `https://www.leoesdeportosalvo.pt/noticias/{slug}/` e
 `/bilhetes/{uid}/` — as mesmas páginas nos mesmos caminhos, com a barra canónica
 do site. O site novo está em `new.` até passar para o domínio final, que ainda
-serve o WordPress (decisão de 2026-09-25: partilhar já com o domínio final). A
+serve o WordPress (decisão de 2026-09-25: partilhar já com o domínio final, e
+com `www`, que é o canónico da LPS Web). A
 app reclama `leoesdeportosalvo.pt`, `www.` e `new.` (AndroidManifest e
 `Runner.entitlements`); cada um tem de servir `/.well-known/assetlinks.json`
 (`lpsweb/public/.well-known/`, cópia em `docs/loja-play/assetlinks.json` para o
