@@ -224,28 +224,30 @@ class _Jogos extends ConsumerWidget {
 
 /// Um jogo da comunidade: as equipas e o que há para fazer nele. Tocar abre a
 /// ficha do jogo, onde está o bloco inteiro.
-class _CartaoJogo extends StatelessWidget {
+class _CartaoJogo extends ConsumerWidget {
   const _CartaoJogo(this.c);
 
   final JogoComunidade c;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
     final j = c.jogo;
     final p = c.palpites;
     final r = c.relatos;
+    // Sem `permissoes.comunidade` (§2.10) não se convida a fazer nada.
+    final pode = sessaoPode(ref.watch(sessaoProvider), 'comunidade');
 
     final (estado, destaque) = switch (c) {
       _ when r.confirmado != null => ('Resultado confirmado: ${r.confirmado}', false),
       _ when r.aberto && r.meu != null => ('Disse ${r.meu}', false),
-      _ when r.aberto && r.propostas.isNotEmpty => (
+      _ when pode && r.aberto && r.propostas.isNotEmpty => (
         '${_pessoas(r.propostas.first.relatos)} ${r.propostas.first.marcador}. Confirma?',
         true,
       ),
-      _ when r.aberto => ('Diga como acabou', true),
+      _ when pode && r.aberto => ('Diga como acabou', true),
       _ when p.meu != null => ('O seu palpite: ${p.meu}', false),
-      _ when p.aberto => ('Palpitar', true),
+      _ when pode && p.aberto => ('Palpitar', true),
       _ => ('', false),
     };
 

@@ -172,6 +172,13 @@ class _ComConta extends SessaoController {
   Sessao build() => const SessaoConta(ContaSessao(nome: 'Adepto sem ficha'));
 }
 
+class _SemPermissoes extends SessaoController {
+  @override
+  Sessao build() => const SessaoConta(
+    ContaSessao(nome: 'Conta sem comunidade', permissoes: {'comunidade': false, 'passatempos': false}),
+  );
+}
+
 class _SemConta extends SessaoController {
   @override
   Sessao build() => const SessaoAnonima();
@@ -182,8 +189,8 @@ class _Online extends LigacaoController {
   bool build() => true;
 }
 
-List<Override> _overrides(_Servidor s, {bool comConta = true}) => [
-  sessaoProvider.overrideWith(comConta ? _ComConta.new : _SemConta.new),
+List<Override> _overrides(_Servidor s, {bool comConta = true, bool semPermissoes = false}) => [
+  sessaoProvider.overrideWith(semPermissoes ? _SemPermissoes.new : (comConta ? _ComConta.new : _SemConta.new)),
   ligacaoProvider.overrideWith(_Online.new),
   cacheProvider.overrideWithValue(CacheEmMemoria()),
   dioContaProvider.overrideWithValue(Dio(BaseOptions(baseUrl: 'http://cisoc/api/v2'))..httpClientAdapter = s),
@@ -326,7 +333,15 @@ void main() {
   });
 
   group('ecrãs', () {
-    Future<void> montar(WidgetTester t, Widget ecra, _Servidor s, {bool comConta = true, double largura = 320, double escala = 2}) async {
+    Future<void> montar(
+      WidgetTester t,
+      Widget ecra,
+      _Servidor s, {
+      bool comConta = true,
+      bool semPermissoes = false,
+      double largura = 320,
+      double escala = 2,
+    }) async {
       t.view.physicalSize = Size(largura, 780);
       t.view.devicePixelRatio = 1;
       addTearDown(t.view.reset);
@@ -338,7 +353,7 @@ void main() {
       );
       await t.pumpWidget(
         ProviderScope(
-          overrides: _overrides(s, comConta: comConta),
+          overrides: _overrides(s, comConta: comConta, semPermissoes: semPermissoes),
           child: MaterialApp.router(
             theme: AppTheme.light(),
             routerConfig: router,
@@ -440,6 +455,27 @@ void main() {
       expect(s.escrita, ('POST', '/comunidade/passatempos/01KPASSA/participar', jsonEncode({'opcao': 1})));
       expect(find.text('Está a participar'), findsOneWidget);
       expect(find.text('Respondeu: Zé'), findsOneWidget);
+    });
+
+    testWidgets('sem permissoes.comunidade: vê-se o jogo, sem botões, e a nota no lugar', (t) async {
+      final s = _Servidor()..jogo = _jogo(palpitesAberto: true, relatosAberto: false);
+      await montar(
+        t,
+        const Scaffold(body: SingleChildScrollView(child: BlocoComunidade('1234'))),
+        s,
+        semPermissoes: true,
+        escala: 1,
+      );
+      expect(find.text('41 palpites'), findsOneWidget);
+      expect(find.text('Palpitar'), findsNothing);
+      expect(find.text(explicacaoPermissao('comunidade')), findsOneWidget);
+    });
+
+    testWidgets('sem permissoes.passatempos: não há botão de participar', (t) async {
+      final s = _Servidor();
+      await montar(t, const PassatempoPage(uid: '01KPASSA'), s, semPermissoes: true, escala: 1, largura: 400);
+      expect(find.text('Participar'), findsNothing);
+      expect(find.text(explicacaoPermissao('passatempos')), findsOneWidget);
     });
   });
 }

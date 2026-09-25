@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
@@ -199,7 +200,7 @@ class _Factos extends StatelessWidget {
 }
 
 /// O que a pessoa pode fazer: participar, ver o que respondeu, saber se ganhou.
-class _Participacao extends StatelessWidget {
+class _Participacao extends ConsumerWidget {
   const _Participacao(
     this.p, {
     required this.opcao,
@@ -217,7 +218,7 @@ class _Participacao extends StatelessWidget {
   final VoidCallback onParticipar;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
     final minha = p.minha;
 
@@ -249,6 +250,12 @@ class _Participacao extends StatelessWidget {
           ],
         ),
       );
+    }
+
+    // `permissoes.passatempos` a `false` (§2.10): o botão não aparece, mesmo
+    // que o passatempo esteja aberto.
+    if (!sessaoPode(ref.watch(sessaoProvider), 'passatempos')) {
+      return NotaPermissao(explicacaoPermissao('passatempos'), padding: EdgeInsets.zero);
     }
 
     if (!p.podeParticipar) {

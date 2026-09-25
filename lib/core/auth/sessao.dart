@@ -254,6 +254,8 @@ String explicacaoPermissao(String permissao) => switch (permissao) {
   'comprar' => 'Os bilhetes são comprados pelo encarregado de educação.',
   'contratar' => 'As inscrições são feitas pelo encarregado de educação.',
   'editar' => 'A ficha e a fotografia são alteradas pela secretaria, a pedido do encarregado de educação.',
+  'comunidade' => 'Palpites e resultados não estão disponíveis nesta conta.',
+  'passatempos' => 'Os passatempos não estão disponíveis nesta conta.',
   _ => 'Isto é feito pelo encarregado de educação.',
 };
 

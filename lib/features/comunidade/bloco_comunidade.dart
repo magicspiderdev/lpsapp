@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/api/api_exception.dart';
+import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
 import '../../core/widgets/blocos.dart';
 import '../publico/agenda/agenda.dart';
@@ -38,7 +39,11 @@ class _Conteudo extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final bloqueado = ref.watch(perfilComunidadeProvider).valueOrNull?.bloqueado ?? false;
+    // `permissoes.comunidade` a `false` (§2.10): vê-se o que os outros disseram,
+    // mas sem botões — como numa conta suspensa, com outra explicação.
+    final semPermissao = !sessaoPode(ref.watch(sessaoProvider), 'comunidade');
+    final suspensa = ref.watch(perfilComunidadeProvider).valueOrNull?.bloqueado ?? false;
+    final bloqueado = suspensa || semPermissao;
     final r = c.relatos;
     final p = c.palpites;
 
@@ -52,7 +57,9 @@ class _Conteudo extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const TituloSeccao('Comunidade Leões'),
-        if (bloqueado) ...[const _AvisoBloqueado(), const SizedBox(height: 10)],
+        if (semPermissao)
+          NotaPermissao(explicacaoPermissao('comunidade'), padding: const EdgeInsets.only(bottom: 10))
+        else if (suspensa) ...[const _AvisoBloqueado(), const SizedBox(height: 10)],
         for (final (i, w) in partes.indexed) ...[if (i > 0) const SizedBox(height: 10), w],
       ],
     );
