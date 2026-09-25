@@ -31,6 +31,7 @@ Pedidos abertos:
 | `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-ja-existe-id.md` | Nada — o `409 ja_existe` da inscrição traz `inscricao` e não `id`; a app lê os dois |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-24-push-pagamento-emitido.md` | O push "pagamento emitido" (a app já abre `/socio/pagamentos/{id}?socio=`), e os destinos dos avisos de modalidades, chat e pagamento confirmado, que hoje não abrem nada |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-pagamento-pendente.md` | Mostrar a referência já pedida ao reabrir uma inscrição por pagar (hoje a app remete para o email) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-25-pagar-com-saldo.md` | Pagar bilhetes, inscrições e loja com o saldo da conta corrente (quotas e mensalidades continuam no abatimento automático; hoje o saldo é só consulta: vê-se no topo do Início e em `/socio/wallet`) |
 
 **Menores** (§2.10–§2.12, política de menores do CISOC, fases 1 a 9): a app
 **nunca calcula idades** — nem no registo, onde a data é só declarada

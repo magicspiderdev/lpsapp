@@ -72,4 +72,38 @@ void main() {
       expect(t.takeException(), isNull);
     });
   }
+
+  testWidgets('topo: o número grande é sempre o valor em dívida, e o saldo vê-se ao lado', (t) async {
+    await t.pumpWidget(
+      ProviderScope(
+        overrides: [
+          sessaoProvider.overrideWith(_Sessao.new),
+          ligacaoProvider.overrideWith(_Ligacao.new),
+          biometriaStoreProvider.overrideWithValue(BiometriaStore(const FlutterSecureStorage())),
+          tipoBiometriaProvider.overrideWith((ref) async => null),
+          resumoProvider.overrideWith(
+            (ref) => Stream.value(
+              Dados(
+                Resumo.fromJson({
+                  'socio': {'nome_completo': 'MARIA EXEMPLO', 'estado_label': 'Ativo', 'estado': 1, 'nr_socio': 16},
+                  'tem_modalidade': false,
+                  'divida': {'total': 0, 'meses_pendentes': 0},
+                  'mensagens_nao_lidas': 0,
+                  'wallet_saldo': 12.5,
+                }),
+                DateTime.now(),
+              ),
+            ),
+          ),
+          dependentesProvider.overrideWith((ref) => Stream.value(Dados(const <Dependente>[], DateTime.now()))),
+        ],
+        child: MaterialApp(theme: Tema.claro(), home: const InicioPage()),
+      ),
+    );
+    await t.pumpAndSettle();
+
+    expect(find.text('Valor em dívida'), findsOneWidget);
+    expect(find.text('Tudo em dia · quotas pagas'), findsOneWidget);
+    expect(find.textContaining('Saldo 12,50'), findsOneWidget);
+  });
 }

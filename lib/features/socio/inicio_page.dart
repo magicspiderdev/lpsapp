@@ -250,8 +250,9 @@ class _Topo extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 36),
+          // O número grande é sempre a dívida, mesmo a zero: o estado vai na pastilha.
           Text(
-            emDia ? 'Tudo em dia' : 'Em dívida',
+            'Valor em dívida',
             style: t.bodyMedium?.copyWith(color: Colors.white.withValues(alpha: 0.8)),
           ),
           const SizedBox(height: 4),
@@ -262,10 +263,24 @@ class _Topo extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          _Pastilha(
-            emDia
-                ? (r.temModalidade ? 'Faturas pagas' : 'Quotas pagas')
-                : '${r.mesesPendentes} ${r.mesesPendentes == 1 ? 'mês' : 'meses'} por pagar',
+          // Wrap: com letra grande num ecrã de 320 px as duas não cabem lado a lado.
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _Pastilha(
+                emDia
+                    ? (r.temModalidade ? 'Tudo em dia · faturas pagas' : 'Tudo em dia · quotas pagas')
+                    : '${r.mesesPendentes} ${r.mesesPendentes == 1 ? 'mês' : 'meses'} por pagar',
+              ),
+              // O saldo da conta corrente (guia §4.7) é só consulta: abre os movimentos.
+              _Pastilha(
+                'Saldo ${_euros.format(r.walletSaldo)}',
+                icone: Icons.account_balance_wallet_outlined,
+                onTap: () => context.push('/socio/wallet'),
+              ),
+            ],
           ),
           const SizedBox(height: 28),
           Row(
@@ -349,18 +364,32 @@ class _BotaoVidro extends StatelessWidget {
 }
 
 class _Pastilha extends StatelessWidget {
-  const _Pastilha(this.texto);
+  const _Pastilha(this.texto, {this.icone, this.onTap});
 
   final String texto;
+  final IconData? icone;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.16), borderRadius: BorderRadius.circular(100)),
-      child: Text(
-        texto,
-        style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+    const estilo = TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600);
+    return Material(
+      color: Colors.white.withValues(alpha: 0.16),
+      shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (icone != null) ...[Icon(icone, color: Colors.white, size: 16), const SizedBox(width: 6)],
+              Flexible(child: Text(texto, style: estilo)),
+              if (onTap != null) const Icon(Icons.chevron_right_rounded, color: Colors.white, size: 16),
+            ],
+          ),
+        ),
       ),
     );
   }
