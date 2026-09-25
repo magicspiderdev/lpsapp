@@ -1,8 +1,17 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <!-- A app fala com o CISOC (API do Sócio e API pública). -->
     <uses-permission android:name="android.permission.INTERNET"/>
     <!-- Android 13+: mostrar notificações é permissão que se pede em execução. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+    <!-- O `open_filex` pede acesso à galeria e ao armazenamento, mas a app só
+         abre os PDFs que ela própria guarda na pasta temporária, e as fotos
+         escolhem-se pelo seletor do sistema, que não precisa de permissão. A
+         Play Store recusa `READ_MEDIA_*` sem uma declaração que não temos. -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" tools:node="remove"/>
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove"/>
     <application
         android:label="${appName}"
         android:allowBackup="false"
