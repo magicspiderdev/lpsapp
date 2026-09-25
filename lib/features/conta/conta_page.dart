@@ -6,6 +6,7 @@ import '../../core/auth/sessao.dart';
 import '../../core/formatos.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/widgets/blocos.dart';
+import '../../core/widgets/links_legais.dart';
 import '../socio/conta/contas.dart' show contaActivaProvider;
 import '../socio/inicio_page.dart' show InicioPage;
 import '../socio/perfil/perfil_page.dart' show confirmarEliminarConta;
@@ -204,6 +205,7 @@ class ContaPage extends ConsumerWidget {
             ),
 
             const SizedBox(height: AppSpacing.lg),
+            const LinksLegais(alinhamento: WrapAlignment.center),
             TextButton(
               style: TextButton.styleFrom(foregroundColor: t.colorScheme.error),
               onPressed: () => confirmarEliminarConta(context, ref),

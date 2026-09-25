@@ -20,6 +20,13 @@ abstract final class Config {
 
   static String mediaUrl(String uid) => '$apiRaiz/media/$uid';
 
+  /// Páginas web que as lojas exigem (pedido `2026-09-25-paginas-web-lojas` no
+  /// CISOC): caminhos fixos, fora dos que a app reclama como links seus — abrem
+  /// sempre no browser. A de eliminar a conta serve quem já não tem a app.
+  static const privacidadeUrl = '$apiRaiz/privacidade';
+  static const termosUrl = '$apiRaiz/termos';
+  static const eliminarContaUrl = '$apiRaiz/conta/eliminar';
+
   /// Raiz dos links que se partilham (notícias, sessões de bilhetes). Abrem a
   /// app se estiver instalada; senão, a página web do CISOC (pedido
   /// `2026-09-19-links-partilha-deeplinks`). Muda para o domínio do site

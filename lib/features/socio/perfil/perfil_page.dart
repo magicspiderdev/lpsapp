@@ -13,6 +13,7 @@ import '../../../core/tema/tema.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
 import '../../../core/widgets/estado_dados.dart';
+import '../../../core/widgets/links_legais.dart';
 import '../../auth/auth_widgets.dart';
 import '../inicio_page.dart';
 import 'perfil.dart';
@@ -301,6 +302,8 @@ class _FormularioState extends ConsumerState<_Formulario> {
                 ],
               ),
             ),
+            const SizedBox(height: 8),
+            const LinksLegais(alinhamento: WrapAlignment.center),
           ],
         ),
       ),

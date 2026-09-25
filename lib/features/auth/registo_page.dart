@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
+import '../../core/widgets/links_legais.dart';
 import 'auth_widgets.dart';
 import 'entrar_page.dart' show saidaDoLogin;
 
@@ -223,6 +224,7 @@ class _RegistoPageState extends ConsumerState<RegistoPage> {
       value: _aceitaTermos,
       onChanged: _aEnviar ? null : (v) => setState(() => _aceitaTermos = v ?? false),
       title: const Text('Aceito os termos de utilização e a política de privacidade'),
+      subtitle: const LinksLegais(),
     ),
     CheckboxListTile(
       contentPadding: EdgeInsets.zero,

@@ -9,6 +9,7 @@ import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
 import '../../../core/widgets/estado_dados.dart';
+import '../../../core/widgets/links_legais.dart';
 import 'consentimentos.dart';
 
 /// Privacidade (§2.11): um interruptor por consentimento.
@@ -99,14 +100,22 @@ class _ConsentimentosListaState extends ConsumerState<ConsentimentosLista> {
       context: context,
       builder: (dialogo) => AlertDialog(
         title: const Text('Aceitar de novo'),
-        content: Text(
-          c.tipo == 'app_account'
-              ? 'Os termos de utilização e a política de privacidade foram actualizados'
-                    '${c.versaoActual == null ? '' : ' (versão ${c.versaoActual})'}. '
-                    'Para continuar a usar a conta, aceite a versão actual.'
-              : 'O texto de "${c.rotulo}" foi actualizado'
-                    '${c.versaoActual == null ? '' : ' (versão ${c.versaoActual})'} '
-                    'desde que foi dado. Confirme que continua a autorizar.',
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              c.tipo == 'app_account'
+                  ? 'Os termos de utilização e a política de privacidade foram actualizados'
+                        '${c.versaoActual == null ? '' : ' (versão ${c.versaoActual})'}. '
+                        'Para continuar a usar a conta, aceite a versão actual.'
+                  : 'O texto de "${c.rotulo}" foi actualizado'
+                        '${c.versaoActual == null ? '' : ' (versão ${c.versaoActual})'} '
+                        'desde que foi dado. Confirme que continua a autorizar.',
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            const LinksLegais(),
+          ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogo, false), child: const Text('Agora não')),
@@ -182,6 +191,8 @@ class _ConsentimentosListaState extends ConsumerState<ConsentimentosLista> {
                     ],
                   ),
                 ),
+              const SizedBox(height: AppSpacing.md),
+              const LinksLegais(),
             ],
           ),
         );
