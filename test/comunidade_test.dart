@@ -11,7 +11,9 @@ import 'package:lpsapp/core/api/clientes.dart';
 import 'package:lpsapp/core/auth/sessao.dart';
 import 'package:lpsapp/core/cache/cache_local.dart';
 import 'package:lpsapp/core/rede/ligacao.dart';
+import 'package:lpsapp/core/theme/app_colors.dart';
 import 'package:lpsapp/core/theme/app_theme.dart';
+import 'package:lpsapp/features/comunidade/avatares.dart';
 import 'package:lpsapp/features/comunidade/bloco_comunidade.dart';
 import 'package:lpsapp/features/comunidade/comunidade.dart';
 import 'package:lpsapp/features/comunidade/comunidade_page.dart';
@@ -88,6 +90,16 @@ class _Servidor implements HttpClientAdapter {
   Map<String, dynamic> jogo = _jogo();
   bool confirmar = false;
 
+  /// O perfil guardado: o `PUT` só muda o que vem no corpo (§4.23).
+  String? alcunha, avatar;
+
+  /// `GET /publico/comunidade/avatares`, pela ordem da grelha.
+  var avatares = <Map<String, dynamic>>[
+    {'codigo': 'leao-rei', 'nome': 'O Rei', 'grupo': 'leoes', 'url': 'http://cisoc/media/rei'},
+    {'codigo': 'leao-gamer', 'nome': 'O Gamer', 'grupo': 'leoes', 'url': 'http://cisoc/media/gamer'},
+    {'codigo': 'leoa-gamer', 'nome': 'A Gamer', 'grupo': 'leoas', 'url': 'http://cisoc/media/gamer-a'},
+  ];
+
   /// A última escrita: as leituras (o perfil, as listas) chegam por qualquer ordem.
   (String, String, String?) get escrita => pedidos.lastWhere((p) => p.$1 != 'GET');
 
@@ -100,7 +112,9 @@ class _Servidor implements HttpClientAdapter {
 
     if (caminho.endsWith('/comunidade/jogos')) {
       dados = {
-        'jogos': o.queryParameters['quando'] == 'proximos' ? [_jogo(palpitesAberto: true, relatosAberto: false)] : [jogo],
+        'jogos': o.queryParameters['quando'] == 'proximos'
+            ? [_jogo(palpitesAberto: true, relatosAberto: false)]
+            : [jogo],
       };
     } else if (caminho.endsWith('/comunidade/jogos/1234')) {
       dados = jogo;
@@ -109,19 +123,37 @@ class _Servidor implements HttpClientAdapter {
       jogo = _jogo(meuRelato: {'casa': m['casa'], 'fora': m['fora'], 'anulado': false});
       dados = {...jogo, 'confirmou': confirmar};
     } else if (caminho.endsWith('/palpite')) {
-      jogo = _jogo(palpitesAberto: true, relatosAberto: false, meuPalpite: o.method == 'DELETE' ? null : {...o.data as Map, 'pontos': null});
+      jogo = _jogo(
+        palpitesAberto: true,
+        relatosAberto: false,
+        meuPalpite: o.method == 'DELETE' ? null : {...o.data as Map, 'pontos': null},
+      );
       dados = jogo;
     } else if (caminho.endsWith('/comunidade/perfil')) {
-      final alcunha = o.method == 'PUT' ? (o.data as Map)['alcunha'] : null;
+      if (o.method == 'PUT') {
+        final corpo = o.data as Map;
+        if (corpo.containsKey('alcunha')) alcunha = corpo['alcunha'] as String?;
+        if (corpo.containsKey('avatar')) avatar = corpo['avatar'] as String?;
+      }
       dados = {
-        'perfil': {'alcunha': alcunha, 'bloqueado': false},
+        'perfil': {'alcunha': alcunha, 'avatar': avatar, 'bloqueado': false},
       };
+    } else if (caminho.endsWith('/comunidade/avatares')) {
+      dados = {'avatares': avatares};
     } else if (caminho.endsWith('/comunidade/classificacao')) {
       dados = {
         'epoca': '2026-27',
         'regras': {'exacto': 3, 'vencedor': 1},
         'classificacao': [
-          {'posicao': 1, 'alcunha': 'Leão do Norte', 'pontos': 17, 'exactos': 3, 'palpites': 9, 'eu': false},
+          {
+            'posicao': 1,
+            'alcunha': 'Leão do Norte',
+            'avatar': 'leao-rei',
+            'pontos': 17,
+            'exactos': 3,
+            'palpites': 9,
+            'eu': false,
+          },
           // Um salto na numeração: o 2.º não escolheu alcunha.
           {'posicao': 3, 'alcunha': 'Rugido', 'pontos': 12, 'exactos': 2, 'palpites': 9, 'eu': false},
         ],
@@ -194,6 +226,7 @@ List<Override> _overrides(_Servidor s, {bool comConta = true, bool semPermissoes
   ligacaoProvider.overrideWith(_Online.new),
   cacheProvider.overrideWithValue(CacheEmMemoria()),
   dioContaProvider.overrideWithValue(Dio(BaseOptions(baseUrl: 'http://cisoc/api/v2'))..httpClientAdapter = s),
+  dioPublicoProvider.overrideWithValue(Dio(BaseOptions(baseUrl: 'http://cisoc/api/v2/publico'))..httpClientAdapter = s),
 ];
 
 void main() {
@@ -227,6 +260,25 @@ void main() {
       expect(c.eu?.posicao, 4);
       expect(c.eu?.eu, isTrue);
       expect(c.eu?.alcunha, isNull);
+    });
+
+    test('avatares: pela ordem da grelha, sem os que não têm imagem', () {
+      final lista = AvatarComunidade.listaDe({
+        'avatares': [
+          {'codigo': 'leao-rei', 'nome': 'O Rei', 'grupo': 'leoes', 'url': 'http://x/1'},
+          {'codigo': 'leao-sem-imagem', 'nome': 'Sem imagem', 'grupo': 'leoes'},
+          {'codigo': 'leoa-rainha', 'nome': 'A Rainha', 'grupo': 'leoas', 'url': 'http://x/2'},
+        ],
+      });
+      expect(lista.map((a) => a.codigo), ['leao-rei', 'leoa-rainha']);
+      expect(AvatarComunidade.tituloDoGrupo('leoas'), 'Leoas');
+      // Lista aberta: um grupo novo mostra-se com o próprio nome.
+      expect(AvatarComunidade.tituloDoGrupo('mascotes'), 'Mascotes');
+    });
+
+    test('perfil: o avatar vem sempre, mesmo a null', () {
+      expect(PerfilComunidade.fromJson({'alcunha': 'Rugido', 'avatar': null, 'bloqueado': false}).avatar, isNull);
+      expect(PerfilComunidade.fromJson({'alcunha': 'Rugido', 'avatar': 'leao-rei'}).avatar, 'leao-rei');
     });
 
     test('passatempo de um tipo novo não se consegue preencher', () {
@@ -268,13 +320,21 @@ void main() {
       expect(ultimosJogos([j('2026-09-27 00:00:00', hora: false)], agora), isEmpty);
       expect(ultimosJogos([j('2026-09-26 00:00:00', hora: false)], agora), hasLength(1));
       expect(
-        ultimosJogos([j('2026-09-27 00:00:00', hora: false, estado: 'terminado', resultado: {'casa': 2, 'fora': 1})], agora),
+        ultimosJogos([
+          j('2026-09-27 00:00:00', hora: false, estado: 'terminado', resultado: {'casa': 2, 'fora': 1}),
+        ], agora),
         hasLength(1),
       );
     });
 
     test('cancelados e adiados não aparecem', () {
-      expect(ultimosJogos([j('2026-09-27 10:00:00', estado: 'cancelado'), j('2026-09-27 10:00:00', estado: 'adiado')], agora), isEmpty);
+      expect(
+        ultimosJogos([
+          j('2026-09-27 10:00:00', estado: 'cancelado'),
+          j('2026-09-27 10:00:00', estado: 'adiado'),
+        ], agora),
+        isEmpty,
+      );
     });
   });
 
@@ -311,7 +371,24 @@ void main() {
       expect(c.read(jogoComunidadeProvider('1234')).value?.palpites.meu, const Marcador(2, 0));
       await jogo.retirarPalpite();
       expect(c.read(jogoComunidadeProvider('1234')).value?.palpites.meu, isNull);
-      expect([for (final p in servidor.pedidos) if (p.$1 != 'GET') p.$1], ['PUT', 'DELETE']);
+      expect(
+        [
+          for (final p in servidor.pedidos)
+            if (p.$1 != 'GET') p.$1,
+        ],
+        ['PUT', 'DELETE'],
+      );
+    });
+
+    test('escolher o avatar envia só o avatar, e a alcunha fica', () async {
+      final sub = c.listen(perfilComunidadeProvider, (_, _) {});
+      addTearDown(sub.close);
+      await c.read(perfilComunidadeProvider.future);
+      await c.read(perfilComunidadeProvider.notifier).mudarAlcunha('Rugido');
+      await c.read(perfilComunidadeProvider.notifier).mudarAvatar('leao-gamer');
+      expect(servidor.escrita, ('PUT', '/comunidade/perfil', jsonEncode({'avatar': 'leao-gamer'})));
+      expect(c.read(perfilComunidadeProvider).value?.avatar, 'leao-gamer');
+      expect(c.read(perfilComunidadeProvider).value?.alcunha, 'Rugido');
     });
 
     test('sair da classificação envia alcunha null, não o nome', () async {
@@ -392,6 +469,35 @@ void main() {
       });
     }
 
+    testWidgets('o avatar do canto abre a grelha do servidor, e escolher grava-o', (t) async {
+      final s = _Servidor();
+      await montar(t, const ComunidadePage(), s, escala: 1, largura: 400);
+      await t.tap(find.byTooltip('Escolher o seu avatar'));
+      await t.pumpAndSettle();
+      expect(find.text('O seu avatar'), findsOneWidget);
+      expect(find.text('Leões'), findsOneWidget);
+      expect(find.text('Leoas'), findsOneWidget);
+      await t.tap(find.text('O Gamer'));
+      await t.pumpAndSettle();
+      expect(s.escrita, ('PUT', '/comunidade/perfil', jsonEncode({'avatar': 'leao-gamer'})));
+      expect(find.bySemanticsLabel('Avatar: O Gamer'), findsWidgets);
+    });
+
+    testWidgets('sem avatares na lista, a grelha diz que ainda não há', (t) async {
+      final s = _Servidor()..avatares = [];
+      await montar(t, const ComunidadePage(), s, escala: 1, largura: 400);
+      await t.tap(find.byTooltip('Escolher o seu avatar'));
+      await t.pumpAndSettle();
+      expect(find.textContaining('Ainda não há avatares'), findsOneWidget);
+      expect(s.pedidos.where((p) => p.$1 == 'PUT'), isEmpty);
+    });
+
+    testWidgets('um código que não está na lista mostra o brasão', (t) async {
+      final s = _Servidor()..avatar = 'leao-retirado';
+      await montar(t, const ComunidadePage(), s, escala: 1, largura: 400);
+      expect(find.bySemanticsLabel('Sem avatar'), findsWidgets);
+    });
+
     testWidgets('a tab "Últimos" só aparece com um jogo acabado de terminar, e vem primeiro', (t) async {
       await montar(t, const ComunidadePage(), _Servidor(), escala: 1, largura: 400);
       expect(find.text('Últimos'), findsNothing); // o jogo do exemplo é daqui a uns dias
@@ -439,6 +545,14 @@ void main() {
       await t.pumpAndSettle();
       expect(s.escrita, ('PUT', '/comunidade/jogos/1234/palpite', jsonEncode({'casa': 2, 'fora': 0})));
       expect(find.text('Mudar palpite'), findsOneWidget);
+    });
+
+    testWidgets('no passatempo, o título e o regulamento lêem-se no fundo escuro', (t) async {
+      await montar(t, const PassatempoPage(uid: '01KPASSA'), _Servidor(), escala: 1, largura: 400);
+      // A app corre com o tema claro; o ecrã tem de ler o da Arena.
+      expect(t.widget<Text>(find.text('Ganhe 2 bilhetes para o dérbi')).style?.color, AppPalette.arenaTexto);
+      final regulamento = t.widget<ExpansionTile>(find.byType(ExpansionTile));
+      expect(Theme.of(t.element(find.byWidget(regulamento))).colorScheme.onSurface, AppPalette.arenaTexto);
     });
 
     testWidgets('participar pede confirmação e depois mostra a participação', (t) async {

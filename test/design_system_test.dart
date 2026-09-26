@@ -12,7 +12,7 @@ double contraste(Color a, Color b) {
 Color sobre(Color frente, Color fundo) => Color.alphaBlend(frente, fundo);
 
 void main() {
-  for (final (nome, tema) in [('claro', AppTheme.light()), ('escuro', AppTheme.dark())]) {
+  for (final (nome, tema) in [('claro', AppTheme.light()), ('escuro', AppTheme.dark()), ('arena', AppTheme.arena())]) {
     group('modo $nome', () {
       final c = tema.colorScheme;
       final cores = tema.extension<AppColors>()!;

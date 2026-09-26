@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/links.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/blocos.dart';
@@ -292,7 +293,10 @@ class _CorpoModalidade extends ConsumerWidget {
           error: (e, _) => ErroView(erro: e, tentarDeNovo: () => ref.invalidate(paginaModalidadeProvider(slug))),
           data: (d) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [AvisoDesactualizado(d), CorpoBlocos(d.valor.corpo)],
+            children: [
+              AvisoDesactualizado(d),
+              CorpoBlocos(d.valor.corpo, noSite: Links.modalidade(slug)),
+            ],
           ),
         );
   }

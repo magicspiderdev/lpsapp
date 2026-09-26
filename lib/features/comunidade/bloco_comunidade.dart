@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/widgets/blocos.dart';
 import '../publico/agenda/agenda.dart';
 import '../publico/bilheteira/bilheteira.dart' show SemSessao;
+import 'arena.dart';
 import 'comunidade.dart';
 
 /// O bloco da comunidade na ficha de um jogo: "Adivinha o resultado" antes do
@@ -53,15 +56,67 @@ class _Conteudo extends ConsumerWidget {
     ];
     if (partes.isEmpty) return const SizedBox.shrink();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Palco(
       children: [
-        const TituloSeccao('Comunidade Leões'),
         if (semPermissao)
           NotaPermissao(explicacaoPermissao('comunidade'), padding: const EdgeInsets.only(bottom: 10))
-        else if (suspensa) ...[const _AvisoBloqueado(), const SizedBox(height: 10)],
+        else if (suspensa) ...[
+          const _AvisoBloqueado(),
+          const SizedBox(height: 10),
+        ],
         for (final (i, w) in partes.indexed) ...[if (i > 0) const SizedBox(height: 10), w],
       ],
+    );
+  }
+}
+
+/// O bloco é um pedaço da Arena dentro da ficha do jogo: o mesmo fundo e os
+/// mesmos painéis do separador Comunidade, para se ver que é o jogo dos
+/// adeptos e não a ficha oficial.
+class _Palco extends StatelessWidget {
+  const _Palco({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 24),
+      child: Arena(
+        child: Builder(
+          builder: (context) {
+            final t = Theme.of(context);
+            return Container(
+              padding: const EdgeInsets.all(12),
+              decoration: ShapeDecoration(
+                color: t.colorScheme.surface,
+                shape: chanfroCom(t.colorScheme.outlineVariant, raio: 14),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(4, 0, 4, 12),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.bolt_rounded, color: AppPalette.ouro),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            'Comunidade Leões',
+                            style: t.textTheme.titleMedium?.copyWith(fontWeight: AppTypography.extraBold),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ...children,
+                ],
+              ),
+            );
+          },
+        ),
+      ),
     );
   }
 }
@@ -90,14 +145,14 @@ class _Palpite extends ConsumerWidget {
     Future<void> retirar() =>
         _escrever(context, ref, id, () => ref.read(jogoComunidadeProvider(id).notifier).retirarPalpite());
 
-    return Bloco(
+    return PainelArena(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const IconePastilha(Icons.psychology_alt_outlined),
+              const IconePastilha(Icons.bolt_rounded, cor: AppPalette.ouro),
               const SizedBox(width: 12),
               Expanded(child: Text('Adivinha o resultado', style: t.textTheme.titleMedium)),
             ],
@@ -106,7 +161,7 @@ class _Palpite extends ConsumerWidget {
           if (p.meu case final meu?) ...[
             Text('O seu palpite', style: t.textTheme.bodySmall),
             const SizedBox(height: 2),
-            Text(_comEquipas(jogo, meu), style: t.textTheme.titleLarge),
+            Text(_comEquipas(jogo, meu), style: t.textTheme.titleLarge?.copyWith(fontWeight: AppTypography.extraBold)),
             if (p.meusPontos case final pontos?) ...[
               const SizedBox(height: 4),
               Text(
@@ -116,8 +171,8 @@ class _Palpite extends ConsumerWidget {
                   _ => 'Ganhou $pontos pontos',
                 },
                 style: t.textTheme.bodyMedium?.copyWith(
-                  color: pontos > 0 ? t.colorScheme.primary : t.colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.w600,
+                  color: pontos > 0 ? AppPalette.ouro : t.colorScheme.onSurfaceVariant,
+                  fontWeight: AppTypography.extraBold,
                 ),
               ),
             ] else if (!p.aberto)
@@ -168,7 +223,7 @@ class _Distribuicao extends StatelessWidget {
     final partes = [
       (jogo.casa?.nome ?? 'Casa', p.vitoriaCasa, c.primary),
       ('Empate', p.empate, c.outline),
-      (jogo.fora?.nome ?? 'Fora', p.vitoriaFora, c.tertiary),
+      (jogo.fora?.nome ?? 'Fora', p.vitoriaFora, AppPalette.infoDark),
     ];
 
     return Column(
@@ -260,7 +315,7 @@ class _Relato extends ConsumerWidget {
         if (p.marcador != r.meu) p,
     ];
 
-    return Bloco(
+    return PainelArena(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,9 +405,9 @@ class _Proposta extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: t.colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(Tema.raioPequeno),
+        shape: chanfroCom(t.colorScheme.primary, raio: 8),
       ),
       // Com a letra do sistema grande o botão não cabe ao lado: vai para baixo.
       child: MediaQuery.textScalerOf(context).scale(1) > 1.3
@@ -373,28 +428,32 @@ class _ConviteEntrar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = Theme.of(context);
     final aqui = GoRouterState.of(context).uri.toString();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return _Palco(
       children: [
-        const TituloSeccao('Comunidade Leões'),
-        Bloco(
+        PainelArena(
           padding: const EdgeInsets.all(16),
           onTap: () =>
               context.go(Uri(path: '/entrar', queryParameters: {'voltar': aqui, 'motivo': 'comunidade'}).toString()),
-          child: Row(
-            children: [
-              const IconePastilha(Icons.groups_outlined),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  'Entre para adivinhar o resultado e ajudar a registar como acabou.',
-                  style: t.textTheme.bodyMedium,
-                ),
-              ),
-              Icon(Icons.chevron_right_rounded, color: t.colorScheme.onSurfaceVariant),
-            ],
+          // O tema lê-se já dentro do palco (a Arena): o `context` de cima é o
+          // da ficha do jogo, clara.
+          child: Builder(
+            builder: (context) {
+              final t = Theme.of(context);
+              return Row(
+                children: [
+                  const IconePastilha(Icons.groups_outlined),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Entre para adivinhar o resultado e ajudar a registar como acabou.',
+                      style: t.textTheme.bodyMedium,
+                    ),
+                  ),
+                  Icon(Icons.chevron_right_rounded, color: t.colorScheme.onSurfaceVariant),
+                ],
+              );
+            },
           ),
         ),
       ],
@@ -410,10 +469,7 @@ class _AvisoBloqueado extends StatelessWidget {
     final t = Theme.of(context);
     return Container(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: t.colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(Tema.raioPequeno),
-      ),
+      decoration: ShapeDecoration(color: t.colorScheme.errorContainer, shape: chanfro),
       child: Text(
         'O clube suspendeu a sua participação na comunidade. Para saber porquê, fale com a secretaria.',
         style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onErrorContainer),
@@ -534,12 +590,18 @@ class _Contador extends StatelessWidget {
           onPressed: valor > 0 ? () => onMudar(valor - 1) : null,
           icon: const Icon(Icons.remove_rounded),
         ),
-        SizedBox(
-          width: 48,
+        Container(
+          constraints: const BoxConstraints(minWidth: 56, minHeight: 52),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          alignment: Alignment.center,
+          decoration: ShapeDecoration(
+            color: t.colorScheme.surfaceContainerHighest,
+            shape: chanfroCom(t.colorScheme.outline, raio: 8),
+          ),
           child: Text(
             '$valor',
             textAlign: TextAlign.center,
-            style: t.textTheme.headlineMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
+            style: t.textTheme.headlineMedium?.copyWith(fontFeatures: AppTypography.tabular),
           ),
         ),
         IconButton.outlined(

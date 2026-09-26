@@ -5,9 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/tema/tema.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
 import '../../core/widgets/imagem_rede.dart';
+import 'arena.dart';
 import 'comunidade.dart';
 import 'comunidade_page.dart' show EtiquetaFase;
 
@@ -16,16 +19,27 @@ import 'comunidade_page.dart' show EtiquetaFase;
 /// Uma participação por conta, sem volta atrás: pede-se confirmação antes de
 /// enviar. Se a pessoa pode participar decide-o o servidor (`pode_participar`,
 /// `motivo`).
-class PassatempoPage extends ConsumerStatefulWidget {
+class PassatempoPage extends StatelessWidget {
   const PassatempoPage({super.key, required this.uid});
 
   final String uid;
 
+  // A Arena fica por fora do ecrã: o `context` dele (o título, o regulamento,
+  // o diálogo de confirmar) tem de ler o tema escuro, não o da app.
   @override
-  ConsumerState<PassatempoPage> createState() => _PassatempoPageState();
+  Widget build(BuildContext context) => Arena(fundo: true, child: _Passatempo(uid: uid));
 }
 
-class _PassatempoPageState extends ConsumerState<PassatempoPage> {
+class _Passatempo extends ConsumerStatefulWidget {
+  const _Passatempo({required this.uid});
+
+  final String uid;
+
+  @override
+  ConsumerState<_Passatempo> createState() => _PassatempoState();
+}
+
+class _PassatempoState extends ConsumerState<_Passatempo> {
   int? _opcao;
   final _resposta = TextEditingController();
   bool _aEnviar = false;
@@ -117,15 +131,15 @@ class _PassatempoPageState extends ConsumerState<PassatempoPage> {
             padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 40),
             children: [
               if (p.imagemUrl case final url?) ...[
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(Tema.raio),
+                ClipPath(
+                  clipper: const ShapeBorderClipper(shape: chanfro),
                   child: AspectRatio(aspectRatio: 16 / 9, child: ImagemRede(url)),
                 ),
                 const SizedBox(height: 16),
               ],
               Align(alignment: Alignment.centerLeft, child: EtiquetaFase(p)),
               const SizedBox(height: 10),
-              Text(p.titulo, style: Theme.of(context).textTheme.headlineSmall),
+              Text(p.titulo, style: Theme.of(context).textTheme.headlineMedium),
               if (p.descricao ?? p.resumo case final texto?) ...[
                 const SizedBox(height: 10),
                 Text(texto, style: Theme.of(context).textTheme.bodyLarge),
@@ -174,22 +188,31 @@ class _Factos extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    Widget linha(IconData i, String texto) => Padding(
+    Widget linha(IconData i, String texto, {Color? cor}) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
         children: [
-          Icon(i, size: 20, color: t.colorScheme.primary),
+          Icon(i, size: 20, color: cor ?? t.colorScheme.primary),
           const SizedBox(width: 10),
-          Expanded(child: Text(texto, style: t.textTheme.bodyMedium)),
+          Expanded(
+            child: Text(
+              texto,
+              style: t.textTheme.bodyMedium?.copyWith(
+                color: cor,
+                fontWeight: cor == null ? null : AppTypography.semiBold,
+              ),
+            ),
+          ),
         ],
       ),
     );
-    return Bloco(
+    return PainelArena(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
       child: Column(
         children: [
-          if (p.premio != null) linha(Icons.card_giftcard_outlined, p.premio!),
-          linha(Icons.emoji_events_outlined, p.vencedores == 1 ? '1 vencedor' : '${p.vencedores} vencedores'),
+          // O prémio é o que está em jogo: em ouro.
+          if (p.premio != null) linha(Icons.emoji_events_outlined, p.premio!, cor: AppPalette.ouro),
+          linha(Icons.military_tech_outlined, p.vencedores == 1 ? '1 vencedor' : '${p.vencedores} vencedores'),
           linha(Icons.groups_outlined, p.participantes == 1 ? '1 participante' : '${p.participantes} participantes'),
           if (p.soSocios) linha(Icons.verified_outlined, 'Só para sócios'),
           if (p.soMaiores) linha(Icons.eighteen_up_rating_outlined, 'Só para maiores de 18 anos'),
@@ -225,16 +248,23 @@ class _Participacao extends ConsumerWidget {
     // Já participou: o que respondeu e, depois de anunciado, se ganhou.
     if (minha != null) {
       final ganhou = minha.vencedor == true;
-      return Bloco(
+      return PainelArena(
+        destaque: ganhou ? AppPalette.ouro : null,
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(switch (minha.vencedor) {
-              true => 'Parabéns, ganhou!',
-              false => 'Desta vez não ganhou',
-              null => 'Está a participar',
-            }, style: t.textTheme.titleMedium?.copyWith(color: ganhou ? t.colorScheme.primary : null)),
+            Text(
+              switch (minha.vencedor) {
+                true => 'Parabéns, ganhou!',
+                false => 'Desta vez não ganhou',
+                null => 'Está a participar',
+              },
+              style: t.textTheme.titleMedium?.copyWith(
+                color: ganhou ? AppPalette.ouro : null,
+                fontWeight: AppTypography.extraBold,
+              ),
+            ),
             const SizedBox(height: 6),
             if (minha.opcao case final i? when i >= 0 && i < p.opcoes.length)
               Text('Respondeu: ${p.opcoes[i]}', style: t.textTheme.bodyMedium),

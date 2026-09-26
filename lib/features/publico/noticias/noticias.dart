@@ -93,14 +93,7 @@ class Relacionado {
   /// Estado da sessão de bilhética, quando é uma.
   final String? estado;
 
-  const Relacionado({
-    required this.tipo,
-    required this.id,
-    required this.titulo,
-    this.inicio,
-    this.local,
-    this.estado,
-  });
+  const Relacionado({required this.tipo, required this.id, required this.titulo, this.inicio, this.local, this.estado});
 
   static Relacionado? fromJson(Map<String, dynamic> j) {
     final tipo = j['tipo'];
@@ -148,8 +141,7 @@ class Noticia extends NoticiaResumo {
       ],
       relacionados = [
         for (final r in (j['relacionados'] as List?) ?? const [])
-          if (r is Map)
-              ?Relacionado.fromJson(r.cast<String, dynamic>()),
+          if (r is Map) ?Relacionado.fromJson(r.cast<String, dynamic>()),
       ],
       super(
         slug: j['slug'] as String,
@@ -244,9 +236,7 @@ final noticiasDaEtiquetaProvider = StreamProvider.autoDispose.family<Dados<Pagin
     cache: ref.read(cacheProvider),
     ambito: Ambito.publico,
     chave: 'noticias.etiqueta.$etiqueta',
-    pedido: () => dadosDe(
-      dio.get('/noticias', queryParameters: {'etiqueta': etiqueta, 'por_pagina': _porPagina}),
-    ),
+    pedido: () => dadosDe(dio.get('/noticias', queryParameters: {'etiqueta': etiqueta, 'por_pagina': _porPagina})),
     ler: PaginaNoticias.fromJson,
   );
 });
@@ -306,7 +296,13 @@ final noticiasExemplo = <Map<String, dynamic>>[
         'inicio': '2026-09-16 21:00:00',
         'local': 'Pavilhão Municipal de Porto Salvo',
       },
-      {'tipo': 'sessao', 'id': 'S1', 'titulo': 'Próximo jogo em casa', 'inicio': '2026-10-03 21:00:00', 'estado': 'a_venda'},
+      {
+        'tipo': 'sessao',
+        'id': 'S1',
+        'titulo': 'Próximo jogo em casa',
+        'inicio': '2026-10-03 21:00:00',
+        'estado': 'a_venda',
+      },
       // Tipo que a app não conhece: tem de ser ignorado sem rebentar.
       {'tipo': 'galeria', 'id': 9, 'titulo': 'Fotografias do dérbi'},
     ],
@@ -387,8 +383,6 @@ Noticia noticiaExemplo(String slug) {
   // O "veja também" do exemplo são as outras notícias, para se ver o desenho.
   return Noticia.fromJson({
     ...bruta,
-    'relacionadas': [
-      for (final n in noticiasExemplo.where((n) => n['slug'] != bruta['slug']).take(3)) n,
-    ],
+    'relacionadas': [for (final n in noticiasExemplo.where((n) => n['slug'] != bruta['slug']).take(3)) n],
   });
 }

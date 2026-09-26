@@ -34,10 +34,7 @@ abstract final class Config {
   /// de 2026-09-25; sem `www` o site redirecciona para aqui): enquanto o site
   /// novo está em `new.` e o domínio ainda serve o WordPress, quem não tem a
   /// app cai na página do site antigo.
-  static const linksRaiz = String.fromEnvironment(
-    'LPS_LINKS_RAIZ',
-    defaultValue: 'https://www.leoesdeportosalvo.pt',
-  );
+  static const linksRaiz = String.fromEnvironment('LPS_LINKS_RAIZ', defaultValue: 'https://www.leoesdeportosalvo.pt');
 }
 
 /// Modo de demonstração: `flutter run --dart-define=LPS_DEMO=1`.

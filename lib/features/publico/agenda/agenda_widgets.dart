@@ -489,7 +489,12 @@ class EmblemaEquipa extends StatelessWidget {
     final brasao = Image.asset('assets/images/brasao.png', cacheWidth: pixeis, semanticLabel: 'Brasão do clube');
     final Widget dentro = switch (e.emblemaUrl) {
       // Os ficheiros vêm em tamanho de impressão: descodifica-se ao do ecrã.
-      final String url => ImagemRede(url, fit: BoxFit.contain, larguraCache: pixeis, falha: (_) => e.doClube ? brasao : escudo),
+      final String url => ImagemRede(
+        url,
+        fit: BoxFit.contain,
+        larguraCache: pixeis,
+        falha: (_) => e.doClube ? brasao : escudo,
+      ),
       _ when e.doClube => brasao,
       _ => escudo,
     };

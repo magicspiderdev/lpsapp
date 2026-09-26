@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:lpsapp/core/api/api_exception.dart';
 import 'package:lpsapp/core/cache/com_cache.dart';
 import 'package:lpsapp/core/theme/app_theme.dart';
 import 'package:lpsapp/features/publico/agenda/agenda.dart';
@@ -42,10 +43,7 @@ void main() {
   });
 
   group('ficha de jogo', () {
-    for (final (nome, detalhe) in [
-      ('com ficha', jogoExemplo(jogado.id)),
-      ('sem ficha', jogoExemplo(porJogar.id)),
-    ]) {
+    for (final (nome, detalhe) in [('com ficha', jogoExemplo(jogado.id)), ('sem ficha', jogoExemplo(porJogar.id))]) {
       for (final (largura, escala) in [(320.0, 1.0), (320.0, 2.0), (430.0, 1.3)]) {
         for (final escuro in [false, true]) {
           testWidgets('$nome · ${largura.toInt()}px · letra x$escala · ${escuro ? 'escuro' : 'claro'}', (t) async {
@@ -72,9 +70,7 @@ void main() {
         largura: 430,
         escala: 1,
         escuro: false,
-        overrides: [
-          jogoProvider(jogado.id).overrideWith((ref) => Stream.value(Dados(detalhe, DateTime.now()))),
-        ],
+        overrides: [jogoProvider(jogado.id).overrideWith((ref) => Stream.value(Dados(detalhe, DateTime.now())))],
         ecra: JogoPage(id: jogado.id),
       );
 
@@ -102,8 +98,19 @@ void main() {
           'resultado': {'casa': 1, 'fora': 0},
         },
         'ficha': [
-          {'tipo': 'golo', 'minuto': 10, 'equipa': 'casa', 'atleta': 'Diogo', 'marcador': {'casa': 1, 'fora': 0}},
-          {'tipo': 'tempo_morto', 'minuto': 12, 'equipa': 'fora', 'marcador': {'casa': 1, 'fora': 0}},
+          {
+            'tipo': 'golo',
+            'minuto': 10,
+            'equipa': 'casa',
+            'atleta': 'Diogo',
+            'marcador': {'casa': 1, 'fora': 0},
+          },
+          {
+            'tipo': 'tempo_morto',
+            'minuto': 12,
+            'equipa': 'fora',
+            'marcador': {'casa': 1, 'fora': 0},
+          },
         ],
       });
 
@@ -112,9 +119,7 @@ void main() {
         largura: 430,
         escala: 1,
         escuro: false,
-        overrides: [
-          jogoProvider('99').overrideWith((ref) => Stream.value(Dados(comTipoNovo, DateTime.now()))),
-        ],
+        overrides: [jogoProvider('99').overrideWith((ref) => Stream.value(Dados(comTipoNovo, DateTime.now())))],
         ecra: const JogoPage(id: '99'),
       );
 
@@ -130,9 +135,7 @@ void main() {
         largura: 430,
         escala: 1,
         escuro: false,
-        overrides: [
-          jogoProvider(jogado.id).overrideWith((ref) => Stream.value(Dados(semFicha, DateTime.now()))),
-        ],
+        overrides: [jogoProvider(jogado.id).overrideWith((ref) => Stream.value(Dados(semFicha, DateTime.now())))],
         ecra: JogoPage(id: jogado.id),
       );
 
@@ -146,7 +149,9 @@ void main() {
         escala: 1,
         escuro: false,
         overrides: [
-          jogoProvider(porJogar.id).overrideWith((ref) => Stream.value(Dados(JogoComFicha(jogo: porJogar), DateTime.now()))),
+          jogoProvider(
+            porJogar.id,
+          ).overrideWith((ref) => Stream.value(Dados(JogoComFicha(jogo: porJogar), DateTime.now()))),
         ],
         ecra: JogoPage(id: porJogar.id),
       );
@@ -162,9 +167,7 @@ void main() {
         escala: 1,
         escuro: false,
         assentar: false, // o pedido nunca responde
-        overrides: [
-          jogoProvider(jogado.id).overrideWith((ref) => const Stream<Dados<JogoComFicha>>.empty()),
-        ],
+        overrides: [jogoProvider(jogado.id).overrideWith((ref) => const Stream<Dados<JogoComFicha>>.empty())],
         ecra: JogoPage(id: jogado.id, inicial: jogado),
       );
 
@@ -183,7 +186,7 @@ void main() {
             largura: largura,
             escala: escala,
             escuro: escuro,
-            overrides: const [],
+            overrides: [_ficha(evento)],
             ecra: EventoPage(referencia: evento.slug!, inicial: evento),
           );
         });
@@ -196,7 +199,7 @@ void main() {
         largura: 430,
         escala: 1,
         escuro: false,
-        overrides: const [],
+        overrides: [_ficha(evento)],
         ecra: EventoPage(referencia: evento.slug!, inicial: evento),
       );
 
@@ -211,28 +214,59 @@ void main() {
       }
     });
 
-    testWidgets('sem o item em mão, procura-o na agenda já carregada', (t) async {
+    testWidgets('sem o item em mão (um link), abre pela ficha do servidor', (t) async {
       await _pump(
         t,
         largura: 430,
         escala: 1,
         escuro: false,
-        overrides: [
-          agendaProvider.overrideWith((ref) => Stream.value(Dados(agendaExemplo, DateTime.now()))),
-        ],
+        overrides: [_ficha(evento)],
         ecra: EventoPage(referencia: evento.slug!),
       );
 
       expect(find.text(evento.titulo), findsOneWidget);
     });
 
-    testWidgets('um evento que já não está na agenda não finge que está', (t) async {
+    testWidgets('a ficha do servidor manda sobre o cartão, que é só para abrir depressa', (t) async {
+      // O servidor sabe melhor (um título corrigido, um cancelamento).
+      final actual = agendaExemplo.firstWhere((i) => i.tipo == TipoItem.evento && i.titulo != evento.titulo);
+      await _pump(
+        t,
+        largura: 430,
+        escala: 1,
+        escuro: false,
+        overrides: [eventoProvider(evento.slug!).overrideWith((ref) => Stream.value(Dados(actual, DateTime.now())))],
+        ecra: EventoPage(referencia: evento.slug!, inicial: evento),
+      );
+
+      expect(find.text(actual.titulo), findsOneWidget);
+      expect(find.text(evento.titulo), findsNothing);
+    });
+
+    testWidgets('um link antigo com o id ainda o encontra na agenda carregada', (t) async {
       await _pump(
         t,
         largura: 430,
         escala: 1,
         escuro: false,
         overrides: [
+          _semFicha(evento.id),
+          agendaProvider.overrideWith((ref) => Stream.value(Dados(agendaExemplo, DateTime.now()))),
+        ],
+        ecra: EventoPage(referencia: evento.id),
+      );
+
+      expect(find.text(evento.titulo), findsOneWidget);
+    });
+
+    testWidgets('um evento que não existe (404) diz que não o encontra', (t) async {
+      await _pump(
+        t,
+        largura: 430,
+        escala: 1,
+        escuro: false,
+        overrides: [
+          _semFicha('evento-que-ja-nao-existe'),
           agendaProvider.overrideWith((ref) => Stream.value(Dados(agendaExemplo, DateTime.now()))),
         ],
         ecra: const EventoPage(referencia: 'evento-que-ja-nao-existe'),
@@ -250,9 +284,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/',
-          builder: (_, _) => Scaffold(
-            body: ListView(children: [CartaoAgenda(comBilhetes)]),
-          ),
+          builder: (_, _) => Scaffold(body: ListView(children: [CartaoAgenda(comBilhetes)])),
         ),
         GoRoute(
           path: '/agenda/jogo/:id',
@@ -327,3 +359,11 @@ Future<void> _pump(
   // Um overflow do Flutter chega aqui como excepção.
   expect(t.takeException(), isNull);
 }
+
+/// A ficha do evento como o servidor a daria (`GET /agenda/eventos/{slug}`).
+Override _ficha(ItemAgenda e) => eventoProvider(e.slug!).overrideWith((ref) => Stream.value(Dados(e, DateTime.now())));
+
+/// Um `404 nao_encontrado` da ficha.
+Override _semFicha(String referencia) => eventoProvider(referencia).overrideWith(
+  (ref) => Stream.error(const ApiException(erro: 'nao_encontrado', message: 'Não encontrado.', httpStatus: 404)),
+);

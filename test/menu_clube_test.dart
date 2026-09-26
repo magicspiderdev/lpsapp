@@ -87,6 +87,21 @@ void main() {
       expect(p.resumo, isNull);
       expect(p.capa?.url, 'https://x/media/1');
       expect(p.corpo, hasLength(1));
+      expect(p.emHtml, isFalse);
+    });
+
+    test('página em HTML livre: abre-se no site; formato desconhecido é blocos', () {
+      final html = PaginaClube.fromJson({
+        'slug': 'parcerias',
+        'titulo': 'Parcerias',
+        'formato': 'html',
+        'corpo': [],
+        'html': {'documento': '<style></style><section></section>', 'pagina_inteira': false},
+      });
+      expect(html.emHtml, isTrue);
+
+      final outro = PaginaClube.fromJson({'slug': 'x', 'titulo': 'X', 'formato': 'markdown', 'corpo': []});
+      expect(outro.emHtml, isFalse);
     });
   });
 
@@ -137,6 +152,85 @@ void main() {
 
       expect(direita.dy, greaterThan(esquerda.dy));
       expect(t.takeException(), isNull);
+    });
+  });
+
+  group('blocos novos do corpo', () {
+    Future<void> montar(WidgetTester t, List<Map<String, dynamic>> blocos, {Uri? noSite}) async {
+      await t.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light(),
+          home: Scaffold(
+            body: SingleChildScrollView(child: CorpoBlocos(blocos, noSite: noSite)),
+          ),
+        ),
+      );
+    }
+
+    testWidgets('publicação do Instagram é um cartão com a legenda', (t) async {
+      await montar(t, [
+        {
+          'tipo': 'publicacao',
+          'provedor': 'instagram',
+          'id_publicacao': 'Ddtf_wTicQI',
+          'url': 'https://www.instagram.com/reel/Ddtf_wTicQI/',
+          'legenda': null,
+        },
+      ]);
+      expect(find.text('Publicação no Instagram'), findsOneWidget);
+      expect(find.text('Ver no Instagram'), findsOneWidget);
+      expect(t.takeException(), isNull);
+    });
+
+    testWidgets('ficheiros: nome, tipo e tamanho', (t) async {
+      await montar(t, [
+        {
+          'tipo': 'ficheiros',
+          'titulo': 'Documentos da inscrição',
+          'ficheiros': [
+            {
+              'nome': 'Regulamento 2026/27',
+              'tipo': 'PDF',
+              'extensao': 'pdf',
+              'bytes': 482133,
+              'url': 'https://x/media/1',
+              'download_url': 'https://x/media/1/descarregar',
+            },
+          ],
+        },
+      ]);
+      expect(find.text('Documentos da inscrição'), findsOneWidget);
+      expect(find.text('Regulamento 2026/27'), findsOneWidget);
+      expect(find.text('PDF · 471 KB'), findsOneWidget);
+    });
+
+    testWidgets('galeria mostra uma miniatura por foto; vazia não aparece', (t) async {
+      await montar(t, [
+        {
+          'tipo': 'galeria',
+          'legenda': 'O jogo',
+          'imagens': [
+            {'url': 'https://x/media/1'},
+            {'url': 'https://x/media/2'},
+            {'sem': 'url'},
+          ],
+        },
+        {'tipo': 'galeria', 'imagens': []},
+      ]);
+      expect(find.byType(GridView), findsOneWidget);
+      expect(find.byType(InkWell), findsNWidgets(2));
+      expect(find.text('O jogo'), findsOneWidget);
+    });
+
+    testWidgets('HTML livre vira ligação para o site, e sem ela ignora-se', (t) async {
+      final bloco = {'tipo': 'html', 'html': '<style>.x{}</style><section class="x">…</section>'};
+
+      await montar(t, [bloco], noSite: Uri.parse('https://www.leoesdeportosalvo.pt/noticias/x/'));
+      expect(find.text('Há mais nesta página'), findsOneWidget);
+
+      await montar(t, [bloco]);
+      expect(find.text('Há mais nesta página'), findsNothing);
+      expect(find.textContaining('section'), findsNothing);
     });
   });
 }

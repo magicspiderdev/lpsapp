@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/api/api_exception.dart';
 import '../../../core/tema/tema.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/blocos.dart';
@@ -13,12 +14,11 @@ import 'agenda_widgets.dart';
 
 /// Um evento do clube, por extenso: quando é, onde, e a descrição inteira.
 ///
-/// **Não há endpoint de detalhe para eventos.** O que se sabe de um evento vem
-/// todo na agenda (`descricao`, `capa`, `fim` — §4.17), por isso este ecrã lê
-/// da lista que já está em memória, em vez de inventar uma chamada. Está
-/// pedido ao CISOC em `docs/pedidos-app/2026-09-22-detalhe-de-evento.md`: com
-/// ele, um link para um evento antigo passa a abrir sem depender da janela de
-/// datas que a agenda carregou.
+/// Vem da ficha (`eventoProvider`, `GET /agenda/eventos/{slug}`), que abre
+/// qualquer evento publicado, esteja ou não na janela de datas da agenda — um
+/// link partilhado meses depois, um evento de outra época. Quem chega por
+/// toque já traz o item do cartão, e é esse que se vê enquanto a ficha chega
+/// (e se ela não chegar, sem rede).
 class EventoPage extends ConsumerWidget {
   const EventoPage({super.key, required this.referencia, this.inicial});
 
@@ -30,23 +30,33 @@ class EventoPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final agenda = ref.watch(agendaProvider);
-    final recuo = ref.watch(maisAnterioresProvider);
-    final evento = inicial ?? _procurar([...?agenda.valueOrNull?.valor, ...recuo.itens], referencia);
+    final inicial = this.inicial;
+    // A ficha só se pede pelo slug. Um evento sem slug (só `id`) fica com o
+    // que o cartão trouxe, ou com o que a agenda carregada tiver.
+    final slug = inicial?.slug ?? (inicial == null ? referencia : null);
+    final ficha = slug == null ? null : ref.watch(eventoProvider(slug));
+
+    Widget corpo() {
+      if (ficha?.valueOrNull case final d?) return _Evento(d.valor);
+      if (inicial != null) return _Evento(inicial);
+      if (ficha == null || ficha.isLoading) return const Center(child: CircularProgressIndicator());
+
+      // A ficha falhou e não há cartão: um link antigo com o `id` ainda pode
+      // estar na agenda carregada.
+      final agenda = ref.watch(agendaProvider).valueOrNull?.valor ?? const <ItemAgenda>[];
+      if (_procurar([...agenda, ...ref.watch(maisAnterioresProvider).itens], referencia) case final e?) {
+        return _Evento(e);
+      }
+      return switch (ficha.error) {
+        ApiException(erro: 'nao_encontrado') || EmPreparacao() => const _NaoEncontrado(),
+        final erro? => ErroView(erro: erro, tentarDeNovo: () => ref.invalidate(eventoProvider(slug!))),
+        null => const _NaoEncontrado(),
+      };
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Evento')),
-      body: switch ((evento, agenda)) {
-        (final ItemAgenda e, _) => _Evento(e),
-        (null, AsyncLoading()) => const Center(child: CircularProgressIndicator()),
-        (null, AsyncError(:final error)) when error is! EmPreparacao => ErroView(
-          erro: error,
-          tentarDeNovo: () => ref.invalidate(agendaProvider),
-        ),
-        // A agenda respondeu e este evento não está lá: ou já saiu da janela
-        // de datas que se carregou, ou deixou de existir.
-        _ => const _NaoEstaNaAgenda(),
-      },
+      body: corpo(),
     );
   }
 
@@ -58,8 +68,8 @@ class EventoPage extends ConsumerWidget {
   }
 }
 
-class _NaoEstaNaAgenda extends StatelessWidget {
-  const _NaoEstaNaAgenda();
+class _NaoEncontrado extends StatelessWidget {
+  const _NaoEncontrado();
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +84,7 @@ class _NaoEstaNaAgenda extends StatelessWidget {
             Text('Evento não encontrado', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 6),
             Text(
-              'Este evento já não está na agenda do clube.',
+              'Este evento não existe ou deixou de estar publicado.',
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodySmall,
             ),

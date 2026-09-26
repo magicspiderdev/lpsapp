@@ -25,12 +25,10 @@ Pedidos abertos:
 | Pedido | Bloqueia |
 |--------|----------|
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-transferir-bilhete.md` | Transferência a sério de um bilhete (a app envia o código, com aviso) |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-22-detalhe-de-evento.md` | Abrir um evento por link ou fora da janela da agenda (a ficha já funciona com o item da lista) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-ja-existe-id.md` | Nada — o `409 ja_existe` da inscrição traz `inscricao` e não `id`; a app lê os dois |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-24-push-pagamento-emitido.md` | O push "pagamento emitido" (a app já abre `/socio/pagamentos/{id}?socio=`), e os destinos dos avisos de modalidades, chat e pagamento confirmado, que hoje não abrem nada |
-| `C:\home\cisoc\docs\pedidos-app\2026-09-24-inscricao-pagamento-pendente.md` | Mostrar a referência já pedida ao reabrir uma inscrição por pagar (hoje a app remete para o email) |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-25-pagar-com-saldo.md` | Pagar bilhetes, inscrições e loja com o saldo da conta corrente (quotas e mensalidades continuam no abatimento automático; hoje o saldo é só consulta: vê-se no topo do Início e em `/socio/wallet`) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-26-comunidade-publica.md` (do site; a app acrescentou o que precisa) | Mostrar a quem não entrou o pódio, a tabela e os passatempos da Comunidade (hoje só o convite "Entre em campo") |
 
 **Menores** (§2.10–§2.12, política de menores do CISOC, fases 1 a 9): a app
 **nunca calcula idades** — nem no registo, onde a data é só declarada
@@ -74,7 +72,18 @@ com o estado por mudar — é a única conta com datas, e só decide o destaque.
 botão aparece decide-se por `aberto`/`motivo` do servidor, nunca pelas datas;
 depois de cada escrita substitui-se o jogo pelo que vem. **Sem caixas de texto
 livre** (ADR-13) — o único texto é a alcunha, que nunca se preenche com o nome
-da pessoa. Os resultados entram por contadores, não por teclado. A barra de
+da pessoa. Os resultados entram por contadores, não por teclado. Visualmente é
+a **Arena** (`comunidade/arena.dart`, `AppTheme.arena()`/`AppArena`): fundo
+escuro nos dois modos, painéis de canto chanfrado (`PainelArena`), cartões
+"VS", pódio dos três primeiros e ouro (`AppPalette.ouro`) só para o que se
+ganha — pontos, 1.º lugar, prémios. O bloco da ficha do jogo usa-a também. O
+fundo é o pavilhão (`assets/images/arena.jpg`, `Arena(fundo: true)`), no
+separador e no passatempo. **Avatares** (§4.23): leões e leoas que o clube gere
+no backoffice; a lista e as imagens vêm de `GET /publico/comunidade/avatares`
+(`avataresProvider`, com cache — a mesma no site), e o perfil e a classificação
+trazem só o código. Sem avatar, ou com um código fora da lista (retirado),
+mostra-se o brasão. O `PUT /comunidade/perfil` muda só o que vai no corpo:
+`mudarAvatar` envia só `avatar`, `mudarAlcunha` só `alcunha`. A barra de
 baixo é só de ícones: com cinco separadores os nomes partiam-se em duas linhas.
 
 **A app entra pela v2** (Contas v2, §2.9), desde 2026-09-22. O que isso implica:
@@ -251,17 +260,24 @@ Consequências para a app:
   `limite` 100; a agenda do clube tem dezenas de itens por época.
 - Tocar num cartão abre a **ficha**: um jogo tem endpoint
   (`/competicao/jogos/{id}` — placard, árbitro, assistência e a ficha com golos,
-  cartões, substituições e relato, `jogo_page.dart`); um evento não tem, e
-  desenha-se com o item que a agenda já trouxe (`evento_page.dart`, pedido
-  `2026-09-22-detalhe-de-evento`). O item vai no `extra` da rota, para o ecrã
-  não abrir a girar. **O marcador oficial é `jogo.resultado`**, não o da ficha,
+  cartões, substituições e relato, `jogo_page.dart`); um evento pelo `slug`
+  (`/agenda/eventos/{slug}`, `eventoProvider`, `evento_page.dart`), sem janela
+  de datas — abre links antigos; um evento só com `id` fica com o que a agenda
+  tem. O item vai no `extra` da rota, para o ecrã não abrir a girar, e a ficha
+  do servidor substitui-o quando chega. **O marcador oficial é `jogo.resultado`**, não o da ficha,
   que pode estar a meio de ser escrita; o `marcador` de cada linha vem contado
   do servidor (a regra do autogolo é de lá) e os tipos de linha são lista
   aberta — o que não se conhece ignora-se.
 - O corpo de uma notícia e o da página de uma modalidade são a mesma lista de
   blocos, compostos por `CorpoBlocos` (`publico/noticias/corpo_blocos.dart`):
-  `texto`, `imagem`, `video`, `tabela` (desliza para o lado, não encolhe),
-  `mapa` (abre o `url`, sem mapa embebido) e as secções por `estilo`. O `texto`
+  `texto`, `imagem`, `galeria` (grelha que abre em ecrã inteiro), `video`,
+  `tabela` (desliza para o lado, não encolhe), `mapa` (abre o `url`, sem mapa
+  embebido), `publicacao` (cartão do Instagram que abre o `url`), `ficheiros`
+  (abre o `download_url`) e as secções por `estilo`. O bloco `html` (HTML livre,
+  com CSS e scripts) **não se desenha**: é um cartão que abre a mesma página no
+  site (`CorpoBlocos(noSite:)`, `Links.pagina`/`modalidade`/`noticia`); uma
+  página com `formato: "html"` vem com o `corpo` vazio e abre-se inteira no
+  site (`PaginaClube.emHtml`) — era a "Parcerias" a sair em branco. O `texto`
   e a `historia_html` do clube levam HTML de uma lista branca garantida no
   servidor: compõem-se com `flutter_widget_from_html_core`, sem `WebView` e sem
   voltar a sanitizar. Tipos de bloco desconhecidos ignoram-se. Uma modalidade

@@ -152,6 +152,9 @@ class JogoComunidade {
 class LinhaClassificacao {
   final int posicao, pontos, exactos, palpites;
   final String? alcunha;
+
+  /// O código do avatar (`avataresProvider`); só vem a quem tem alcunha.
+  final String? avatar;
   final bool eu;
 
   const LinhaClassificacao({
@@ -160,6 +163,7 @@ class LinhaClassificacao {
     required this.exactos,
     required this.palpites,
     this.alcunha,
+    this.avatar,
     this.eu = false,
   });
 
@@ -169,6 +173,7 @@ class LinhaClassificacao {
     exactos: (j['exactos'] as num?)?.toInt() ?? 0,
     palpites: (j['palpites'] as num?)?.toInt() ?? 0,
     alcunha: j['alcunha'] as String?,
+    avatar: j['avatar'] as String?,
     eu: j['eu'] == true,
   );
 }
@@ -204,15 +209,22 @@ class Classificacao {
   }
 }
 
-/// O perfil na comunidade: a alcunha (opcional) e se o clube suspendeu a conta.
+/// O perfil na comunidade: a alcunha e o avatar (opcionais) e se o clube
+/// suspendeu a conta.
 class PerfilComunidade {
   final String? alcunha;
+
+  /// O código do avatar escolhido (`avataresProvider`), ou `null`.
+  final String? avatar;
   final bool bloqueado;
 
-  const PerfilComunidade({this.alcunha, this.bloqueado = false});
+  const PerfilComunidade({this.alcunha, this.avatar, this.bloqueado = false});
 
-  factory PerfilComunidade.fromJson(Map<String, dynamic> j) =>
-      PerfilComunidade(alcunha: j['alcunha'] as String?, bloqueado: j['bloqueado'] == true);
+  factory PerfilComunidade.fromJson(Map<String, dynamic> j) => PerfilComunidade(
+    alcunha: j['alcunha'] as String?,
+    avatar: j['avatar'] as String?,
+    bloqueado: j['bloqueado'] == true,
+  );
 }
 
 /// A participação desta conta num passatempo.
@@ -429,14 +441,23 @@ class PerfilComunidadeController extends AutoDisposeAsyncNotifier<PerfilComunida
 
   /// `null` para sair da tabela. Nunca se preenche por omissão com o nome da
   /// pessoa: aparecer na classificação é uma escolha (RGPD).
-  Future<void> mudarAlcunha(String? alcunha) async {
-    final d = await dadosDe(ref.read(dioContaProvider).put('/comunidade/perfil', data: {'alcunha': alcunha}));
+  Future<void> mudarAlcunha(String? alcunha) => _gravar({'alcunha': alcunha});
+
+  /// Um código da lista (`avataresProvider`), ou `null` para o tirar. O `PUT`
+  /// só muda o que vem no corpo: a alcunha fica como está.
+  Future<void> mudarAvatar(String? avatar) => _gravar({'avatar': avatar});
+
+  Future<void> _gravar(Map<String, dynamic> dados) async {
+    final d = await dadosDe(ref.read(dioContaProvider).put('/comunidade/perfil', data: dados));
     state = AsyncData(PerfilComunidade.fromJson(((d['perfil'] as Map?) ?? d).cast<String, dynamic>()));
     ref.invalidate(classificacaoProvider);
   }
 
   /// O servidor respondeu `comunidade_bloqueada`: esconde os botões já.
-  void bloqueada() => state = AsyncData(PerfilComunidade(alcunha: state.valueOrNull?.alcunha, bloqueado: true));
+  void bloqueada() {
+    final p = state.valueOrNull;
+    state = AsyncData(PerfilComunidade(alcunha: p?.alcunha, avatar: p?.avatar, bloqueado: true));
+  }
 }
 
 /// `GET /comunidade/passatempos` — a decorrer, a abrir, e os que acabaram há

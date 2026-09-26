@@ -15,9 +15,14 @@ import '../../../core/widgets/imagem_rede.dart';
 /// Só se compõem os tipos que a app conhece; os outros ignoram-se (invariante
 /// I7), e um bloco a que falte o essencial também.
 class CorpoBlocos extends StatelessWidget {
-  const CorpoBlocos(this.blocos, {super.key});
+  const CorpoBlocos(this.blocos, {super.key, this.noSite});
 
   final List<Map<String, dynamic>> blocos;
+
+  /// A mesma página no site. O bloco `html` (HTML livre, com o CSS e os
+  /// scripts que traz) não se desenha na app: vira um botão que a abre lá.
+  /// Sem ele, o bloco ignora-se.
+  final Uri? noSite;
 
   /// Abaixo disto os blocos com `ocupa` empilham-se: num telemóvel ao alto,
   /// um terço da largura é uma coluna onde não cabe uma frase.
@@ -28,7 +33,7 @@ class CorpoBlocos extends StatelessWidget {
     // Blocos seguidos com o mesmo `estilo` são uma secção só, no mesmo fundo.
     final seccoes = <(String?, List<(Widget, double?)>)>[];
     for (final b in blocos) {
-      final w = _bloco(context, b);
+      final w = _bloco(context, b, noSite);
       if (w == null) continue;
       final estilo = _estilos.contains(b['estilo']) ? b['estilo'] as String : null;
       final entrada = (w, fracao(b['ocupa']));
@@ -145,21 +150,368 @@ class CorpoBlocos extends StatelessWidget {
     };
   }
 
-  static Widget? _bloco(BuildContext context, Map<String, dynamic> b) {
+  static Widget? _bloco(BuildContext context, Map<String, dynamic> b, Uri? noSite) {
     // A imagem vem com o URL montado (`capa.url`, blocos `imagem`); o `uid` só
     // aparece nos exemplos do modo de demonstração.
     final urlImagem = b['url'] as String? ?? (b['uid'] is String ? Config.mediaUrl(b['uid'] as String) : null);
+    final fotos = FotoCorpo.listaDe(b['imagens']);
+    final ficheiros = _Ficheiros.listaDe(b['ficheiros']);
 
     return switch (b['tipo']) {
       'texto' => TextoHtml(b['html'] as String? ?? ''),
       'imagem' when urlImagem != null => _Imagem(b, urlImagem),
+      'galeria' when fotos.isNotEmpty => _Galeria(fotos, legenda: _textoOuNulo(b['legenda'])),
       'video' when b['miniatura_url'] is String || b['url'] is String => _Video(b),
       'tabela' when b['linhas'] is List && (b['linhas'] as List).isNotEmpty => _Tabela(b),
       'mapa' when b['url'] is String => _Mapa(b),
+      'publicacao' when b['url'] is String => _Publicacao(b),
+      'ficheiros' when ficheiros.isNotEmpty => _Ficheiros(ficheiros, titulo: _textoOuNulo(b['titulo'])),
+      'html' when noSite != null => _HtmlNoSite(noSite),
       'citacao' => _Citacao(b['texto'] as String? ?? ''),
       'separador' => const Divider(),
       _ => null,
     };
+  }
+}
+
+String? _textoOuNulo(Object? v) => v is String && v.trim().isNotEmpty ? v.trim() : null;
+
+/// Abre fora da app: o YouTube, o Instagram e o Google Maps caem nas suas
+/// aplicações, se estiverem instaladas.
+void _abrirFora(String url) {
+  final uri = Uri.tryParse(url);
+  if (uri != null) launchUrl(uri, mode: LaunchMode.externalApplication);
+}
+
+/// Um cartão com contorno que abre alguma coisa — o mapa, a publicação, a
+/// ligação para o site. Todos com a mesma forma, para se lerem como "toque
+/// aqui" e não como texto.
+class _CartaoLigacao extends StatelessWidget {
+  const _CartaoLigacao({required this.icone, required this.titulo, required this.subtitulo, required this.onTap});
+
+  final Widget icone;
+  final String titulo, subtitulo;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final c = tema.colorScheme;
+    return Material(
+      color: c.surfaceContainerLowest,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(Tema.raioPequeno),
+        side: BorderSide(color: c.outlineVariant),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              icone,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(titulo, style: tema.textTheme.titleSmall),
+                    Text(subtitulo, style: tema.textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              Icon(Icons.open_in_new_rounded, size: 20, color: c.onSurfaceVariant),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Um post ou reel do Instagram (bloco `publicacao`, desde 2026-09-25).
+///
+/// Não há miniatura — o Instagram só a dá com uma chave de programador —, por
+/// isso é um cartão que abre o `url`, na app do Instagram se estiver
+/// instalada. Um `provedor` que a app não conheça é um link simples.
+class _Publicacao extends StatelessWidget {
+  const _Publicacao(this.b);
+
+  final Map<String, dynamic> b;
+
+  @override
+  Widget build(BuildContext context) {
+    final instagram = b['provedor'] == 'instagram';
+    final legenda = _textoOuNulo(b['legenda']);
+    return _CartaoLigacao(
+      icone: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          // As cores do logótipo do Instagram: o ícone oficial é uma marca,
+          // e o Material não o traz.
+          gradient: instagram
+              ? const LinearGradient(
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                  colors: [
+                    Color(0xFFFEDA75),
+                    Color(0xFFFA7E1E),
+                    Color(0xFFD62976),
+                    Color(0xFF962FBF),
+                    Color(0xFF4F5BD5),
+                  ],
+                )
+              : null,
+          color: instagram ? null : Theme.of(context).colorScheme.primaryContainer,
+        ),
+        child: Icon(
+          instagram ? Icons.camera_alt_outlined : Icons.link_rounded,
+          color: instagram ? Colors.white : Theme.of(context).colorScheme.onPrimaryContainer,
+        ),
+      ),
+      titulo: legenda ?? (instagram ? 'Publicação no Instagram' : 'Publicação'),
+      subtitulo: instagram ? 'Ver no Instagram' : 'Abrir a publicação',
+      onTap: () => _abrirFora(b['url'] as String),
+    );
+  }
+}
+
+/// O bloco `html` (HTML livre, com o CSS e os scripts que trouxer). A app não
+/// o desenha — não há `WebView`, e não passa pela lista branca do `texto` —:
+/// abre a página no site, que o mostra isolado (guia público §6).
+class _HtmlNoSite extends StatelessWidget {
+  const _HtmlNoSite(this.noSite);
+
+  final Uri noSite;
+
+  @override
+  Widget build(BuildContext context) {
+    final c = Theme.of(context).colorScheme;
+    return _CartaoLigacao(
+      icone: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
+        child: Icon(Icons.public_rounded, color: c.onPrimaryContainer),
+      ),
+      titulo: 'Há mais nesta página',
+      subtitulo: 'Parte do conteúdo só se vê no site',
+      onTap: () => launchUrl(noSite, mode: LaunchMode.inAppBrowserView),
+    );
+  }
+}
+
+/// Uma fotografia da biblioteca como sai no corpo: a do bloco `imagem` e cada
+/// uma das da `galeria`.
+class FotoCorpo {
+  final String url;
+  final double? largura, altura;
+  final String? credito, alt;
+
+  const FotoCorpo({required this.url, this.largura, this.altura, this.credito, this.alt});
+
+  static List<FotoCorpo> listaDe(Object? v) => [
+    if (v is List)
+      for (final f in v)
+        if (f is Map && f['url'] is String)
+          FotoCorpo(
+            url: f['url'] as String,
+            largura: (f['largura'] as num?)?.toDouble(),
+            altura: (f['altura'] as num?)?.toDouble(),
+            credito: _textoOuNulo(f['credito']),
+            alt: _textoOuNulo(f['alt']),
+          ),
+  ];
+}
+
+/// Uma galeria (desde 2026-09-26): as fotos em grelha, e cada uma abre em ecrã
+/// inteiro, onde se passa às outras arrastando.
+class _Galeria extends StatelessWidget {
+  const _Galeria(this.fotos, {this.legenda});
+
+  final List<FotoCorpo> fotos;
+  final String? legenda;
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, limites) {
+            // Duas colunas num telemóvel, três a partir de um ecrã largo; uma
+            // foto sozinha ocupa a largura toda.
+            final colunas = fotos.length == 1 ? 1 : (limites.maxWidth >= 480 ? 3 : 2);
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.zero,
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: colunas,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+                childAspectRatio: colunas == 1 ? 4 / 3 : 1,
+              ),
+              itemCount: fotos.length,
+              itemBuilder: (context, i) => Semantics(
+                image: true,
+                label: fotos[i].alt,
+                button: true,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(Tema.raioPequeno),
+                  onTap: () => Navigator.of(context, rootNavigator: true).push(
+                    MaterialPageRoute<void>(fullscreenDialog: true, builder: (_) => _VisorFotos(fotos, inicial: i)),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(Tema.raioPequeno),
+                    child: ImagemRede(fotos[i].url, larguraCache: 600),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+        if (legenda != null) ...[const SizedBox(height: 6), Text(legenda!, style: tema.textTheme.bodySmall)],
+      ],
+    );
+  }
+}
+
+/// As fotos de uma galeria em ecrã inteiro, com zoom.
+class _VisorFotos extends StatefulWidget {
+  const _VisorFotos(this.fotos, {required this.inicial});
+
+  final List<FotoCorpo> fotos;
+  final int inicial;
+
+  @override
+  State<_VisorFotos> createState() => _VisorFotosState();
+}
+
+class _VisorFotosState extends State<_VisorFotos> {
+  late final _pagina = PageController(initialPage: widget.inicial);
+  late int _actual = widget.inicial;
+
+  @override
+  void dispose() {
+    _pagina.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final foto = widget.fotos[_actual];
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: widget.fotos.length > 1 ? Text('${_actual + 1} de ${widget.fotos.length}') : null,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: PageView.builder(
+              controller: _pagina,
+              itemCount: widget.fotos.length,
+              onPageChanged: (i) => setState(() => _actual = i),
+              itemBuilder: (_, i) => InteractiveViewer(
+                maxScale: 4,
+                child: Center(
+                  child: Semantics(
+                    image: true,
+                    label: widget.fotos[i].alt,
+                    child: ImagemRede(widget.fotos[i].url, fit: BoxFit.contain),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          if (foto.credito != null)
+            SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Text('Fotografia: ${foto.credito}', style: const TextStyle(color: Colors.white70)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Documentos para descarregar (desde 2026-09-26): o regulamento, a ficha de
+/// inscrição. Cada um abre o `download_url` fora da app — descarrega sempre,
+/// com o nome certo.
+class _Ficheiros extends StatelessWidget {
+  const _Ficheiros(this.ficheiros, {this.titulo});
+
+  final List<Map<String, dynamic>> ficheiros;
+  final String? titulo;
+
+  static List<Map<String, dynamic>> listaDe(Object? v) => [
+    if (v is List)
+      for (final f in v)
+        if (f is Map && (f['download_url'] is String || f['url'] is String)) f.cast<String, dynamic>(),
+  ];
+
+  /// O ícone pela extensão (lista aberta: o resto é um documento).
+  static IconData _icone(Object? extensao) => switch (extensao) {
+    'pdf' => Icons.picture_as_pdf_outlined,
+    'xls' || 'xlsx' || 'csv' || 'ods' => Icons.table_chart_outlined,
+    'ppt' || 'pptx' || 'odp' => Icons.slideshow_outlined,
+    'zip' || 'rar' || '7z' => Icons.folder_zip_outlined,
+    'jpg' || 'jpeg' || 'png' || 'webp' || 'gif' => Icons.image_outlined,
+    _ => Icons.description_outlined,
+  };
+
+  /// 482133 → "471 KB".
+  static String? _tamanho(Object? bytes) {
+    if (bytes is! num || bytes <= 0) return null;
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).ceil()} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1).replaceAll('.', ',')} MB';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tema = Theme.of(context);
+    final c = tema.colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (titulo != null) ...[Text(titulo!, style: tema.textTheme.titleMedium), const SizedBox(height: 8)],
+        Material(
+          color: c.surfaceContainerLowest,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(Tema.raioPequeno),
+            side: BorderSide(color: c.outlineVariant),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              for (final (i, f) in ficheiros.indexed) ...[
+                if (i > 0) Divider(height: 1, color: c.outlineVariant),
+                ListTile(
+                  leading: Icon(_icone(f['extensao']), color: c.primary),
+                  title: Text(_textoOuNulo(f['nome']) ?? 'Documento'),
+                  subtitle: switch ([?_textoOuNulo(f['tipo']), ?_tamanho(f['bytes'])]) {
+                    [] => null,
+                    final partes => Text(partes.join(' · ')),
+                  },
+                  trailing: Icon(Icons.download_rounded, color: c.onSurfaceVariant),
+                  onTap: () => _abrirFora((f['download_url'] ?? f['url']) as String),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 
@@ -234,9 +586,13 @@ class _Imagem extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(Tema.raioPequeno),
-          child: ImagemRede(url, fit: BoxFit.fitWidth),
+        Semantics(
+          image: true,
+          label: _textoOuNulo(b['alt']) ?? _textoOuNulo(b['legenda']),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(Tema.raioPequeno),
+            child: ImagemRede(url, fit: BoxFit.fitWidth),
+          ),
         ),
         if (legenda.isNotEmpty) ...[const SizedBox(height: 6), Text(legenda, style: tema.textTheme.bodySmall)],
       ],
@@ -383,48 +739,17 @@ class _Mapa extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final tema = Theme.of(context);
-    final c = tema.colorScheme;
-    final local = (b['local'] as String?)?.trim();
-    final legenda = (b['legenda'] as String?)?.trim();
-
-    return Material(
-      color: c.surfaceContainerLowest,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(Tema.raioPequeno),
-        side: BorderSide(color: c.outlineVariant),
+    final c = Theme.of(context).colorScheme;
+    return _CartaoLigacao(
+      icone: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
+        child: Icon(Icons.place_outlined, color: c.onPrimaryContainer),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => launchUrl(Uri.parse(b['url'] as String), mode: LaunchMode.externalApplication),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(color: c.primaryContainer, shape: BoxShape.circle),
-                child: Icon(Icons.place_outlined, color: c.onPrimaryContainer),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(local == null || local.isEmpty ? 'Ver no mapa' : local, style: tema.textTheme.titleSmall),
-                    Text(
-                      legenda == null || legenda.isEmpty ? 'Abrir no mapa' : legenda,
-                      style: tema.textTheme.bodySmall,
-                    ),
-                  ],
-                ),
-              ),
-              Icon(Icons.open_in_new_rounded, size: 20, color: c.onSurfaceVariant),
-            ],
-          ),
-        ),
-      ),
+      titulo: _textoOuNulo(b['local']) ?? 'Ver no mapa',
+      subtitulo: _textoOuNulo(b['legenda']) ?? 'Abrir no mapa',
+      onTap: () => _abrirFora(b['url'] as String),
     );
   }
 }

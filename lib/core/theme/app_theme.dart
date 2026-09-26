@@ -15,6 +15,9 @@ abstract final class AppTheme {
 
   static ThemeData dark() => _build(AppColorSchemes.dark, AppColors.dark);
 
+  /// A Comunidade: o jogo do clube tem fundo próprio, igual nos dois modos.
+  static ThemeData arena() => _build(AppArena.scheme, AppArena.colors);
+
   static ThemeData _build(ColorScheme c, AppColors cores) {
     final texto = AppTypography.textTheme(c);
     final escuro = c.brightness == Brightness.dark;

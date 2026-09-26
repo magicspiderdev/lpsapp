@@ -116,6 +116,7 @@ void main() {
   group('contrato', () {
     test('uma inscrição submetida: à espera do clube, valor ainda estimado', () {
       final i = InscricaoSocio.fromJson(inscricaoJson());
+      expect(i.pagamento, isNull);
       expect(i.id, '01MINSC');
       expect(i.passo, PassoInscricao.aguardar);
       expect(i.nrSocio, isNull);
@@ -211,6 +212,25 @@ void main() {
       expect(i.passo, PassoInscricao.desconhecido);
       expect(i.podeDesistir, isFalse);
     });
+  });
+
+  test('o pagamento por pagar vem com a inscrição, na forma do POST', () {
+    final i = InscricaoSocio.fromJson({
+      ...inscricaoJson(estado: 'assinada', proximo: 'pagar'),
+      'pagamento': {
+        'referencia': null,
+        'metodo': 'mbway',
+        'valor': 6,
+        'meses': 3,
+        'url_pagamento': null,
+        'telefone': '912345678',
+        'limite': '2026-10-10',
+      },
+    });
+    expect(i.pagamento?.mbway, isTrue);
+    expect(i.pagamento?.temLink, isFalse);
+    expect(i.pagamento?.telefone, '912345678');
+    expect(i.pagamento?.valor, 6);
   });
 
   group('409 ja_existe', () {

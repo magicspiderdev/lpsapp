@@ -115,7 +115,7 @@ class NoticiaPage extends ConsumerWidget {
                 Text('Fotografia: ${n.capa!.credito}', style: tema.textTheme.bodySmall),
               ],
               const SizedBox(height: 8),
-              CorpoBlocos(n.corpo),
+              CorpoBlocos(n.corpo, noSite: Links.noticia(n.slug)),
               if (n.etiquetas.isNotEmpty) _Etiquetas(n.etiquetas),
               if (n.relacionados.isNotEmpty) _Relacionados(n.relacionados),
               if (n.relacionadas.isNotEmpty) _VejaTambem(n.relacionadas),
@@ -149,8 +149,10 @@ class _Etiquetas extends StatelessWidget {
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => context.push(
-                  Uri(path: '/noticias/etiqueta/${Uri.encodeComponent(e.slug)}', queryParameters: {'nome': e.nome})
-                      .toString(),
+                  Uri(
+                    path: '/noticias/etiqueta/${Uri.encodeComponent(e.slug)}',
+                    queryParameters: {'nome': e.nome},
+                  ).toString(),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -203,7 +205,12 @@ class _Relacionados extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(r.titulo, maxLines: 2, overflow: TextOverflow.ellipsis, style: tema.textTheme.titleSmall),
+                          Text(
+                            r.titulo,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: tema.textTheme.titleSmall,
+                          ),
                           if (_legenda(r) case final l when l.isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(l, style: tema.textTheme.bodySmall),
@@ -248,11 +255,7 @@ class _VejaTambem extends StatelessWidget {
           const SizedBox(height: 4),
           // A linha traz a sua própria margem lateral: aqui tira-se a do texto
           // para as fotografias alinharem com o corpo do artigo.
-          for (final n in noticias)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0),
-              child: LinhaNoticia(n),
-            ),
+          for (final n in noticias) Padding(padding: const EdgeInsets.symmetric(horizontal: 0), child: LinhaNoticia(n)),
         ],
       ),
     );

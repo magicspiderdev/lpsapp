@@ -130,7 +130,19 @@ class PaginaClube {
   final Capa? capa;
   final List<Map<String, dynamic>> corpo;
 
-  const PaginaClube({required this.slug, required this.titulo, this.resumo, this.capa, this.corpo = const []});
+  /// Escrita em HTML livre (`formato: "html"`, desde 2026-09-26), com o CSS
+  /// dela: vem com o `corpo` vazio e a app não a desenha — abre-a no site
+  /// (guia público §9). Um `formato` desconhecido trata-se como blocos.
+  final bool emHtml;
+
+  const PaginaClube({
+    required this.slug,
+    required this.titulo,
+    this.resumo,
+    this.capa,
+    this.corpo = const [],
+    this.emHtml = false,
+  });
 
   factory PaginaClube.fromJson(Map<String, dynamic> j) => PaginaClube(
     slug: (j['slug'] ?? '') as String,
@@ -141,6 +153,7 @@ class PaginaClube {
       for (final b in (j['corpo'] as List?) ?? const [])
         if (b is Map) b.cast<String, dynamic>(),
     ],
+    emHtml: j['formato'] == 'html' && j['html'] is Map,
   );
 }
 

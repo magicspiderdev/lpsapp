@@ -205,6 +205,28 @@ final agendaProvider = StreamProvider.autoDispose<Dados<List<ItemAgenda>>>((ref)
   );
 });
 
+/// A ficha de um evento, `GET /agenda/eventos/{slug}` (guia público §4, desde
+/// 2026-09-26): o mesmo objecto da agenda, mas **sem janela de datas** — é o
+/// que abre um link partilhado meses depois. Só pelo `slug`. Um rascunho ou
+/// arquivado é `404`; um cancelado abre-se, com `estado: cancelado`.
+final eventoProvider = StreamProvider.autoDispose.family<Dados<ItemAgenda>, String>((ref, slug) {
+  if (modoDemonstracao) {
+    final e = agendaExemplo.where((i) => i.slug == slug).firstOrNull;
+    return e == null
+        ? Stream.error(const ApiException(erro: 'nao_encontrado', message: 'Evento não encontrado.', httpStatus: 404))
+        : Stream.value(Dados(e, DateTime.now()));
+  }
+  ref.watch(ligacaoProvider);
+  final dio = ref.read(dioPublicoProvider);
+  return comCache(
+    cache: ref.read(cacheProvider),
+    ambito: Ambito.publico,
+    chave: 'evento.$slug',
+    pedido: () => dadosDe(dio.get('/agenda/eventos/${Uri.encodeComponent(slug)}')),
+    ler: (d) => ItemAgenda.fromJson((d['evento'] as Map).cast<String, dynamic>()),
+  );
+});
+
 // ── O passado, aos poucos ───────────────────────────────────────────────────
 
 /// Quanto se recua de cada vez no separador dos anteriores.

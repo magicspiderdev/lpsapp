@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../core/links.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/widgets/blocos.dart';
 import '../../../core/widgets/erro_view.dart';
@@ -133,6 +135,47 @@ class GrupoMenuPage extends ConsumerWidget {
   }
 }
 
+/// Uma página escrita em HTML livre (guia público §9): traz o CSS dela e só se
+/// mostra isolada, o que a app não faz sem `WebView`. Abre-se no site, num
+/// separador por cima da app.
+class _PaginaNoSite extends StatelessWidget {
+  const _PaginaNoSite(this.p);
+
+  final PaginaClube p;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.xl),
+        decoration: BoxDecoration(color: c.surfaceContainerLow, borderRadius: AppRadius.lgAll),
+        child: Column(
+          children: [
+            Icon(Icons.public_rounded, size: 40, color: c.primary),
+            const SizedBox(height: AppSpacing.md),
+            Text('Esta página vê-se no site', style: t.textTheme.titleMedium, textAlign: TextAlign.center),
+            const SizedBox(height: AppSpacing.xs),
+            Text(
+              'Foi desenhada para o site do clube. Abre aqui mesmo, por cima da app.',
+              style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.lg),
+            FilledButton.icon(
+              onPressed: () => launchUrl(Links.pagina(p.slug), mode: LaunchMode.inAppBrowserView),
+              icon: const Icon(Icons.open_in_new_rounded),
+              label: const Text('Abrir a página'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// `/noticias/clube/paginas/{slug}` — "Quem somos", "Estatutos"…
 class PaginaClubePage extends ConsumerWidget {
   const PaginaClubePage({super.key, required this.slug});
@@ -173,7 +216,7 @@ class PaginaClubePage extends ConsumerWidget {
                           const SizedBox(height: AppSpacing.lg),
                         ],
                         if (p.resumo != null) Text(p.resumo!, style: t.textTheme.titleMedium),
-                        CorpoBlocos(p.corpo),
+                        if (p.emHtml) _PaginaNoSite(p) else CorpoBlocos(p.corpo, noSite: Links.pagina(p.slug)),
                       ],
                     ),
                   ),

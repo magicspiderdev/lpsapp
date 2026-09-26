@@ -64,6 +64,23 @@ abstract final class AppPalette {
   static const infoContainerDark = Color(0xFF26303F);
   static const neutralContainerDark = ink850; // ink400: 5,05:1
 
+  // Arena: a Comunidade (palpites, classificação, passatempos) tem fundo
+  // próprio, o mesmo nos dois modos — o relvado à noite, não o preto. O ouro
+  // é só para o que se ganha: pontos, o 1.º lugar, prémios.
+  static const arenaFundo = Color(0xFF041A10);
+  static const arenaPainel = Color(0xFF0A2819);
+  static const arenaPainelAlto = Color(0xFF10382A);
+  static const arenaPainelTopo = Color(0xFF174634);
+  static const arenaLinha = Color(0xFF1D4A36);
+  static const arenaContorno = Color(0xFF5E8A74); // 3,9:1 no painel
+  static const arenaTexto = Color(0xFFECF7F0);
+  static const arenaSuave = Color(0xFF9FBDAE); // 7,7:1 no painel
+  static const arenaVerde = Color(0xFF0F4A30);
+  static const ouro = Color(0xFFFFD400); // o amarelo do clube (LPS Web)
+  static const onOuro = Color(0xFF2A2200);
+  static const prata = Color(0xFFC7D2CE);
+  static const bronze = Color(0xFFD9905A);
+
   /// Módulos do QR: escuros sobre branco nos dois modos — um QR invertido não
   /// lê em todos os leitores da portaria.
   static const qrForeground = Color(0xFF0B0D10);
@@ -132,6 +149,54 @@ abstract final class AppColorSchemes {
     shadow: Colors.black,
     scrim: Colors.black,
     surfaceTint: Colors.transparent,
+  );
+}
+
+/// A Arena da Comunidade: escura nos dois modos (ver [AppPalette.arenaFundo]).
+abstract final class AppArena {
+  static const scheme = ColorScheme(
+    brightness: Brightness.dark,
+    primary: AppPalette.greenLight,
+    onPrimary: AppPalette.onGreenLight,
+    primaryContainer: AppPalette.arenaVerde,
+    onPrimaryContainer: AppPalette.onGreenContainerDark,
+    secondary: AppPalette.greenBright,
+    onSecondary: Colors.white,
+    tertiary: AppPalette.ouro,
+    onTertiary: AppPalette.onOuro,
+    error: AppPalette.errorDark,
+    onError: Colors.black,
+    errorContainer: AppPalette.errorContainerDark,
+    onErrorContainer: AppPalette.errorDark,
+    surface: AppPalette.arenaFundo,
+    onSurface: AppPalette.arenaTexto,
+    onSurfaceVariant: AppPalette.arenaSuave,
+    surfaceContainerLowest: AppPalette.arenaPainel,
+    surfaceContainerLow: AppPalette.arenaPainel,
+    surfaceContainer: AppPalette.arenaPainelAlto,
+    surfaceContainerHigh: AppPalette.arenaPainelAlto,
+    surfaceContainerHighest: AppPalette.arenaPainelTopo,
+    outline: AppPalette.arenaContorno,
+    outlineVariant: AppPalette.arenaLinha,
+    inverseSurface: AppPalette.arenaTexto,
+    onInverseSurface: AppPalette.arenaFundo,
+    inversePrimary: AppPalette.green,
+    shadow: Colors.black,
+    scrim: Colors.black,
+    surfaceTint: Colors.transparent,
+  );
+
+  static const colors = AppColors(
+    success: StatusColor(AppPalette.successDark, AppPalette.successContainerDark),
+    warning: StatusColor(AppPalette.warningDark, AppPalette.warningContainerDark),
+    error: StatusColor(AppPalette.errorDark, AppPalette.errorContainerDark),
+    info: StatusColor(AppPalette.infoDark, AppPalette.infoContainerDark),
+    neutral: StatusColor(AppPalette.arenaSuave, AppPalette.arenaPainelAlto),
+    brandGradient: AppColors.clubGradient,
+    onBrand: Colors.white,
+    onBrandMuted: Color(0xE6FFFFFF),
+    brandSurface: Color(0x29FFFFFF),
+    badge: AppPalette.errorDark,
   );
 }
 

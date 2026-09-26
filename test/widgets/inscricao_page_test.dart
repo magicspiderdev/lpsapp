@@ -342,6 +342,36 @@ void main() {
     await _fechar(t);
   });
 
+  testWidgets('voltar a uma inscrição por pagar mostra o pagamento já pedido, não um novo', (t) async {
+    responder({
+      ...inscricaoJson(estado: 'assinada', proximo: 'pagar', nrSocio: 7412, firme: true, porAssinar: []),
+      'pagamento': {
+        'referencia': 10422,
+        'metodo': 'paybylink',
+        'valor': 8,
+        'meses': 4,
+        'url_pagamento': 'https://pay.exemplo/x',
+        'telefone': null,
+        'limite': '2026-10-07',
+      },
+    });
+    await _pump(t, s);
+
+    expect(find.text('Abrir página de pagamento'), findsOneWidget);
+    expect(find.text('Gerar referência'), findsNothing);
+    expect(find.text('Enviar pedido MB WAY'), findsNothing);
+
+    // Outro método continua a ser possível, e diz que anula o anterior.
+    await t.ensureVisible(find.text('Escolher outro método'));
+    await t.tap(find.text('Escolher outro método'));
+    await t.pumpAndSettle();
+    expect(find.text('Enviar pedido MB WAY'), findsOneWidget);
+    expect(find.textContaining('deixa de valer'), findsOneWidget);
+    expect(s.pedidos.where((p) => p.method == 'POST'), isEmpty, reason: 'escolher outro não pede nada sozinho');
+
+    await _fechar(t);
+  });
+
   testWidgets('MB WAY pede um telemóvel válido antes de deixar enviar', (t) async {
     responder(inscricaoJson(estado: 'assinada', proximo: 'pagar', porAssinar: []));
     await _pump(t, s);

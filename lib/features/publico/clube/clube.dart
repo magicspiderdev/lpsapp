@@ -53,13 +53,11 @@ class PaginaModalidade {
 
   const PaginaModalidade(this.modalidade, this.corpo);
 
-  factory PaginaModalidade.fromJson(Map<String, dynamic> j) => PaginaModalidade(
-    Modalidade.fromJson({...j, 'tem_pagina': true}),
-    [
-      for (final b in (j['corpo'] as List?) ?? const [])
-        if (b is Map) b.cast<String, dynamic>(),
-    ],
-  );
+  factory PaginaModalidade.fromJson(Map<String, dynamic> j) =>
+      PaginaModalidade(Modalidade.fromJson({...j, 'tem_pagina': true}), [
+        for (final b in (j['corpo'] as List?) ?? const [])
+          if (b is Map) b.cast<String, dynamic>(),
+      ]);
 }
 
 class Clube {

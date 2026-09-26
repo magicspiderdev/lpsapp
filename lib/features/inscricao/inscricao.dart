@@ -145,6 +145,12 @@ class InscricaoSocio {
   final String? motivo;
   final DateTime? criadoEm;
 
+  /// O pedido de pagamento ainda por pagar (`PENDENTE` e dentro do `limite`),
+  /// com a forma da resposta do `POST …/pagamento`; `null` em todos os outros
+  /// casos (§4.21, desde 2026-09-26). Quem volta à inscrição vê-o em vez de
+  /// pedir outro.
+  final PagamentoInscricao? pagamento;
+
   const InscricaoSocio({
     required this.id,
     required this.estado,
@@ -161,6 +167,7 @@ class InscricaoSocio {
     this.quotas = QuotasInscricao.vazias,
     this.motivo,
     this.criadoEm,
+    this.pagamento,
   });
 
   factory InscricaoSocio.fromJson(Map<String, dynamic> j) => InscricaoSocio(
@@ -190,6 +197,10 @@ class InscricaoSocio {
       _ => null,
     },
     criadoEm: dataApi(j['criado_em']),
+    pagamento: switch (j['pagamento']) {
+      final Map<dynamic, dynamic> p => PagamentoInscricao.fromJson(p.cast<String, dynamic>()),
+      _ => null,
+    },
   );
 
   bool get paraDependente => para == 'dependente';
@@ -325,8 +336,8 @@ class PagamentoInscricao {
 /// `409 ja_existe` ao submeter: já há uma inscrição a meio para esta pessoa.
 /// Devolve o id dela, para a abrir em vez de recomeçar.
 ///
-/// O guia diz `id`; o servidor manda-o hoje em `inscricao` (com o `estado` ao
-/// lado). Aceitam-se os dois, e `inscricao` também como objecto.
+/// Vem em `id` (desde 2026-09-26, com o `estado` ao lado); `inscricao`, com o
+/// mesmo valor, fica para quem o lia antes — aceitam-se os dois.
 String? inscricaoExistente(ApiException e) {
   if (e.erro != 'ja_existe') return null;
   return switch ((e.dados['id'], e.dados['inscricao'])) {

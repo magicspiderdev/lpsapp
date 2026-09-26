@@ -33,6 +33,13 @@ abstract final class Links {
 
   static Uri noticia(String slug) => _link('/noticias/${Uri.encodeComponent(slug)}/');
 
+  /// Uma página do clube no site. É onde abre uma página em HTML livre, que a
+  /// app não desenha (guia público §9).
+  static Uri pagina(String slug) => _link('/paginas/${Uri.encodeComponent(slug)}/');
+
+  /// A página de uma modalidade no site — para o bloco `html`, que só lá se vê.
+  static Uri modalidade(String slug) => _link('/modalidades/${Uri.encodeComponent(slug)}/');
+
   /// Uma sessão da bilheteira (o catálogo). **Nunca um bilhete comprado**: um
   /// link para um bilhete seria um bilhete que se reencaminha sem limite.
   ///

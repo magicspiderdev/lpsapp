@@ -35,9 +35,13 @@ class InscricaoPage extends ConsumerStatefulWidget {
 }
 
 class _InscricaoPageState extends ConsumerState<InscricaoPage> {
-  /// O pedido de pagamento feito neste ecrã. O `GET` da inscrição não o traz,
-  /// por isso só se mostra enquanto o ecrã está aberto.
+  /// O pedido de pagamento feito neste ecrã. Sem ele, vale o que a inscrição
+  /// traz (`pagamento`, o que ficou por pagar de uma vez anterior).
   PagamentoInscricao? _pagamento;
+
+  /// Escolheu "outro método": mostra-se o formulário mesmo com um pedido por
+  /// pagar, e pedir outro anula esse.
+  bool _pedirOutro = false;
 
   late final AppLifecycleListener _ciclo;
 
@@ -138,10 +142,25 @@ class _InscricaoPageState extends ConsumerState<InscricaoPage> {
     ],
     PassoInscricao.pagar => [
       if (i.nrSocio != null) ...[_NumeroReservado(i), const SizedBox(height: AppSpacing.lg)],
-      if (_pagamento case final p?)
-        _Acompanhar(i, p, pedirOutro: () => setState(() => _pagamento = null))
+      if (_pagamento ?? (_pedirOutro ? null : i.pagamento) case final p?)
+        _Acompanhar(
+          i,
+          p,
+          retomado: _pagamento == null,
+          pedirOutro: () => setState(() {
+            _pagamento = null;
+            _pedirOutro = true;
+          }),
+        )
       else
-        _Pagar(i, aoPedir: (p) => setState(() => _pagamento = p)),
+        _Pagar(
+          i,
+          substitui: i.pagamento != null,
+          aoPedir: (p) => setState(() {
+            _pagamento = p;
+            _pedirOutro = false;
+          }),
+        ),
     ],
     PassoInscricao.nada => [_Fim(i)],
     PassoInscricao.desconhecido => [
@@ -503,10 +522,13 @@ class _AssinarState extends ConsumerState<_Assinar> {
 /// Os meses (entre `minimo_meses` e `maximo_meses`, com um contador) e o
 /// método. **Não se envia valor nenhum**: o total é o da resposta.
 class _Pagar extends ConsumerStatefulWidget {
-  const _Pagar(this.i, {required this.aoPedir});
+  const _Pagar(this.i, {required this.aoPedir, this.substitui = false});
 
   final InscricaoSocio i;
   final ValueChanged<PagamentoInscricao> aoPedir;
+
+  /// Já há um pedido por pagar: este anula-o.
+  final bool substitui;
 
   @override
   ConsumerState<_Pagar> createState() => _PagarState();
@@ -648,12 +670,14 @@ class _PagarState extends ConsumerState<_Pagar> {
                 ? const ProgressoBotao()
                 : Text(_metodo == 'mbway' ? 'Enviar pedido MB WAY' : 'Gerar referência'),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            'Se já pediu o pagamento, não precisa de pedir outro: a referência foi para o seu email.',
-            style: t.textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
+          if (widget.substitui) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(
+              'Ao pedir outro, o pagamento que já tinha pedido deixa de valer.',
+              style: t.textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+          ],
         ],
       ],
     );
@@ -664,11 +688,16 @@ class _PagarState extends ConsumerState<_Pagar> {
 /// IfthenPay chega ao servidor mais tarde, por isso consulta-se a inscrição de
 /// 5 em 5 segundos (e sempre que se volta à app) até ela ficar `concluida`.
 class _Acompanhar extends ConsumerStatefulWidget {
-  const _Acompanhar(this.i, this.p, {required this.pedirOutro});
+  const _Acompanhar(this.i, this.p, {required this.pedirOutro, this.retomado = false});
 
   final InscricaoSocio i;
   final PagamentoInscricao p;
   final VoidCallback pedirOutro;
+
+  /// Um pedido de outra vez (`pagamento` da inscrição), não o que se acabou
+  /// de fazer: não há janela a acompanhar — o MB WAY já expirou no telemóvel —
+  /// e pedir outro é logo uma opção.
+  final bool retomado;
 
   @override
   ConsumerState<_Acompanhar> createState() => _AcompanharState();
@@ -688,6 +717,7 @@ class _AcompanharState extends ConsumerState<_Acompanhar> {
   @override
   void initState() {
     super.initState();
+    if (widget.retomado) return;
     _consulta = Timer.periodic(_intervalo, (_) {
       if (DateTime.now().isAfter(_ate)) {
         _consulta?.cancel();
@@ -728,8 +758,11 @@ class _AcompanharState extends ConsumerState<_Acompanhar> {
       children: [
         _Aviso(
           icone: p.mbway ? Icons.phone_iphone_rounded : Icons.receipt_long_rounded,
-          titulo: p.mbway ? 'Aprove no telemóvel' : 'Falta pagar',
-          texto: p.mbway
+          titulo: p.mbway && !widget.retomado ? 'Aprove no telemóvel' : 'Falta pagar',
+          texto: p.mbway && widget.retomado
+              ? 'Pediu o pagamento por MB WAY. Se não o aprovou no telemóvel a tempo, escolha outro método '
+                    'e peça de novo.'
+              : p.mbway
               ? 'Abra a app MB WAY e confirme o pagamento. A inscrição fica concluída assim que ele for confirmado.'
               : 'Pague pelo link ou com a referência${p.limite == null ? '' : ' até ${dataCurta(p.limite!)}'}. '
                     'A inscrição fica concluída assim que o pagamento for confirmado — também lhe enviámos isto por email.',

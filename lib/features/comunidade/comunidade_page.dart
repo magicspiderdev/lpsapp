@@ -7,12 +7,16 @@ import '../../core/api/api_exception.dart';
 import '../../core/auth/sessao.dart';
 import '../../core/cache/com_cache.dart';
 import '../../core/tema/tema.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../core/widgets/blocos.dart';
 import '../../core/widgets/erro_view.dart';
 import '../../core/widgets/estado_dados.dart';
 import '../../core/widgets/imagem_rede.dart';
 import '../publico/agenda/agenda.dart';
 import '../publico/agenda/agenda_widgets.dart' show EmblemaEquipa;
+import 'arena.dart';
+import 'avatares.dart';
 import 'comunidade.dart';
 
 /// O separador "Comunidade": jogos para palpitar e relatar, a classificação do
@@ -26,9 +30,12 @@ class ComunidadePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (ref.watch(sessaoProvider) is SessaoAnonima) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Comunidade')),
-        body: const _Apresentacao(),
+      return Arena(
+        fundo: true,
+        child: Scaffold(
+          appBar: AppBar(title: const Text('Comunidade')),
+          body: const _Apresentacao(),
+        ),
       );
     }
     // "Últimos": os jogos de hoje e de ontem que já acabaram, para quem lá
@@ -36,36 +43,132 @@ class ComunidadePage extends ConsumerWidget {
     final recentes = ref.watch(jogosComunidadeProvider('recentes')).valueOrNull?.valor ?? const [];
     final ultimos = ultimosJogos(recentes, DateTime.now());
 
-    return DefaultTabController(
-      // A chave muda com a tab: o controlador recomeça na primeira, que passa
-      // a ser a "Últimos" quando ela aparece.
-      key: ValueKey(ultimos.isNotEmpty),
-      length: ultimos.isEmpty ? 3 : 4,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('Comunidade'),
-          // A deslizar: com a letra grande, "Classificação" não cabe num terço.
-          bottom: TabBar(
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            tabs: [
-              if (ultimos.isNotEmpty) const Tab(text: 'Últimos'),
-              const Tab(text: 'Jogos'),
-              const Tab(text: 'Classificação'),
-              const Tab(text: 'Passatempos'),
+    return Arena(
+      fundo: true,
+      child: DefaultTabController(
+        // A chave muda com a tab: o controlador recomeça na primeira, que passa
+        // a ser a "Últimos" quando ela aparece.
+        key: ValueKey(ultimos.isNotEmpty),
+        length: ultimos.isEmpty ? 3 : 4,
+        child: Scaffold(
+          appBar: AppBar(
+            title: const Text('Comunidade'),
+            actions: [_ContadorPontos(tabClassificacao: ultimos.isEmpty ? 1 : 2)],
+            // A deslizar: com a letra grande, "Classificação" não cabe num terço.
+            bottom: _Separadores(
+              tabs: [
+                if (ultimos.isNotEmpty) const Tab(text: 'Últimos'),
+                const Tab(text: 'Jogos'),
+                const Tab(text: 'Classificação'),
+                const Tab(text: 'Passatempos'),
+              ],
+            ),
+          ),
+          body: TabBarView(
+            children: [
+              if (ultimos.isNotEmpty) _Ultimos(ultimos),
+              const _Jogos(),
+              const _Classificacao(),
+              const _Passatempos(),
             ],
           ),
         ),
-        body: TabBarView(
-          children: [
-            if (ultimos.isNotEmpty) _Ultimos(ultimos),
-            const _Jogos(),
-            const _Classificacao(),
-            const _Passatempos(),
-          ],
-        ),
       ),
     );
+  }
+}
+
+/// Os separadores da Arena: o escolhido é uma pastilha chanfrada, como os
+/// menus de um jogo.
+class _Separadores extends StatelessWidget implements PreferredSizeWidget {
+  const _Separadores({required this.tabs});
+
+  final List<Widget> tabs;
+
+  @override
+  Size get preferredSize => const Size.fromHeight(kTextTabBarHeight + 8);
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    return TabBar(
+      isScrollable: true,
+      tabAlignment: TabAlignment.start,
+      dividerHeight: 0,
+      padding: const EdgeInsets.fromLTRB(Tema.margem - 4, 0, Tema.margem - 4, 8),
+      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+      indicatorSize: TabBarIndicatorSize.tab,
+      indicator: ShapeDecoration(color: c.primary, shape: chanfro),
+      splashBorderRadius: BorderRadius.circular(10),
+      labelColor: c.onPrimary,
+      unselectedLabelColor: c.onSurfaceVariant,
+      labelStyle: t.textTheme.labelLarge?.copyWith(fontWeight: AppTypography.extraBold),
+      unselectedLabelStyle: t.textTheme.labelLarge,
+      tabs: tabs,
+    );
+  }
+}
+
+/// O canto do jogador, sempre à vista: os pontos da época (tocar abre a
+/// classificação) e o leão (tocar escolhe outro).
+class _ContadorPontos extends ConsumerWidget {
+  const _ContadorPontos({required this.tabClassificacao});
+
+  final int tabClassificacao;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final eu = ref.watch(classificacaoProvider).valueOrNull?.valor.eu;
+    final perfil = ref.watch(perfilComunidadeProvider).valueOrNull;
+    return Padding(
+      padding: const EdgeInsets.only(right: Tema.margem - 4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (eu != null)
+            Tooltip(
+              message: 'Ver a classificação',
+              child: Material(
+                color: AppPalette.ouro.withValues(alpha: 0.12),
+                shape: chanfroCom(AppPalette.ouro.withValues(alpha: 0.5), raio: 8),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => DefaultTabController.of(context).animateTo(tabClassificacao),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    child: ChipPontos(eu.pontos),
+                  ),
+                ),
+              ),
+            ),
+          if (perfil != null && !perfil.bloqueado) ...[
+            const SizedBox(width: 8),
+            Tooltip(
+              message: 'Escolher o seu avatar',
+              child: InkWell(
+                customBorder: chanfro,
+                onTap: () => mudarAvatar(context, ref, perfil),
+                child: ImagemAvatar(perfil.avatar, tamanho: 38),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// Abre a grelha dos leões e grava o escolhido.
+Future<void> mudarAvatar(BuildContext context, WidgetRef ref, PerfilComunidade perfil) async {
+  final codigo = await escolherAvatar(context, actual: perfil.avatar);
+  if (codigo == null || codigo == perfil.avatar || !context.mounted) return;
+  final aviso = ScaffoldMessenger.of(context);
+  try {
+    await ref.read(perfilComunidadeProvider.notifier).mudarAvatar(codigo);
+  } on ApiException catch (e) {
+    if (e.erro == 'comunidade_bloqueada') ref.read(perfilComunidadeProvider.notifier).bloqueada();
+    aviso.showSnackBar(SnackBar(content: Text(e.message)));
   }
 }
 
@@ -120,49 +223,65 @@ class _Apresentacao extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    Widget linha(IconData icone, String titulo, String texto) => Padding(
-      padding: const EdgeInsets.only(bottom: 18),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          IconePastilha(icone),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(titulo, style: t.textTheme.titleSmall),
-                const SizedBox(height: 2),
-                Text(texto, style: t.textTheme.bodyMedium),
-              ],
+    final c = t.colorScheme;
+    Widget modo(IconData icone, Color cor, String titulo, String texto) => Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: PainelArena(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: ShapeDecoration(color: cor.withValues(alpha: 0.14), shape: chanfroCom(cor, raio: 10)),
+              child: Icon(icone, color: cor),
             ),
-          ),
-        ],
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(titulo, style: t.textTheme.titleMedium?.copyWith(fontWeight: AppTypography.extraBold)),
+                  const SizedBox(height: 2),
+                  Text(texto, style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(Tema.margem + 4, 16, Tema.margem + 4, 32),
+      padding: const EdgeInsets.fromLTRB(Tema.margem, 8, Tema.margem, 32),
       children: [
-        Text('Comunidade Leões', style: t.textTheme.headlineMedium),
+        Text('Entre em campo.', style: t.textTheme.displaySmall),
         const SizedBox(height: 8),
         Text(
-          'Para todos os adeptos, sócios ou não. Basta uma conta.',
-          style: t.textTheme.bodyLarge?.copyWith(color: t.colorScheme.onSurfaceVariant),
+          'O jogo dos adeptos dos Leões, sócios ou não. Basta uma conta.',
+          style: t.textTheme.bodyLarge?.copyWith(color: c.onSurfaceVariant),
         ),
-        const SizedBox(height: 28),
-        linha(
-          Icons.psychology_alt_outlined,
+        const SizedBox(height: 24),
+        modo(
+          Icons.bolt_rounded,
+          AppPalette.ouro,
           'Adivinhe o resultado',
-          'Palpite nos próximos jogos e suba na classificação da época.',
+          'Palpite nos próximos jogos, some pontos e suba na classificação da época.',
         ),
-        linha(
+        modo(
           Icons.campaign_outlined,
+          c.primary,
           'Diga como acabou',
           'Esteve no jogo? Ajude a registar o resultado dos jogos que ainda não o têm.',
         ),
-        linha(Icons.card_giftcard_outlined, 'Passatempos', 'Participe e habilite-se aos prémios do clube.'),
-        const SizedBox(height: 12),
+        modo(
+          Icons.emoji_events_outlined,
+          AppPalette.bronze,
+          'Passatempos',
+          'Participe e habilite-se aos prémios do clube.',
+        ),
+        const SizedBox(height: 14),
         FilledButton(
           onPressed: () => context.go(
             Uri(path: '/entrar', queryParameters: {'voltar': '/comunidade', 'motivo': 'comunidade'}).toString(),
@@ -238,72 +357,101 @@ class _CartaoJogo extends ConsumerWidget {
     // Sem `permissoes.comunidade` (§2.10) não se convida a fazer nada.
     final pode = sessaoPode(ref.watch(sessaoProvider), 'comunidade');
 
-    final (estado, destaque) = switch (c) {
-      _ when r.confirmado != null => ('Resultado confirmado: ${r.confirmado}', false),
-      _ when r.aberto && r.meu != null => ('Disse ${r.meu}', false),
+    // O que há para fazer neste jogo; `destaque` é quando está à espera desta
+    // conta, e então é um botão cheio.
+    final (estado, destaque, icone) = switch (c) {
+      _ when r.confirmado != null => ('Resultado confirmado: ${r.confirmado}', false, Icons.verified_outlined),
+      _ when r.aberto && r.meu != null => ('Disse ${r.meu}', false, Icons.check_rounded),
       _ when pode && r.aberto && r.propostas.isNotEmpty => (
         '${_pessoas(r.propostas.first.relatos)} ${r.propostas.first.marcador}. Confirma?',
         true,
+        Icons.how_to_vote_outlined,
       ),
-      _ when pode && r.aberto => ('Diga como acabou', true),
-      _ when p.meu != null => ('O seu palpite: ${p.meu}', false),
-      _ when pode && p.aberto => ('Palpitar', true),
-      _ => ('', false),
+      _ when pode && r.aberto => ('Diga como acabou', true, Icons.campaign_outlined),
+      _ when p.meu != null => ('O seu palpite: ${p.meu}', false, Icons.bolt_rounded),
+      _ when pode && p.aberto => ('Palpitar', true, Icons.bolt_rounded),
+      _ => ('', false, null),
     };
 
-    Widget equipa(Equipa? e) => Row(
+    Widget lado(Equipa? e) => Column(
       children: [
-        if (e != null) EmblemaEquipa(e, tamanho: 24),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            e?.nome ?? '—',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: t.textTheme.titleSmall?.copyWith(fontWeight: e?.doClube ?? false ? FontWeight.w700 : null),
+        if (e != null) EmblemaEquipa(e, tamanho: 44) else const SizedBox.square(dimension: 44),
+        const SizedBox(height: 8),
+        Text(
+          e?.nome ?? '—',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: t.textTheme.titleSmall?.copyWith(
+            fontWeight: e?.doClube ?? false ? AppTypography.extraBold : null,
+            color: e?.doClube ?? false ? t.colorScheme.onSurface : t.colorScheme.onSurfaceVariant,
           ),
         ),
-        if (j.golosCasa != null && j.golosFora != null)
-          Text('${identical(e, j.casa) ? j.golosCasa : j.golosFora}', style: t.textTheme.titleMedium),
       ],
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Bloco(
-        padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.only(bottom: 12),
+      child: PainelArena(
+        destaque: destaque ? t.colorScheme.primary.withValues(alpha: 0.6) : null,
         onTap: () => context.push('/comunidade/jogo/${j.id}', extra: j),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              [
-                DateFormat(j.horaConfirmada ? "EEE, d MMM · HH:mm" : 'EEE, d MMM', 'pt_PT').format(j.inicio),
-                ?j.modalidade,
-              ].join(' · '),
-              style: t.textTheme.labelMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 10),
-            equipa(j.casa),
-            const SizedBox(height: 6),
-            equipa(j.fora),
-            if (estado.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Row(
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Expanded(
-                    child: Text(
-                      estado,
-                      style: t.textTheme.bodyMedium?.copyWith(
-                        color: destaque ? t.colorScheme.primary : t.colorScheme.onSurfaceVariant,
-                        fontWeight: destaque ? FontWeight.w600 : null,
-                      ),
-                    ),
+                  Text(
+                    [
+                      DateFormat(j.horaConfirmada ? "EEE, d MMM · HH:mm" : 'EEE, d MMM', 'pt_PT').format(j.inicio),
+                      ?j.modalidade,
+                    ].join(' · '),
+                    textAlign: TextAlign.center,
+                    style: t.textTheme.labelMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
                   ),
-                  Icon(Icons.chevron_right_rounded, color: t.colorScheme.onSurfaceVariant),
+                  const SizedBox(height: 12),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: lado(j.casa)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        child: Placard(casa: j.golosCasa, fora: j.golosFora),
+                      ),
+                      Expanded(child: lado(j.fora)),
+                    ],
+                  ),
                 ],
               ),
-            ],
+            ),
+            if (estado.isNotEmpty)
+              Container(
+                padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+                color: destaque ? t.colorScheme.primary : t.colorScheme.surfaceContainerHigh,
+                child: Row(
+                  children: [
+                    if (icone != null) ...[
+                      Icon(icone, size: 20, color: destaque ? t.colorScheme.onPrimary : t.colorScheme.onSurfaceVariant),
+                      const SizedBox(width: 8),
+                    ],
+                    Expanded(
+                      child: Text(
+                        estado,
+                        style: t.textTheme.bodyMedium?.copyWith(
+                          color: destaque ? t.colorScheme.onPrimary : t.colorScheme.onSurfaceVariant,
+                          fontWeight: destaque ? AppTypography.extraBold : null,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      color: destaque ? t.colorScheme.onPrimary : t.colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       ),
@@ -345,25 +493,29 @@ class _Classificacao extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(Tema.margem, 0, Tema.margem, 32),
             children: [
               AvisoDesactualizado(d, margem: const EdgeInsets.only(top: 12)),
-              if (perfil != null) ...[const SizedBox(height: 12), _Alcunha(perfil)],
-              if (c.eu case final eu?) ...[
-                const TituloSeccao('A sua posição'),
-                Bloco(child: _LinhaTabela(eu, destaque: true)),
+              if (perfil != null || c.eu != null) ...[
+                const SizedBox(height: 12),
+                _CartaoJogador(perfil: perfil, eu: c.eu),
               ],
               TituloSeccao(c.epoca == null ? 'Classificação' : 'Classificação ${c.epoca}'),
               if (c.linhas.isEmpty)
                 const _Vazio('Ainda ninguém com alcunha pontuou esta época.')
-              else
-                Bloco(
-                  child: Column(
-                    children: [
-                      for (final (i, l) in c.linhas.indexed) ...[
-                        if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
-                        _LinhaTabela(l, destaque: l.eu),
+              else ...[
+                _Podio(c.linhas.take(3).toList()),
+                if (c.linhas.length > 3) ...[
+                  const SizedBox(height: 12),
+                  PainelArena(
+                    child: Column(
+                      children: [
+                        for (final (i, l) in c.linhas.skip(3).indexed) ...[
+                          if (i > 0) const Divider(height: 1, indent: 16, endIndent: 16),
+                          _LinhaTabela(l),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
+              ],
               Padding(
                 padding: const EdgeInsets.fromLTRB(4, 10, 4, 0),
                 child: Text(
@@ -374,7 +526,7 @@ class _Classificacao extends ConsumerWidget {
               ),
               if (palpites.isNotEmpty) ...[
                 const TituloSeccao('Os seus palpites'),
-                Bloco(
+                PainelArena(
                   child: Column(
                     children: [
                       for (final (i, (jogo, m, pontos)) in palpites.indexed) ...[
@@ -395,7 +547,8 @@ class _Classificacao extends ConsumerWidget {
                           trailing: Text(
                             pontos == null ? '—' : '+$pontos',
                             style: t.textTheme.titleMedium?.copyWith(
-                              color: (pontos ?? 0) > 0 ? t.colorScheme.primary : t.colorScheme.onSurfaceVariant,
+                              fontWeight: AppTypography.extraBold,
+                              color: (pontos ?? 0) > 0 ? AppPalette.ouro : t.colorScheme.onSurfaceVariant,
                             ),
                           ),
                         ),
@@ -412,24 +565,24 @@ class _Classificacao extends ConsumerWidget {
   }
 }
 
+/// Uma linha da tabela, do 4.º para baixo (os três primeiros estão no pódio).
 class _LinhaTabela extends StatelessWidget {
-  const _LinhaTabela(this.l, {this.destaque = false});
+  const _LinhaTabela(this.l);
 
   final LinhaClassificacao l;
-  final bool destaque;
 
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
-    final forte = destaque ? FontWeight.w700 : null;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+    return Container(
+      color: l.eu ? t.colorScheme.primaryContainer : null,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       child: Row(
         children: [
-          SizedBox(
-            width: 36,
-            child: Text('${l.posicao}.º', style: t.textTheme.titleSmall?.copyWith(fontWeight: forte)),
-          ),
+          EmblemaPosicao(l.posicao),
+          const SizedBox(width: 10),
+          ImagemAvatar(l.avatar, tamanho: 36),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -438,69 +591,194 @@ class _LinhaTabela extends StatelessWidget {
                   l.alcunha ?? (l.eu ? 'Você (sem alcunha)' : '—'),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: t.textTheme.bodyLarge?.copyWith(fontWeight: forte),
+                  style: t.textTheme.bodyLarge?.copyWith(fontWeight: l.eu ? AppTypography.extraBold : null),
                 ),
-                Text(
-                  '${l.exactos} ${l.exactos == 1 ? 'exacto' : 'exactos'} · ${l.palpites} '
-                  '${l.palpites == 1 ? 'palpite' : 'palpites'}',
-                  style: t.textTheme.bodySmall,
-                ),
+                Text(_estatisticas(l), style: t.textTheme.bodySmall),
               ],
             ),
           ),
-          Text('${l.pontos}', style: t.textTheme.titleLarge?.copyWith(fontWeight: forte)),
-          const SizedBox(width: 4),
-          Text('pts', style: t.textTheme.bodySmall),
+          const SizedBox(width: 8),
+          // Com a letra grande, os pontos encolhem antes de apertarem o nome.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 96),
+            child: FittedBox(fit: BoxFit.scaleDown, child: ChipPontos(l.pontos)),
+          ),
         ],
       ),
     );
   }
 }
 
-/// A alcunha é o que aparece na tabela. Nunca vem preenchida com o nome da
-/// pessoa: aparecer é uma escolha (RGPD).
-class _Alcunha extends ConsumerWidget {
-  const _Alcunha(this.perfil);
+String _estatisticas(LinhaClassificacao l) =>
+    '${l.exactos} ${l.exactos == 1 ? 'exacto' : 'exactos'} · ${l.palpites} ${l.palpites == 1 ? 'palpite' : 'palpites'}';
 
-  final PerfilComunidade perfil;
+/// Os três primeiros, num pódio: o 1.º ao meio e mais alto, o 2.º à esquerda,
+/// o 3.º à direita. Os degraus sobem uma vez, ao abrir.
+class _Podio extends StatelessWidget {
+  const _Podio(this.primeiros);
+
+  /// Até três linhas, pela ordem da tabela.
+  final List<LinhaClassificacao> primeiros;
+
+  @override
+  Widget build(BuildContext context) {
+    // A ordem no pódio: 2.º, 1.º, 3.º. Com menos de três, o que houver.
+    final lugares = [
+      if (primeiros.length > 1) (primeiros[1], 0.7),
+      (primeiros[0], 1.0),
+      if (primeiros.length > 2) (primeiros[2], 0.5),
+    ];
+    final semAnimacao = MediaQuery.disableAnimationsOf(context);
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: semAnimacao ? 1 : 0, end: 1),
+      duration: semAnimacao ? Duration.zero : const Duration(milliseconds: 700),
+      curve: Curves.easeOutBack,
+      builder: (context, subida, _) => Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          for (final (i, (l, altura)) in lugares.indexed) ...[
+            if (i > 0) const SizedBox(width: 8),
+            Expanded(child: _Degrau(l, altura: 56 + 64 * altura * subida)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _Degrau extends StatelessWidget {
+  const _Degrau(this.l, {required this.altura});
+
+  final LinhaClassificacao l;
+  final double altura;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context);
+    final c = t.colorScheme;
+    final metal = corDaPosicao(l.posicao);
+    final cor = metal ?? c.outline;
+
+    return Column(
+      children: [
+        if (l.posicao == 1) const Icon(Icons.emoji_events_rounded, color: AppPalette.ouro, size: 28),
+        ImagemAvatar(l.avatar, tamanho: l.posicao == 1 ? 60 : 48, aro: metal),
+        const SizedBox(height: 6),
+        Text(
+          l.alcunha ?? (l.eu ? 'Você' : '—'),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
+          style: t.textTheme.titleSmall?.copyWith(
+            fontWeight: AppTypography.extraBold,
+            color: l.eu ? c.primary : c.onSurface,
+          ),
+        ),
+        const SizedBox(height: 2),
+        FittedBox(fit: BoxFit.scaleDown, child: ChipPontos(l.pontos)),
+        const SizedBox(height: 8),
+        Container(
+          height: altura,
+          width: double.infinity,
+          alignment: Alignment.topCenter,
+          padding: const EdgeInsets.only(top: 10),
+          decoration: ShapeDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [cor.withValues(alpha: 0.35), cor.withValues(alpha: 0.06)],
+            ),
+            shape: chanfroCom(l.eu ? c.primary : cor.withValues(alpha: 0.8)),
+          ),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text('${l.posicao}.º', style: t.textTheme.headlineMedium?.copyWith(color: metal ?? c.onSurface)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// O cartão de quem joga: a alcunha, o lugar e os pontos. Tocar escolhe ou
+/// muda a alcunha. A alcunha nunca vem preenchida com o nome da pessoa:
+/// aparecer na tabela é uma escolha (RGPD).
+class _CartaoJogador extends ConsumerWidget {
+  const _CartaoJogador({required this.perfil, required this.eu});
+
+  final PerfilComunidade? perfil;
+  final LinhaClassificacao? eu;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final t = Theme.of(context);
-    if (perfil.bloqueado) {
+    final c = t.colorScheme;
+    final perfil = this.perfil;
+    final eu = this.eu;
+
+    if (perfil?.bloqueado ?? false) {
       return Text(
         'O clube suspendeu a sua participação na comunidade.',
-        style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.error),
+        style: t.textTheme.bodyMedium?.copyWith(color: c.error),
       );
     }
-    return Bloco(
+
+    final alcunha = perfil == null ? eu?.alcunha : perfil.alcunha;
+    return PainelArena(
+      destaque: AppPalette.ouro.withValues(alpha: 0.45),
       padding: const EdgeInsets.all(16),
-      onTap: () => mostrarAlcunha(context, ref, perfil.alcunha),
-      child: Row(
+      onTap: perfil == null ? null : () => mostrarAlcunha(context, ref, perfil.alcunha),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const IconePastilha(Icons.badge_outlined),
-          const SizedBox(width: 12),
-          Expanded(
-            child: perfil.alcunha == null
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Escolha uma alcunha', style: t.textTheme.titleSmall),
-                      Text(
-                        'Joga na mesma sem ela, mas só aparece na tabela quem tem alcunha.',
-                        style: t.textTheme.bodySmall,
+          Row(
+            children: [
+              // O leão: tocar escolhe outro (o resto do cartão muda a alcunha).
+              InkWell(
+                customBorder: chanfro,
+                onTap: perfil == null ? null : () => mudarAvatar(context, ref, perfil),
+                child: ImagemAvatar(perfil?.avatar ?? eu?.avatar, tamanho: 60, aro: AppPalette.ouro),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: alcunha == null
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Escolha uma alcunha', style: t.textTheme.titleMedium),
+                          Text(
+                            'Joga na mesma sem ela, mas só aparece na tabela quem tem alcunha.',
+                            style: t.textTheme.bodySmall,
+                          ),
+                        ],
+                      )
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('A sua alcunha', style: t.textTheme.bodySmall),
+                          Text(alcunha, maxLines: 1, overflow: TextOverflow.ellipsis, style: t.textTheme.headlineSmall),
+                        ],
                       ),
-                    ],
-                  )
-                : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('A sua alcunha', style: t.textTheme.bodySmall),
-                      Text(perfil.alcunha!, style: t.textTheme.titleSmall),
-                    ],
-                  ),
+              ),
+              if (perfil != null) Icon(Icons.edit_outlined, color: c.onSurfaceVariant),
+            ],
           ),
-          Icon(Icons.edit_outlined, color: t.colorScheme.onSurfaceVariant),
+          if (eu != null) ...[
+            const SizedBox(height: 14),
+            Divider(height: 1, color: c.outlineVariant),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 16,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                EmblemaPosicao(eu.posicao),
+                ChipPontos(eu.pontos, grande: true),
+                Text(_estatisticas(eu), style: t.textTheme.bodyMedium?.copyWith(color: c.onSurfaceVariant)),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -649,34 +927,62 @@ class CartaoPassatempo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = Theme.of(context);
+    final aberto = p.fase == 'a_decorrer' && p.minha == null;
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: Bloco(
+      child: PainelArena(
+        destaque: aberto ? AppPalette.ouro.withValues(alpha: 0.45) : null,
         onTap: () => context.push('/comunidade/passatempos/${p.uid}'),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (p.imagemUrl case final url?) AspectRatio(aspectRatio: 16 / 9, child: ImagemRede(url)),
+            if (p.imagemUrl case final url?)
+              Stack(
+                children: [
+                  AspectRatio(aspectRatio: 16 / 9, child: ImagemRede(url)),
+                  Positioned(left: 12, top: 12, child: EtiquetaFase(p)),
+                ],
+              ),
             Padding(
               padding: const EdgeInsets.all(14),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  EtiquetaFase(p),
-                  const SizedBox(height: 8),
-                  Text(p.titulo, style: t.textTheme.titleMedium),
+                  if (p.imagemUrl == null) ...[EtiquetaFase(p), const SizedBox(height: 10)],
+                  Text(p.titulo, style: t.textTheme.titleMedium?.copyWith(fontWeight: AppTypography.extraBold)),
                   if (p.resumo != null) ...[
                     const SizedBox(height: 4),
-                    Text(p.resumo!, maxLines: 3, overflow: TextOverflow.ellipsis, style: t.textTheme.bodyMedium),
+                    Text(
+                      p.resumo!,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: t.textTheme.bodyMedium?.copyWith(color: t.colorScheme.onSurfaceVariant),
+                    ),
                   ],
                   if (p.premio != null) ...[
-                    const SizedBox(height: 8),
-                    Row(
-                      children: [
-                        Icon(Icons.card_giftcard_outlined, size: 16, color: t.colorScheme.primary),
-                        const SizedBox(width: 6),
-                        Expanded(child: Text(p.premio!, style: t.textTheme.bodySmall)),
-                      ],
+                    const SizedBox(height: 12),
+                    // O prémio é o que está em jogo: em ouro.
+                    Container(
+                      padding: const EdgeInsets.fromLTRB(10, 8, 12, 8),
+                      decoration: ShapeDecoration(
+                        color: AppPalette.ouro.withValues(alpha: 0.1),
+                        shape: chanfroCom(AppPalette.ouro.withValues(alpha: 0.35), raio: 8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.emoji_events_outlined, size: 20, color: AppPalette.ouro),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              p.premio!,
+                              style: t.textTheme.bodyMedium?.copyWith(
+                                color: AppPalette.ouro,
+                                fontWeight: AppTypography.semiBold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ],
                 ],
@@ -700,7 +1006,7 @@ class EtiquetaFase extends StatelessWidget {
     final t = Theme.of(context);
     final c = t.colorScheme;
     final (texto, fundo, frente) = switch ((p.fase, p.minha?.vencedor)) {
-      ('resultados', true) => ('Ganhou!', c.primary, c.onPrimary),
+      ('resultados', true) => ('Ganhou!', AppPalette.ouro, AppPalette.onOuro),
       ('resultados', _) => ('Vencedores anunciados', c.surfaceContainerHigh, c.onSurfaceVariant),
       (_, _) when p.minha != null => ('Já participou', c.primaryContainer, c.onPrimaryContainer),
       ('a_decorrer', _) => ('A decorrer', c.primaryContainer, c.onPrimaryContainer),
@@ -710,11 +1016,11 @@ class EtiquetaFase extends StatelessWidget {
     };
     if (texto.isEmpty) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: fundo, borderRadius: BorderRadius.circular(20)),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: ShapeDecoration(color: fundo, shape: chanfroCom(frente.withValues(alpha: 0.3), raio: 6)),
       child: Text(
         texto,
-        style: t.textTheme.labelMedium?.copyWith(color: frente, fontWeight: FontWeight.w600),
+        style: t.textTheme.labelMedium?.copyWith(color: frente, fontWeight: AppTypography.extraBold),
       ),
     );
   }
