@@ -6,7 +6,7 @@ Tudo o que a Play Console pede, pronto a copiar. A app substitui a
 
 | Ficheiro | Onde vai |
 |---|---|
-| `../../build/app/outputs/bundle/release/LPS-Neo-2.0.0+14.aab` | Testar e lançar → versão (gerado localmente, fora do git) |
+| `../../build/app/outputs/bundle/release/LPS-Neo-2.0.0+18.aab` | Testar e lançar → versão (gerado localmente, fora do git) |
 | `icone-512.png` | Ficha da loja → Ícone da app (512×512) |
 | `destaque-1024x500.png` | Ficha da loja → Imagem de destaque |
 | `capturas/01…07.png` | Ficha da loja → Capturas de ecrã do telemóvel (1440×2880, 2:1) |
@@ -75,7 +75,14 @@ esta ordem.
 
 ```
 <pt-PT>
-Nova app dos Leões de Porto Salvo, feita de raiz: notícias, agenda e resultados para todos; bilhetes no telemóvel; Comunidade Leões com palpites e passatempos; e a área de sócio com cartão digital, quotas, pagamentos e inscrições. Se usava a app antiga, entre de novo.
+Nova app dos Leões de Porto Salvo, feita de raiz.
+
+• Notícias, agenda, jogos e resultados, sem precisar de conta
+• Bilhetes: compre e leve-os no telemóvel
+• Zona de sócio: quotas, pagamentos por MB WAY e Multibanco, cartão e documentos
+• Faça-se sócio pela app
+• Comunidade: adivinhe os resultados, suba na classificação, escolha o seu leão e participe nos passatempos
+• Notificações do clube
 </pt-PT>
 ```
 
@@ -88,6 +95,12 @@ Nova app dos Leões de Porto Salvo, feita de raiz: notícias, agenda e resultado
 ```
 https://mylps.leoesdeportosalvo.pt/lps/privacidade
 ```
+
+> **Recusa de 26/09/2026:** a ficha ainda tinha a política da app antiga
+> (`www.leoesdeportosalvo.pt/politica-privacidade-aplicacao/`, que dá 404 desde que
+> o WordPress mudou), e o link de eliminação na *Segurança dos dados* estava
+> inválido. Os dois URLs desta página respondem 200. Depois de os mudar, reenviar
+> em *Visão geral da publicação*.
 
 ### Acesso à app
 
@@ -151,6 +164,8 @@ quotas e bilhetes ao próprio clube, por um prestador de pagamentos (IfthenPay).
   ```
   https://mylps.leoesdeportosalvo.pt/lps/conta/eliminar
   ```
+  Vai no formulário da **Segurança dos dados** (secção *Eliminação de dados*), que é
+  onde a Google o verifica. Colá-lo sem espaços nem texto à volta, com `https://`.
 - Na app: *Conta → Eliminar a conta* (ou *Dados pessoais → Eliminar conta da app*).
 - *Também permite pedir a eliminação de alguns dados sem eliminar a conta?*
   **Não** (isso trata-se com a secretaria).
@@ -193,7 +208,7 @@ A biometria fica no telemóvel e nunca sai dele.
 ## 4. Lançar
 
 1. *Testar e lançar → Testar → Testes internos → Criar nova versão*: carregar o
-   `.aab` 14, notas da versão, **Guardar e publicar**; testar com a lista de
+   `.aab` 18, notas da versão, **Guardar e publicar**; testar com a lista de
    testadores.
 2. Quando estiver bem: *Produção → Criar nova versão → Adicionar a partir da
    biblioteca* (o mesmo `.aab`), com **lançamento faseado** (começar em 10–20%).

@@ -28,6 +28,7 @@ Pedidos abertos:
 | `C:\home\cisoc\docs\pedidos-app\2026-09-22-titulos-de-sessao-mal-codificados.md` | Nada — é um erro nos dados de uma sessão; a app mostra o que a API mandar |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-24-push-pagamento-emitido.md` | O push "pagamento emitido" (a app já abre `/socio/pagamentos/{id}?socio=`), e os destinos dos avisos de modalidades, chat e pagamento confirmado, que hoje não abrem nada |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-25-pagar-com-saldo.md` | Pagar bilhetes, inscrições e loja com o saldo da conta corrente (quotas e mensalidades continuam no abatimento automático; hoje o saldo é só consulta: vê-se no topo do Início e em `/socio/wallet`) |
+| `C:\home\cisoc\docs\pedidos-app\2026-09-27-nome-da-app-nas-paginas-legais.md` | Nada, mas a Google pede o nome da ficha ("Leões Porto Salvo App Oficial") nas páginas de privacidade e de eliminação da conta |
 | `C:\home\cisoc\docs\pedidos-app\2026-09-26-comunidade-publica.md` (do site; a app acrescentou o que precisa) | Mostrar a quem não entrou o pódio, a tabela e os passatempos da Comunidade (hoje só o convite "Entre em campo") |
 
 **Menores** (§2.10–§2.12, política de menores do CISOC, fases 1 a 9): a app

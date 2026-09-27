@@ -54,9 +54,14 @@ abstract final class Links {
   /// Caminho de rota a partir de um link recebido: tira o prefixo do servidor
   /// e a barra do fim, que o site põe e as rotas da app não têm. `null` se não
   /// houver nada a tirar (já é uma rota da app).
+  ///
+  /// Um endereço com host é sempre um link: o Android entrega-o inteiro
+  /// (`https://www…/noticias/x`) e o go_router já lhe tirou a barra. Com a raiz
+  /// sem prefixo, ficava igual e ia inteiro para o `?para=` do arranque — que
+  /// recusa o que tem `://` e caía nas notícias.
   static String? rotaDoLink(Uri uri) {
     var p = uri.path;
-    var mudou = false;
+    var mudou = uri.hasAuthority;
     for (final pre in {prefixo, _prefixoAntigo}) {
       if (pre.isNotEmpty && (p == pre || p.startsWith('$pre/'))) {
         p = p.substring(pre.length);

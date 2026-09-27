@@ -33,6 +33,18 @@ void main() {
       expect(ir('/bilhetes/ABC/?z=1-2'), '/bilhetes/ABC?z=1-2');
     });
 
+    test('um link inteiro já sem a barra (como o go_router o entrega) também vira rota', () {
+      expect(ir('https://www.leoesdeportosalvo.pt/noticias/x'), '/noticias/x');
+      expect(ir('https://www.leoesdeportosalvo.pt/bilhetes/ABC?z=1-2'), '/bilhetes/ABC?z=1-2');
+    });
+
+    test('link aberto com a app fechada: chega à notícia depois do arranque', () {
+      final rota = ir('https://www.leoesdeportosalvo.pt/noticias/x', aArrancar: true)!;
+      expect(rota, '/noticias/x');
+      final arranque = ir(rota, aArrancar: true)!;
+      expect(ir(arranque), '/noticias/x');
+    });
+
     test('os links antigos, no CISOC, continuam a abrir', () {
       expect(ir('https://mylps.leoesdeportosalvo.pt/lps/noticias/x'), '/noticias/x');
       expect(ir('/lps/bilhetes/ABC?z=1-2'), '/bilhetes/ABC?z=1-2');
