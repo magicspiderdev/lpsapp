@@ -35,6 +35,7 @@ jobs:
           head -1 dist.key | nota chave-formato
           # A Apple devolve um certificado com outro nome; aqui assina-se o próprio.
           openssl req -x509 -new -key dist.key -days 30 -outform DER -out dist.cer -utf8 \
+            -addext "keyUsage=critical,digitalSignature" -addext "extendedKeyUsage=critical,codeSigning" \
             -subj "/UID=ABCDE12345/CN=Apple Distribution: Leões & Cª, Unipessoal Lda. (ABCDE12345)/OU=ABCDE12345/O=Leões & Cª, Unipessoal Lda./C=PT"
           openssl x509 -inform DER -in dist.cer -out dist.pem
           openssl genrsa -out outra.key 2048 2>/dev/null
@@ -76,6 +77,8 @@ jobs:
       - name: O que ficou
         run: |
           security find-identity -p codesigning "$RUNNER_TEMP/assinatura.keychain-db" | nota identidades
+          security find-identity "$RUNNER_TEMP/assinatura.keychain-db" | nota identidades-todas
+          security find-certificate -a "$RUNNER_TEMP/assinatura.keychain-db" | grep -E '"labl"|"alis"' | nota certificados
           nota Signing.xcconfig < ios/Flutter/Signing.xcconfig
           plutil -p "$RUNNER_TEMP/assinatura/ExportOptions.plist" | nota ExportOptions
           ls "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles" | nota perfis
@@ -111,5 +114,7 @@ jobs:
           echo 'OK: os três casos falham com a mensagem esperada'
       - name: O altool deste Xcode aceita o envio com chave da API
         run: |
-          xcrun altool --help 2>&1 | grep -E -- '--upload-app|--upload-package|--apiKey|--apiIssuer|--type|private_keys|--file' | cut -c1-220 | awk 'NR<=14' | nota altool
-          xcrun altool --version 2>&1 | awk 'NR<=2' | nota altool-versao
+          xcrun altool --help > ajuda.txt 2>&1 || true
+          wc -l ajuda.txt | nota altool-linhas
+          split -l 60 ajuda.txt parte-
+          for f in parte-*; do cut -c1-260 "$f" | nota "altool-$f"; done
