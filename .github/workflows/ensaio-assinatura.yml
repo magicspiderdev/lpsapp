@@ -114,7 +114,14 @@ jobs:
           echo 'OK: os três casos falham com a mensagem esperada'
       - name: O altool deste Xcode aceita o envio com chave da API
         run: |
-          xcrun altool --help > ajuda.txt 2>&1 || true
-          wc -l ajuda.txt | nota altool-linhas
-          split -l 60 ajuda.txt parte-
-          for f in parte-*; do cut -c1-260 "$f" | nota "altool-$f"; done
+          # Credenciais falsas: interessa só se os argumentos são aceites e se
+          # uma falha sai com código diferente de zero.
+          chaves="$HOME/.appstoreconnect/private_keys"; mkdir -p "$chaves"
+          openssl ecparam -genkey -name prime256v1 -noout | openssl pkcs8 -topk8 -nocrypt > "$chaves/AuthKey_FAKEKEY123.p8"
+          mkdir -p Payload/Falsa.app && printf '<?xml version="1.0"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>pt.magicspider.mslps</string><key>CFBundleShortVersionString</key><string>2.0.0</string><key>CFBundleVersion</key><string>18</string></dict></plist>' > Payload/Falsa.app/Info.plist && zip -qr "LPS Neo.ipa" Payload
+          set +e
+          out=$(xcrun altool --upload-package "LPS Neo.ipa" --api-key FAKEKEY123 --api-issuer 00000000-0000-0000-0000-000000000000 2>&1); rc=$?
+          { echo "rc=$rc"; echo "$out" | cut -c1-400 | awk 'NR<=25'; } | nota altool-novo
+          out=$(xcrun altool --upload-app --type ios --file "LPS Neo.ipa" --apiKey FAKEKEY123 --apiIssuer 00000000-0000-0000-0000-000000000000 2>&1); rc=$?
+          { echo "rc=$rc"; echo "$out" | cut -c1-400 | awk 'NR<=25'; } | nota altool-antigo
+          set -e
