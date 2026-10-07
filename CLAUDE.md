@@ -207,6 +207,8 @@ certificados e os segredos, e quando caducam: `docs/loja-apple/README.md`.
   `ios/Flutter/Release.xcconfig`; o ficheiro é escrito no build
   (`.github/scripts/ios-assinatura.sh`). Não pôr equipa, perfil nem certificado
   no `project.pbxproj`.
+- Só iPhone (`TARGETED_DEVICE_FAMILY = 1`): com iPad, a App Store pede
+  capturas de iPad e a revisão avalia o ecrã grande. No iPad corre ampliada.
 - iOS mínimo **15.0**, exigido pelo Firebase. Não há `Podfile` no repositório:
   o Flutter gera-o em cada build.
 

@@ -36,8 +36,11 @@ No Git Bash, numa pasta **fora do repositório**:
 
 ```bash
 openssl genrsa -out ios_dist.key 2048
-openssl req -new -key ios_dist.key -out ios_dist.csr -subj "/CN=Magic Spider/C=PT"
+MSYS_NO_PATHCONV=1 openssl req -new -key ios_dist.key -out ios_dist.csr -subj "/CN=Magic Spider/C=PT"
 ```
+
+Sem o `MSYS_NO_PATHCONV=1`, o Git Bash lê o `/CN=…` como um caminho e troca-o
+por `C:/Program Files/Git/CN=…`, e o `openssl` recusa o nome.
 
 O `ios_dist.key` é a chave privada da assinatura. Guardar uma cópia num sítio
 seguro e nunca a pôr no git: com ela e com o certificado, assina-se em nome da

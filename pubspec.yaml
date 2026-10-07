@@ -20,7 +20,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # da última versão publicada da app antiga. O código dela ia em 11
 # (`mylps251/pubspec.yaml`: 1.0.3+11) — confirmar na Play Console antes de
 # publicar, que pode ter subido depois disso.
-version: 2.0.0+18
+version: 2.0.0+19
 
 environment:
   sdk: ^3.11.5

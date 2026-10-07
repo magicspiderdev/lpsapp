@@ -14,6 +14,10 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<!-- Só HTTPS e o Keychain do sistema: isento de exportação. Sem isto, a
+	     App Store Connect pergunta pela encriptação em cada build. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
