@@ -193,6 +193,23 @@ esta app tem de herdar.
   Convém uma cópia de segurança fora do projecto: perder a chave é perder a app.
 - Não há material de assinatura de iOS na app antiga (nunca foi publicada).
 
+### iOS: build e TestFlight no GitHub Actions
+
+Não há Mac: o iOS compila-se e assina-se no GitHub. Como se obtêm os
+certificados e os segredos, e quando caducam: `docs/loja-apple/README.md`.
+
+- `.github/workflows/ios.yml` — build sem assinatura. Corre nos pull requests
+  que mexem em `ios/` ou no `pubspec`: é a única prova de que uma alteração
+  compila em iOS.
+- `.github/workflows/ios-testflight.yml` — build assinado e envio para o
+  TestFlight, só de arranque manual. A assinatura vem de segredos do
+  repositório. No projecto só existe o `#include? "Signing.xcconfig"` do
+  `ios/Flutter/Release.xcconfig`; o ficheiro é escrito no build
+  (`.github/scripts/ios-assinatura.sh`). Não pôr equipa, perfil nem certificado
+  no `project.pbxproj`.
+- iOS mínimo **15.0**, exigido pelo Firebase. Não há `Podfile` no repositório:
+  o Flutter gera-o em cada build.
+
 ## Zonas da app
 
 A app **não é só para sócios**. Tem duas zonas:
