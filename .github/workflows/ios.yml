@@ -1,0 +1,46 @@
+# Compila a LPS Neo para iOS num Mac do GitHub, sem assinatura.
+#
+# Para que serve: confirmar que o projecto compila em iOS e obter um .ipa.
+# Para que não serve: TestFlight e App Store. Isso exige a conta Apple
+# Developer e um build assinado (`flutter build ipa`).
+#
+# Arranque manual: separador Actions > iOS > Run workflow.
+name: iOS
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build iOS (sem assinatura)
+    runs-on: macos-26
+    timeout-minutes: 45
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # A mesma versão com que o projecto foi criado (.metadata).
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.9
+          cache: true
+
+      - run: flutter --version
+
+      - run: flutter pub get
+
+      # Gera o Podfile (não está no repositório), instala os pods e compila.
+      - run: flutter build ios --release --no-codesign
+
+      - name: Empacotar o .ipa
+        run: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -qry lpsneo-sem-assinatura.ipa Payload
+
+      - uses: actions/upload-artifact@v7
+        with:
+          path: lpsneo-sem-assinatura.ipa
+          archive: false
+          if-no-files-found: error
