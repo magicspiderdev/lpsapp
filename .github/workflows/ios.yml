@@ -4,11 +4,18 @@
 # Para que não serve: TestFlight e App Store. Isso exige a conta Apple
 # Developer e um build assinado (`flutter build ipa`).
 #
-# Arranque manual: separador Actions > iOS > Run workflow.
+# Corre sozinho nos pull requests que mexem no iOS ou nas dependências, e
+# à mão em Actions > iOS > Run workflow.
 name: iOS
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ios/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios.yml'
 
 jobs:
   build:
