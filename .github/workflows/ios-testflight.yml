@@ -1,0 +1,127 @@
+# Compila a LPS Neo para iOS, assina-a e envia-a para o TestFlight.
+#
+# Só de arranque manual: Actions > iOS TestFlight > Run workflow.
+#
+# Precisa de seis segredos do repositório (Settings > Secrets and variables >
+# Actions). Como se obtêm e quando caducam: docs/loja-apple/README.md.
+#   IOS_DIST_KEY, IOS_DIST_CERT_BASE64, IOS_PROFILE_BASE64   assinatura
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8                    envio
+#
+# O .ipa assinado não fica nos artefactos: o repositório é público e os
+# artefactos também. Sai daqui directamente para a App Store Connect.
+name: iOS TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: Número de build (vazio = o do pubspec, depois do "+")
+        required: false
+        type: string
+
+# Dois envios ao mesmo tempo com o mesmo número de build: o segundo é recusado.
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  BUNDLE_ID: pt.magicspider.mslps
+
+jobs:
+  testflight:
+    name: Build assinado e envio para o TestFlight
+    runs-on: macos-26
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Confirmar os segredos e o número de build
+        env:
+          IOS_DIST_KEY: ${{ secrets.IOS_DIST_KEY }}
+          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          faltam=0
+          for s in IOS_DIST_KEY IOS_DIST_CERT_BASE64 IOS_PROFILE_BASE64 ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Falta o segredo $s (Settings > Secrets and variables > Actions)."
+              faltam=1
+            fi
+          done
+          if [ -n "$BUILD_NUMBER" ] && ! [[ "$BUILD_NUMBER" =~ ^[0-9]+$ ]]; then
+            echo "::error::O número de build tem de ser um inteiro."
+            faltam=1
+          fi
+          exit "$faltam"
+
+      # Antes do Flutter: se o certificado e o perfil não baterem certo,
+      # sabe-se em segundos e não ao fim de um build.
+      - name: Instalar o certificado e o perfil
+        env:
+          IOS_DIST_KEY: ${{ secrets.IOS_DIST_KEY }}
+          IOS_DIST_CERT_BASE64: ${{ secrets.IOS_DIST_CERT_BASE64 }}
+          IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+        run: .github/scripts/ios-assinatura.sh
+
+      - name: Confirmar que o certificado serve para assinar
+        run: |
+          identidades=$(security find-identity -v -p codesigning "$RUNNER_TEMP/assinatura.keychain-db")
+          echo "$identidades"
+          if ! grep -Eq '^ *[1-9][0-9]* valid identities found' <<<"$identidades"; then
+            echo "::error::O certificado não é válido para assinar: tem de ser do tipo Apple Distribution, dentro da validade e não revogado."
+            exit 1
+          fi
+
+      # A mesma versão com que o projecto foi criado (.metadata).
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.41.9
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Compilar e assinar
+        env:
+          BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          flutter build ipa --release \
+            --export-options-plist="$RUNNER_TEMP/assinatura/ExportOptions.plist" \
+            ${BUILD_NUMBER:+--build-number="$BUILD_NUMBER"}
+
+      - name: Enviar para o TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          chaves="$HOME/.appstoreconnect/private_keys"
+          mkdir -p "$chaves"
+          printf '%s\n' "$ASC_KEY_P8" | tr -d '\r' > "$chaves/AuthKey_${ASC_KEY_ID}.p8"
+          ipa=$(find build/ios/ipa -name '*.ipa' -print -quit)
+          if [ -z "$ipa" ]; then
+            echo "::error::O build não deixou nenhum .ipa em build/ios/ipa."
+            exit 1
+          fi
+          xcrun altool --upload-app --type ios --file "$ipa" \
+            --apiKey "$ASC_KEY_ID" --apiIssuer "$ASC_ISSUER_ID"
+
+      - name: Apagar o material de assinatura
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/assinatura.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/assinatura" "$HOME/.appstoreconnect/private_keys" ios/Flutter/Signing.xcconfig
+          rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/"*.mobileprovision \
+            "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles/"*.mobileprovision

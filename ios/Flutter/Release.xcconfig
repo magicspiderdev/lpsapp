@@ -1,1 +1,5 @@
 #include "Generated.xcconfig"
+
+// Assinatura de distribuição. O ficheiro só existe no build do TestFlight, que
+// o escreve (.github/scripts/ios-assinatura.sh); fora de lá não há nada a ler.
+#include? "Signing.xcconfig"
