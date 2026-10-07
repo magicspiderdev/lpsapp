@@ -1,0 +1,107 @@
+# Temporário: ensaia o script de assinatura num Mac com um certificado e um
+# perfil falsos. Não vai para o main.
+name: Ensaio da assinatura (temporário)
+on:
+  push:
+    branches: ['tmp/ensaio-assinatura']
+defaults:
+  run:
+    shell: bash
+env:
+  BUNDLE_ID: pt.magicspider.mslps
+jobs:
+  ensaio:
+    runs-on: macos-26
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - name: Ferramentas
+        run: |
+          xcodebuild -version
+          echo "openssl no PATH: $(command -v openssl) -> $(openssl version)"
+          echo "/usr/bin/openssl -> $(/usr/bin/openssl version)"
+          python3 --version
+      - name: Material falso (com o OpenSSL 3, como no Git Bash do Windows)
+        run: |
+          mkdir -p "$RUNNER_TEMP/falso" && cd "$RUNNER_TEMP/falso"
+          openssl genrsa -out dist.key 2048 2>/dev/null
+          openssl req -new -key dist.key -out dist.csr -subj "/CN=Magic Spider/C=PT"
+          head -1 dist.key
+          # A Apple devolve um certificado com outro nome; aqui assina-se o próprio.
+          openssl req -x509 -new -key dist.key -days 30 -outform DER -out dist.cer -utf8 \
+            -subj "/UID=ABCDE12345/CN=Apple Distribution: Leões & Cª, Unipessoal Lda. (ABCDE12345)/OU=ABCDE12345/O=Leões & Cª, Unipessoal Lda./C=PT"
+          openssl x509 -inform DER -in dist.cer -out dist.pem
+          openssl genrsa -out outra.key 2048 2>/dev/null
+          perfil() {  # $1 = ficheiro de saída, $2 = "sem-dominios" para tirar o direito
+            SAIDA="$1" VARIANTE="${2:-}" python3 - <<'PY'
+          import datetime, os, plistlib
+          cert = open("dist.cer", "rb").read()
+          direitos = {
+              "application-identifier": "ABCDE12345.pt.magicspider.mslps",
+              "com.apple.developer.team-identifier": "ABCDE12345",
+              "com.apple.developer.associated-domains": "*",
+              "get-task-allow": False,
+          }
+          if os.environ["VARIANTE"] == "sem-dominios":
+              del direitos["com.apple.developer.associated-domains"]
+          plistlib.dump({
+              "Name": "LPS Neo & App Store",
+              "UUID": "11111111-2222-3333-4444-555555555555",
+              "TeamIdentifier": ["ABCDE12345"],
+              "TeamName": "Leões & Cª",
+              "Entitlements": direitos,
+              "DeveloperCertificates": [cert],
+              "ExpirationDate": datetime.datetime(2027, 10, 1),
+          }, open(os.environ["SAIDA"] + ".plist", "wb"))
+          PY
+            openssl smime -sign -binary -nodetach -in "$1.plist" -signer dist.pem -inkey dist.key -outform DER -out "$1" 2>/dev/null
+          }
+          perfil bom.mobileprovision
+          perfil sem-dominios.mobileprovision sem-dominios
+          ls -la
+      - name: Caso bom (chave com CRLF e base64 partido em linhas, como um colar descuidado)
+        run: |
+          cd "$RUNNER_TEMP/falso"
+          IOS_DIST_KEY="$(awk '{printf "%s\r\n", $0}' dist.key)" \
+          IOS_DIST_CERT_BASE64="$(base64 -b 64 -i dist.cer)" \
+          IOS_PROFILE_BASE64="$(base64 -b 64 -i bom.mobileprovision)" \
+            "$GITHUB_WORKSPACE/.github/scripts/ios-assinatura.sh"
+      - name: O que ficou
+        run: |
+          echo '--- identidades no porta-chaves (falsas, por isso não "valid")'
+          security find-identity -p codesigning "$RUNNER_TEMP/assinatura.keychain-db"
+          echo '--- Signing.xcconfig'; cat ios/Flutter/Signing.xcconfig
+          echo '--- ExportOptions.plist'; plutil -p "$RUNNER_TEMP/assinatura/ExportOptions.plist"
+          echo '--- perfis instalados'; ls "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"
+      - name: O Xcode lê a assinatura só no Runner em Release
+        run: |
+          ver() { xcodebuild -project ios/Runner.xcodeproj -target "$1" -configuration "$2" -showBuildSettings 2>/dev/null \
+                    | grep -E '^ +(CODE_SIGN_STYLE|DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_IDENTITY|CODE_SIGN_ENTITLEMENTS|IPHONEOS_DEPLOYMENT_TARGET) ' || true; }
+          echo '=== Runner / Release'; ver Runner Release | tee release.txt
+          echo '=== Runner / Debug';   ver Runner Debug   | tee debug.txt
+          echo '=== RunnerTests / Release'; ver RunnerTests Release
+          grep -q 'CODE_SIGN_STYLE = Manual' release.txt
+          grep -q 'DEVELOPMENT_TEAM = ABCDE12345' release.txt
+          grep -q 'PROVISIONING_PROFILE_SPECIFIER = LPS Neo & App Store' release.txt
+          grep -q 'CODE_SIGN_IDENTITY = Apple Distribution: Leões & Cª, Unipessoal Lda. (ABCDE12345)' release.txt
+          if grep -qE 'CODE_SIGN_STYLE = Manual|DEVELOPMENT_TEAM = ABCDE12345' debug.txt; then echo 'FALHA: a assinatura chegou ao Debug'; exit 1; fi
+          echo 'OK: a assinatura aplica-se ao Runner em Release e a mais nada'
+      - name: Sem o ficheiro, o projecto fica como estava
+        run: |
+          rm ios/Flutter/Signing.xcconfig
+          xcodebuild -project ios/Runner.xcodeproj -target Runner -configuration Release -showBuildSettings 2>&1 \
+            | grep -E '^ +(CODE_SIGN_STYLE|DEVELOPMENT_TEAM|PROVISIONING_PROFILE_SPECIFIER|CODE_SIGN_IDENTITY) |Signing.xcconfig|error|warning' || true
+      - name: Casos maus (têm de falhar, com a mensagem certa)
+        run: |
+          cd "$RUNNER_TEMP/falso"
+          tenta() { set +e; out=$("$GITHUB_WORKSPACE/.github/scripts/ios-assinatura.sh" 2>&1); rc=$?; set -e; echo "$out" | tail -3; echo "rc=$rc"; [ "$rc" -ne 0 ] && grep -q "$1" <<<"$out"; }
+          echo '=== chave errada'
+          IOS_DIST_KEY="$(cat outra.key)" IOS_DIST_CERT_BASE64="$(base64 -i dist.cer)" IOS_PROFILE_BASE64="$(base64 -i bom.mobileprovision)" tenta 'não é a do certificado'
+          echo '=== perfil sem Associated Domains'
+          IOS_DIST_KEY="$(cat dist.key)" IOS_DIST_CERT_BASE64="$(base64 -i dist.cer)" IOS_PROFILE_BASE64="$(base64 -i sem-dominios.mobileprovision)" tenta 'Associated Domains'
+          echo '=== certificado que não é base64'
+          IOS_DIST_KEY="$(cat dist.key)" IOS_DIST_CERT_BASE64="isto não é um certificado" IOS_PROFILE_BASE64="$(base64 -i bom.mobileprovision)" tenta 'IOS_DIST_CERT_BASE64'
+          echo 'OK: os três casos falham com a mensagem esperada'
+      - name: O altool deste Xcode aceita o envio com chave da API
+        run: |
+          xcrun altool --help 2>&1 | grep -nE -- '--upload-app|--upload-package|--apiKey|--apiIssuer|--type|private_keys|-f, --file' | head -20
